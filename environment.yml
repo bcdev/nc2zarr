@@ -1,0 +1,16 @@
+name: nc2zarr
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python >=3.7
+  # Production
+  - click
+  - netcdf4
+  - xarray
+  - yaml
+  - zarr
+  # Testing
+  - pytest
+  - pytest-cov
