@@ -49,9 +49,9 @@ def nc2zarr(input_files: List[str], output_file: str, config_file: str, verbose:
         return 0
 
     from .convert import convert_netcdf_to_zarr
-    convert_netcdf_to_zarr(input_files=input_files,
-                           output_file=output_file,
-                           config_file=config_file,
+    convert_netcdf_to_zarr(input_paths=input_files,
+                           output_path=output_file,
+                           config_path=config_file,
                            verbose=verbose)
 
 

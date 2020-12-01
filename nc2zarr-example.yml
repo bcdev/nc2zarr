@@ -1,0 +1,12 @@
+# Run
+#
+# $ nc2zarr -c nc2zarr-example.yml
+#
+
+input:
+  paths: /data/QA4ECV-L3-Mosaic-Albedo-NoSnow-05\*.nc
+
+output:
+  path: ./QA4ECV-L3-Mosaic-Albedo-NoSnow-05.zarr
+  overwrite: true
+  consolidated: true
