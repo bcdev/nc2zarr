@@ -1,12 +1,16 @@
 # Run
 #
-# $ nc2zarr -c nc2zarr-example.yml
+# $ nc2zarr -c nc2zarr-ceda-example.yml
 #
 
 input:
-  paths: /neodc/esacci/ozone/data/total_columns/l3/merged/v0100/2010/*.nc
+  paths: /neodc/esacci/cloud/data/phase-2/L3C/MERIS-AATSR/v2.0/2011/*.nc
+  variables:
+    - nobs
+    - cfc
+    - cfc_std
 
 output:
-  path: ./ozone-l3-merged-v0100-2010.zarr
+  path: ./cloud_L3C_MERIS-AATSR_v2.0_2011.zarr
   overwrite: true
   consolidated: true
