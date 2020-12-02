@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import glob
 import os
 import shutil
 from typing import Sequence, Union, Type
@@ -53,12 +54,13 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     config = {}
     if config_path is not None:
         with open(config_path) as fp:
-            config = yaml.load(fp)
+            config = yaml.load(fp, Loader=yaml.SafeLoader)
 
     input_config = config.get('input', {})
     output_config = config.get('output', {})
 
     input_paths = input_config.get('paths', input_paths)
+    input_variables = input_config.get('variables')
     output_path = output_config.get('path', output_path)
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
@@ -69,23 +71,36 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     s3_kwargs = {k: output_config[k] for k in S3_KEYWORDS if k in output_config}
     s3_client_kwargs = {k: output_config[k] for k in S3_CLIENT_KEYWORDS if k in output_config}
     if s3_kwargs or s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(**s3_kwargs, client_kwargs=s3_client_kwargs or None)
+        s3 = s3fs.S3FileSystem(*s3_kwargs, client_kwargs=s3_client_kwargs or None)
 
+    input_files = []
     if isinstance(input_paths, str):
-        input_file = input_paths
-        if '*' in input_paths:
-            input_dataset = xr.open_mfdataset(input_paths, engine='netcdf4')
-        else:
-            input_dataset = xr.open_dataset(input_paths, engine='netcdf4')
+        input_files.extend(glob.glob(input_paths, recursive=True))
     elif input_paths is not None and len(input_paths):
-        input_dataset = xr.open_mfdataset(input_paths, engine='netcdf4')
-    else:
-        raise exception_type('input_paths must be given')
+        for input_path in input_paths:
+            input_files.extend(glob.glob(input_path, recursive=True))
+
+    if not input_files:
+        raise exception_type('at least one input file must be given')
+
+    input_files = sorted(input_files)
+    input_datasets = []
+    for input_file in input_files:
+        input_dataset = xr.open_dataset(input_file, engine='netcdf4')
+        if input_variables:
+            drop_variables = set(input_dataset.data_vars).difference(input_variables)
+            input_dataset = input_dataset.drop_vars(drop_variables)
+        if 'time' not in input_dataset.coords:
+            # TODO: try inserting time dimension from input_dataset.attrs or from input_file
+            raise exception_type(f'missing dimension "time" in dataset "{input_file}"')
+        input_datasets.append(input_dataset)
+
+    output_dataset = xr.concat(input_datasets, 'time')
+
+    # TODO: update output_dataset.attrs to reflect new time extent
 
     if output_chunks:
-        output_dataset = input_dataset.chunk(output_chunks)
-    else:
-        output_dataset = input_dataset.chunk(output_chunks)
+        output_dataset = output_dataset.chunk(output_chunks)
 
     if s3 is not None:
         if output_overwrite and s3.isdir(output_path):
