@@ -1,0 +1,12 @@
+# Run
+#
+# $ nc2zarr -c nc2zarr-example.yml
+#
+
+input:
+  paths: /neodc/esacci/ozone/data/total_columns/l3/merged/v0100/2010/*.nc
+
+output:
+  path: ./ozone-l3-merged-v0100-2010.zarr
+  overwrite: true
+  consolidated: true
