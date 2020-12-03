@@ -1,6 +1,6 @@
 # Run
 #
-# $ nc2zarr -c nc2zarr-ceda-example.yml
+# $ nc2zarr -c nc2zarr-cci-cloud.yml
 #
 
 input:
@@ -11,7 +11,9 @@ input:
     - cfc_std
 
 output:
-  path: ./cloud_L3C_MERIS-AATSR_v2.0_2011.zarr
+  path: esacci_test/cloud_L3C_MERIS-AATSR_v2.0_2011.zarr
   overwrite: true
   consolidated: true
   endpoint_url: https://cci-ke-o.s3-ext.jc.rl.ac.uk
+  key: ...
+  secret: ...
