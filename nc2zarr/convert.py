@@ -47,31 +47,24 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param verbose:
     :param exception_type:
     """
-    input_paths = input_paths or []
-    for input_file in input_paths:
-        print(f'Reading "{input_file}"...')
-
     config = {}
     if config_path is not None:
         with open(config_path) as fp:
             config = yaml.load(fp, Loader=yaml.SafeLoader)
+            print(f'Configuration {config_path} loaded.')
 
     input_config = config.get('input', {})
     output_config = config.get('output', {})
 
     input_paths = input_config.get('paths', input_paths)
     input_variables = input_config.get('variables')
+    input_concat_dim = input_config.get('concat_dim', 'time')
+    input_engine = input_config.get('engine', 'netcdf4')
     output_path = output_config.get('path', output_path)
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
     output_chunks = output_config.get('chunks')
-
-    s3 = None
-    s3_kwargs = {k: output_config[k] for k in S3_KEYWORDS if k in output_config}
-    s3_client_kwargs = {k: output_config[k] for k in S3_CLIENT_KEYWORDS if k in output_config}
-    if s3_kwargs or s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(*s3_kwargs, client_kwargs=s3_client_kwargs or None)
 
     input_files = []
     if isinstance(input_paths, str):
@@ -84,23 +77,32 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         raise exception_type('at least one input file must be given')
 
     input_files = sorted(input_files)
-    input_datasets = []
-    for input_file in input_files:
-        input_dataset = xr.open_dataset(input_file, engine='netcdf4')
+    print(input_files)
+
+    def preprocess_input_dataset(input_dataset: xr.Dataset) -> xr.Dataset:
         if input_variables:
             drop_variables = set(input_dataset.data_vars).difference(input_variables)
             input_dataset = input_dataset.drop_vars(drop_variables)
-        if 'time' not in input_dataset.coords:
+        if input_concat_dim not in input_dataset.dims:
             # TODO: try inserting time dimension from input_dataset.attrs or from input_file
             raise exception_type(f'missing dimension "time" in dataset "{input_file}"')
-        input_datasets.append(input_dataset)
+        return input_dataset
 
-    output_dataset = xr.concat(input_datasets, 'time')
+    output_dataset = xr.open_mfdataset(input_files,
+                                       engine=input_engine,
+                                       preprocess=preprocess_input_dataset,
+                                       concat_dim=input_concat_dim)
 
     # TODO: update output_dataset.attrs to reflect new time extent
 
     if output_chunks:
         output_dataset = output_dataset.chunk(output_chunks)
+
+    s3 = None
+    s3_kwargs = {k: output_config[k] for k in S3_KEYWORDS if k in output_config}
+    s3_client_kwargs = {k: output_config[k] for k in S3_CLIENT_KEYWORDS if k in output_config}
+    if s3_kwargs or s3_client_kwargs:
+        s3 = s3fs.S3FileSystem(*s3_kwargs, client_kwargs=s3_client_kwargs or None)
 
     if s3 is not None:
         if output_overwrite and s3.isdir(output_path):

@@ -11,9 +11,11 @@ input:
     - cfc_std
 
 output:
+  endpoint_url: http://cci-ke-o.s3-ext.jc.rl.ac.uk
   path: esacci-test/cloud_L3C_MERIS-AATSR_v2.0_2011.zarr
-  overwrite: true
-  consolidated: true
-  endpoint_url: https://cci-ke-o.s3-ext.jc.rl.ac.uk
+  anon: false
   key: ...
   secret: ...
+
+  overwrite: true
+  consolidated: true
