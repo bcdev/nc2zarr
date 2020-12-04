@@ -20,8 +20,6 @@
 # SOFTWARE.
 
 import glob
-import os
-import shutil
 from typing import Sequence, Union, Type
 
 import s3fs
@@ -65,6 +63,10 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
     output_chunks = output_config.get('chunks')
+    output_s3_kwargs = {k: output_config[k]
+                        for k in S3_KEYWORDS if k in output_config}
+    output_s3_client_kwargs = {k: output_config[k]
+                               for k in S3_CLIENT_KEYWORDS if k in output_config}
 
     input_files = []
     if isinstance(input_paths, str):
@@ -76,16 +78,20 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     if not input_files:
         raise exception_type('at least one input file must be given')
 
+    # TODO: we may sort using the actual coordinates of
+    #  input_concat_dim coordinate variable, use xcube code.
     input_files = sorted(input_files)
-    print(input_files)
 
     def preprocess_input_dataset(input_dataset: xr.Dataset) -> xr.Dataset:
+        input_file = input_dataset.encoding['source']
+        print(f'Preprocessing {input_file}')
+        if input_concat_dim not in input_dataset.dims:
+            # TODO: try inserting time dimension from
+            #  input_dataset.attrs or from input_file, use Cate code.
+            raise exception_type(f'missing dimension "time" in dataset "{input_file}"')
         if input_variables:
             drop_variables = set(input_dataset.data_vars).difference(input_variables)
             input_dataset = input_dataset.drop_vars(drop_variables)
-        if input_concat_dim not in input_dataset.dims:
-            # TODO: try inserting time dimension from input_dataset.attrs or from input_file
-            raise exception_type(f'missing dimension "time" in dataset "{input_file}"')
         return input_dataset
 
     output_dataset = xr.open_mfdataset(input_files,
@@ -93,28 +99,21 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                                        preprocess=preprocess_input_dataset,
                                        concat_dim=input_concat_dim)
 
-    # TODO: update output_dataset.attrs to reflect new time extent
+    # TODO: update output_dataset.attrs to reflect actual extent
+    #  of spatio-temporal coordinates, use xcube code.
 
     if output_chunks:
         output_dataset = output_dataset.chunk(output_chunks)
 
-    s3 = None
-    s3_kwargs = {k: output_config[k] for k in S3_KEYWORDS if k in output_config}
-    s3_client_kwargs = {k: output_config[k] for k in S3_CLIENT_KEYWORDS if k in output_config}
-    if s3_kwargs or s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(*s3_kwargs, client_kwargs=s3_client_kwargs or None)
-
-    if s3 is not None:
-        if output_overwrite and s3.isdir(output_path):
-            s3.rm(output_path, recursive=True)
-        output_path_or_store = s3fs.S3Map(output_path, s3=s3)
+    if output_s3_kwargs or output_s3_client_kwargs:
+        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
+                               client_kwargs=output_s3_client_kwargs or None)
+        output_path_or_store = s3fs.S3Map(output_path, s3=s3, create=True)
     else:
-        if output_overwrite and os.path.isdir(output_path):
-            shutil.rmtree(output_path, ignore_errors=False)
         output_path_or_store = output_path
 
     output_dataset.to_zarr(output_path_or_store,
-                           mode='w',
+                           mode='w' if output_overwrite else 'w-',
                            encoding=output_encoding,
                            consolidated=output_consolidated)
 

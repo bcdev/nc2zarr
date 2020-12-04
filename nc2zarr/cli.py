@@ -52,7 +52,8 @@ def nc2zarr(input_files: List[str], output_file: str, config_file: str, verbose:
     convert_netcdf_to_zarr(input_paths=input_files,
                            output_path=output_file,
                            config_path=config_file,
-                           verbose=verbose)
+                           verbose=verbose,
+                           exception_type=click.ClickException)
 
 
 def main():
