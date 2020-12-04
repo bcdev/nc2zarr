@@ -19,16 +19,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import contextlib
 import glob
-import time
 from typing import Sequence, Union, Type
 
 import s3fs
 import xarray as xr
 import yaml
 
-from nc2zarr.time import ensure_time_dim
+from .perf import measure_time
+from .time import ensure_time_dim
 
 S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
 S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
@@ -132,24 +131,3 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     # Test by reopening the dataset from target location
     # test_dataset = xr.open_zarr(output_path_or_store,
     #                             consolidated=output_consolidated)
-
-
-class measure_time(contextlib.AbstractContextManager):
-
-    def __init__(self, tag: str = None, verbose: bool = True):
-        self.tag = tag or 'task'
-        self.verbose = verbose
-        self.start = None
-        self.duration = None
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        if self.verbose:
-            print(f'{self.tag} started...')
-        return self
-
-    def __exit__(self, *exc):
-        self.duration = time.perf_counter() - self.start
-        if self.verbose:
-            print(f'{self.tag} done: took {self.duration} seconds')
-        return self

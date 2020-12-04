@@ -23,7 +23,7 @@ from typing import List
 import click
 
 DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_CONFIG_FILE = '.nc2zarr.yml'
+DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
 
 
 @click.command()
@@ -49,11 +49,13 @@ def nc2zarr(input_files: List[str], output_file: str, config_file: str, verbose:
         return 0
 
     from .convert import convert_netcdf_to_zarr
-    convert_netcdf_to_zarr(input_paths=input_files,
-                           output_path=output_file,
-                           config_path=config_file,
-                           verbose=verbose,
-                           exception_type=click.ClickException)
+    from .perf import measure_time
+    with measure_time('Converting'):
+        convert_netcdf_to_zarr(input_paths=input_files,
+                               output_path=output_file,
+                               config_path=config_file,
+                               verbose=verbose,
+                               exception_type=click.ClickException)
 
 
 def main():
