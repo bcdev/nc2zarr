@@ -6,6 +6,16 @@
 input:
   paths: D:\BC\QA4ECV-L3-Mosaic-Albedo-NoSnow-05\*.nc
 
+process:
+  rename:
+    x: lon
+    y: lat
+
+  rechunk:
+    lon: 720
+    lat: 360
+    time: 12
+
 output:
   path: eurodatacube-scratch/QA4ECV-L3-Mosaic-Albedo-NoSnow-05.zarr
   anon: false
@@ -13,11 +23,3 @@ output:
   overwrite: true
   consolidated: true
 
-  renamings:
-    x: lon
-    y: lat
-
-  chunks:
-    lon: 720
-    lat: 360
-    time: 12

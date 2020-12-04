@@ -54,18 +54,20 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
             print(f'Configuration {config_path} loaded.')
 
     input_config = config.get('input', {})
-    output_config = config.get('output', {})
-
     input_paths = input_config.get('paths', input_paths)
     input_variables = input_config.get('variables')
     input_concat_dim = input_config.get('concat_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
+
+    process_config = config.get('process', {})
+    process_rename = process_config.get('rename')
+    process_rechunk = process_config.get('rechunk')
+
+    output_config = config.get('output', {})
     output_path = output_config.get('path', output_path)
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
-    output_renamings = output_config.get('renamings')
-    output_chunks = output_config.get('chunks')
     output_s3_kwargs = {k: output_config[k]
                         for k in S3_KEYWORDS if k in output_config}
     output_s3_client_kwargs = {k: output_config[k]
@@ -105,14 +107,11 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                                        preprocess=preprocess_input_dataset,
                                        concat_dim=input_concat_dim)
 
-    # TODO: update output_dataset.attrs to reflect actual extent
-    #  of spatio-temporal coordinates, use xcube code.
+    if process_rename:
+        output_dataset = output_dataset.rename(process_rename)
 
-    if output_renamings:
-        output_dataset = output_dataset.rename(output_renamings)
-
-    if output_chunks:
-        output_dataset = output_dataset.chunk(output_chunks)
+    if process_rechunk:
+        output_dataset = output_dataset.chunk(process_rechunk)
 
     if output_s3_kwargs or output_s3_client_kwargs:
         s3 = s3fs.S3FileSystem(**output_s3_kwargs,

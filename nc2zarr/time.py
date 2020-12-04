@@ -98,6 +98,9 @@ def ensure_time_dim(ds: xr.Dataset) -> xr.Dataset:
         if time_bnds is not None:
             ds = ds.assign_coords(time_bnds=time_bnds)
 
+    # TODO: update output_dataset.attrs to reflect actual extent
+    #  of spatio-temporal coordinates, use xcube code.
+
     return ds
 
 
