@@ -1,0 +1,23 @@
+# Run
+#
+# $ nc2zarr -c nc2zarr-cci-cloud.yml
+#
+
+input:
+  paths: D:\BC\QA4ECV-L3-Mosaic-Albedo-NoSnow-05\*.nc
+
+output:
+  path: eurodatacube-scratch/QA4ECV-L3-Mosaic-Albedo-NoSnow-05.zarr
+  anon: false
+
+  overwrite: true
+  consolidated: true
+
+  renamings:
+    x: lon
+    y: lat
+
+  chunks:
+    lon: 720
+    lat: 360
+    time: 12

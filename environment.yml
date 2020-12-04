@@ -9,6 +9,8 @@ dependencies:
   - click
   - dask
   - netcdf4
+  - numpy
+  - pandas
   - pyyaml
   - s3fs
   - xarray

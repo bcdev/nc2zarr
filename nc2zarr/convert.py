@@ -26,6 +26,8 @@ import s3fs
 import xarray as xr
 import yaml
 
+from nc2zarr.time import ensure_time_dim
+
 S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
 S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
 
@@ -62,6 +64,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
+    output_renamings = output_config.get('renamings')
     output_chunks = output_config.get('chunks')
     output_s3_kwargs = {k: output_config[k]
                         for k in S3_KEYWORDS if k in output_config}
@@ -82,16 +85,19 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     #  input_concat_dim coordinate variable, use xcube code.
     input_files = sorted(input_files)
 
+    first_dataset_shown = False
+
     def preprocess_input_dataset(input_dataset: xr.Dataset) -> xr.Dataset:
+        nonlocal first_dataset_shown
         input_file = input_dataset.encoding['source']
         print(f'Preprocessing {input_file}')
-        if input_concat_dim not in input_dataset.dims:
-            # TODO: try inserting time dimension from
-            #  input_dataset.attrs or from input_file, use Cate code.
-            raise exception_type(f'missing dimension "time" in dataset "{input_file}"')
+        input_dataset = ensure_time_dim(input_dataset)
         if input_variables:
             drop_variables = set(input_dataset.data_vars).difference(input_variables)
             input_dataset = input_dataset.drop_vars(drop_variables)
+        if verbose and not first_dataset_shown:
+            print(f'First input dataset:\n{input_dataset}')
+            first_dataset_shown = True
         return input_dataset
 
     output_dataset = xr.open_mfdataset(input_files,
@@ -102,13 +108,16 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     # TODO: update output_dataset.attrs to reflect actual extent
     #  of spatio-temporal coordinates, use xcube code.
 
+    if output_renamings:
+        output_dataset = output_dataset.rename(output_renamings)
+
     if output_chunks:
         output_dataset = output_dataset.chunk(output_chunks)
 
     if output_s3_kwargs or output_s3_client_kwargs:
         s3 = s3fs.S3FileSystem(**output_s3_kwargs,
                                client_kwargs=output_s3_client_kwargs or None)
-        output_path_or_store = s3fs.S3Map(output_path, s3=s3, create=True)
+        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
     else:
         output_path_or_store = output_path
 
