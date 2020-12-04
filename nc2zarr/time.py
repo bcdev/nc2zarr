@@ -53,7 +53,6 @@ def ensure_time_dim(ds: xr.Dataset) -> xr.Dataset:
     time = None
     if 'time' in ds and isinstance(ds.time.values[0], (datetime, np.datetime64)):
         time = ds.time
-        print("We have time:", time)
     elif 't' in ds and isinstance(ds.t.values[0], (datetime, np.datetime64)):
         # if 't' in ds.t.dims:
         #     ds = ds.rename_dims({"t": "time"})
@@ -62,7 +61,6 @@ def ensure_time_dim(ds: xr.Dataset) -> xr.Dataset:
 
     if time is not None:
         if 'time' not in ds.coords or not time.dims:
-            print("We have time but not as dim:", time)
             ds = ds.assign_coords(time=xr.DataArray(ds.time, dims=('time',)))
     else:
         time_coverage_start, time_coverage_end = get_time_coverage_from_ds(ds)

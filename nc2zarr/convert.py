@@ -19,7 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import contextlib
 import glob
+import time
 from typing import Sequence, Union, Type
 
 import s3fs
@@ -92,20 +94,21 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     def preprocess_input_dataset(input_dataset: xr.Dataset) -> xr.Dataset:
         nonlocal first_dataset_shown
         input_file = input_dataset.encoding['source']
-        print(f'Preprocessing {input_file}')
-        input_dataset = ensure_time_dim(input_dataset)
-        if input_variables:
-            drop_variables = set(input_dataset.data_vars).difference(input_variables)
-            input_dataset = input_dataset.drop_vars(drop_variables)
+        with measure_time(f'Preprocessing {input_file}', verbose=verbose):
+            input_dataset = ensure_time_dim(input_dataset)
+            if input_variables:
+                drop_variables = set(input_dataset.data_vars).difference(input_variables)
+                input_dataset = input_dataset.drop_vars(drop_variables)
         if verbose and not first_dataset_shown:
             print(f'First input dataset:\n{input_dataset}')
             first_dataset_shown = True
         return input_dataset
 
-    output_dataset = xr.open_mfdataset(input_files,
-                                       engine=input_engine,
-                                       preprocess=preprocess_input_dataset,
-                                       concat_dim=input_concat_dim)
+    with measure_time(f'Opening {len(input_files)} file(s)'):
+        output_dataset = xr.open_mfdataset(input_files,
+                                           engine=input_engine,
+                                           preprocess=preprocess_input_dataset,
+                                           concat_dim=input_concat_dim)
 
     if process_rename:
         output_dataset = output_dataset.rename(process_rename)
@@ -120,11 +123,33 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     else:
         output_path_or_store = output_path
 
-    output_dataset.to_zarr(output_path_or_store,
-                           mode='w' if output_overwrite else 'w-',
-                           encoding=output_encoding,
-                           consolidated=output_consolidated)
+    with measure_time(f'Writing dataset to {output_path}'):
+        output_dataset.to_zarr(output_path_or_store,
+                               mode='w' if output_overwrite else 'w-',
+                               encoding=output_encoding,
+                               consolidated=output_consolidated)
 
     # Test by reopening the dataset from target location
-    test_dataset = xr.open_zarr(output_path_or_store,
-                                consolidated=output_consolidated)
+    # test_dataset = xr.open_zarr(output_path_or_store,
+    #                             consolidated=output_consolidated)
+
+
+class measure_time(contextlib.AbstractContextManager):
+
+    def __init__(self, tag: str = None, verbose: bool = True):
+        self.tag = tag or 'task'
+        self.verbose = verbose
+        self.start = None
+        self.duration = None
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+        if self.verbose:
+            print(f'{self.tag} started...')
+        return self
+
+    def __exit__(self, *exc):
+        self.duration = time.perf_counter() - self.start
+        if self.verbose:
+            print(f'{self.tag} done: took {self.duration} seconds')
+        return self
