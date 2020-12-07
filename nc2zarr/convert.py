@@ -205,13 +205,15 @@ def get_output_encoding(input_dataset,
     updated_output_encoding = dict()
     for k, v in input_dataset.data_vars.items():
         chunks = []
-        for i in range(len(v.dims)):
-            d = v.dims[i]
-            chunks.append(process_rechunk.get(d, v.chunks[i] if v.chunks is not None else v.sizes[d]))
-        chunks = map(lambda d: process_rechunk.get(d, v.sizes.get(d)), v.dims())
+        for dim_index in range(len(v.dims)):
+            dim_name = v.dims[dim_index]
+            if dim_name in process_rechunk:
+                chunks.append(process_rechunk[dim_name])
+            else:
+                chunks.append(v.chunks[dim_index] if v.chunks is not None else v.sizes[dim_name])
         var_encoding = dict(v.encoding)
         if output_encoding and k in output_encoding:
             var_encoding.update(output_encoding[k])
         var_encoding.update(chunks=tuple(chunks))
-        updated_output_encoding.update({k: var_encoding})
+        updated_output_encoding[k] = var_encoding
     return updated_output_encoding
