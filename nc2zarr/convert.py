@@ -1,24 +1,3 @@
-# The MIT License (MIT)
-# Copyright (c) 2020 by the ESA CCI Toolbox development team and contributors
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of
-# this software and associated documentation files (the "Software"), to deal in
-# the Software without restriction, including without limitation the rights to
-# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-# of the Software, and to permit persons to whom the Software is furnished to do
-# so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 import glob
 import os.path
 import shutil
@@ -28,6 +7,7 @@ import s3fs
 import xarray as xr
 import yaml
 
+from .batch import run_batch_mode
 from .constants import DEFAULT_CONFIG_FILE
 from .constants import DEFAULT_MODE
 from .constants import DEFAULT_OUTPUT_FILE
@@ -37,13 +17,12 @@ from .logger import LOGGER
 from .perf import measure_time
 from .time import ensure_time_dim
 
-_BATCH_MARKER = '___batch___'
-
 
 # noinspection PyUnusedLocal
 def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            output_path: str = None,
                            config_path: str = None,
+                           batch_size: int = None,
                            mode: str = None,
                            verbose: bool = False,
                            exception_type: Type[Exception] = ValueError):
@@ -53,18 +32,18 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param input_paths:
     :param output_path:
     :param config_path:
-    :param mode: 'slices' or 'all'
+    :param mode: 'slices' or 'one_go'
     :param verbose:
     :param exception_type:
     """
     config = {}
-    config_path = config_path or DEFAULT_CONFIG_FILE
     try:
-        with open(config_path) as fp:
+        effective_config_path = config_path or DEFAULT_CONFIG_FILE
+        with open(effective_config_path) as fp:
             config = yaml.load(fp, Loader=yaml.SafeLoader)
-            LOGGER.info(f'Configuration {config_path} loaded.')
+            LOGGER.info(f'Configuration {effective_config_path} loaded.')
     except FileNotFoundError as e:
-        if config_path != DEFAULT_CONFIG_FILE:
+        if config_path is not None:
             raise exception_type(f'Configuration {config_path} not found')
 
     mode = mode or config.get('mode', DEFAULT_MODE)
@@ -74,6 +53,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     input_variables = input_config.get('variables')
     input_concat_dim = input_config.get('concat_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
+    input_batch_size = batch_size or input_config.get('batch_size')
 
     process_config = config.get('process', {})
     process_rename = process_config.get('rename')
@@ -89,61 +69,25 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     output_s3_client_kwargs = {k: output_config[k]
                                for k in S3_CLIENT_KEYWORDS if k in output_config}
 
-    batch_mode = False
-    if input_paths and input_paths[0] == _BATCH_MARKER:
-        input_paths = input_paths[1:]
-        batch_mode = True
-
-    input_files = []
-    if isinstance(input_paths, str):
-        input_files.extend(glob.glob(input_paths, recursive=True))
-    elif input_paths is not None and len(input_paths):
-        for input_path in input_paths:
-            input_files.extend(glob.glob(input_path, recursive=True))
-
+    input_files = get_input_files(input_paths)
     if not input_files:
         raise exception_type('at least one input file must be given')
 
-    # TODO: we may sort using the actual coordinates of
-    #  input_concat_dim coordinate variable, use xcube code.
-    input_files = sorted(input_files)
-
-    if not batch_mode \
-            and process_rechunk \
-            and input_concat_dim in process_rechunk \
-            and process_rechunk[input_concat_dim] > 1:
-        # TODO: group and combine batches then exit
-        num_input_files = len(input_files)
-        batch_size = process_rechunk[input_concat_dim]
-        num_batches = num_input_files // batch_size
-        # TODO: remove test code here...
-        import subprocess
-        import uuid
-        import sys
-        import nc2zarr.cli
-        job_id = str(uuid.uuid4())
-        for batch_index in range(num_batches):
-            batch_input_files = input_files[batch_index * batch_size: (batch_index + 1) * batch_size]
-            batch_output_path = f'{job_id}-{batch_index}.zarr'
-            batch_exit_code = subprocess.call([sys.executable,
-                                               nc2zarr.cli.__file__,
-                                               '-c', config_path,
-                                               '-o', batch_output_path,
-                                               _BATCH_MARKER,
-                                               *batch_input_files])
-            if batch_exit_code != 0:
-                raise exception_type(f'batch processing failed with exit code {batch_exit_code}')
+    if batch_size:
+        run_batch_mode(input_files, batch_size, config_path, exception_type=exception_type)
         return
 
     if output_s3_kwargs or output_s3_client_kwargs:
         s3 = s3fs.S3FileSystem(**output_s3_kwargs,
                                client_kwargs=output_s3_client_kwargs or None)
         if output_overwrite and s3.isdir(output_path):
-            s3.rm(output_path, recursive=True)
+            with measure_time(f'Removing existing {output_path}'):
+                s3.rm(output_path, recursive=True)
         output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
     else:
         if output_overwrite and os.path.isdir(output_path):
-            shutil.rmtree(output_path)
+            with measure_time(f'Removing existing {output_path}'):
+                shutil.rmtree(output_path)
         output_path_or_store = output_path
 
     first_dataset_shown = False
@@ -179,8 +123,16 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     #                             consolidated=output_consolidated)
 
 
-def read_and_write_in_slices(input_files, input_engine, input_concat_dim, preprocess_input, process_rename,
-                             process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
+def read_and_write_in_slices(input_files,
+                             input_engine,
+                             input_concat_dim,
+                             preprocess_input,
+                             process_rename,
+                             process_rechunk,
+                             output_path,
+                             output_path_or_store,
+                             output_overwrite,
+                             output_consolidated,
                              output_encoding):
     n = len(input_files)
     for i in range(n):
@@ -207,8 +159,16 @@ def read_and_write_in_slices(input_files, input_engine, input_concat_dim, prepro
         input_dataset.close()
 
 
-def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, preprocess_input, process_rename,
-                             process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
+def read_and_write_in_one_go(input_files,
+                             input_engine,
+                             input_concat_dim,
+                             preprocess_input,
+                             process_rename,
+                             process_rechunk,
+                             output_path,
+                             output_path_or_store,
+                             output_overwrite,
+                             output_consolidated,
                              output_encoding):
     with measure_time(f'Opening {len(input_files)} file(s)'):
         output_dataset = xr.open_mfdataset(input_files,
@@ -225,3 +185,16 @@ def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, prepro
                                encoding=output_encoding,
                                consolidated=output_consolidated)
     output_dataset.close()
+
+
+def get_input_files(input_paths: Sequence[str]) -> Sequence[str]:
+    input_files = []
+    if isinstance(input_paths, str):
+        input_files.extend(glob.glob(input_paths, recursive=True))
+    elif input_paths is not None and len(input_paths):
+        for input_path in input_paths:
+            input_files.extend(glob.glob(input_path, recursive=True))
+
+    # TODO: we may sort using the actual coordinates of
+    #  input_concat_dim coordinate variable, use xcube code.
+    return sorted(input_files)

@@ -18,7 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from typing import List
+from typing import List, Optional
 
 import click
 
@@ -34,13 +34,21 @@ from nc2zarr.constants import MODE_CHOICES
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_FILE}".')
 @click.option('--config', '-c', 'config_file', metavar='CONFIG_FILE',
               help=f'Configuration file. Defaults to "{DEFAULT_CONFIG_FILE}".')
+@click.option('--batch', '-b', 'batch_size', type=int,
+              help=f'Batch size. If greater zero, conversion will be performed in batches of the given size.')
 @click.option('--mode', '-m', 'mode', metavar='MODE', type=click.Choice(MODE_CHOICES),
               help=f'Configuration file. Must be one of {MODE_CHOICES}. Defaults to "{DEFAULT_MODE}".')
 @click.option('--verbose', '-v', is_flag=True,
               help='Print more output.')
 @click.option('--version', is_flag=True,
               help='Show version number and exit.')
-def main(input_files: List[str], output_file: str, config_file: str, mode: str, verbose: bool, version: bool):
+def main(input_files: List[str],
+         output_file: str,
+         config_file: str,
+         batch_size: Optional[int],
+         mode: str,
+         verbose: bool,
+         version: bool):
     """
     Convert NetCDF files to Zarr format.
 
@@ -58,6 +66,7 @@ def main(input_files: List[str], output_file: str, config_file: str, mode: str, 
         convert_netcdf_to_zarr(input_paths=input_files,
                                output_path=output_file,
                                config_path=config_file,
+                               batch_size=batch_size,
                                mode=mode,
                                verbose=verbose,
                                exception_type=click.ClickException)
