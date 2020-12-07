@@ -22,21 +22,25 @@ from typing import List
 
 import click
 
-DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
+from nc2zarr.constants import DEFAULT_CONFIG_FILE
+from nc2zarr.constants import DEFAULT_MODE
+from nc2zarr.constants import DEFAULT_OUTPUT_FILE
+from nc2zarr.constants import MODE_CHOICES
 
 
-@click.command()
+@click.command(name='nc2zarr')
 @click.argument('input_files', nargs=-1, metavar='[INPUT_FILES ...]')
 @click.option('--output', '-o', 'output_file', metavar='OUTPUT_FILE', default=DEFAULT_OUTPUT_FILE,
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_FILE}".')
 @click.option('--config', '-c', 'config_file', metavar='CONFIG_FILE', default=DEFAULT_CONFIG_FILE,
               help=f'Configuration file. Defaults to "{DEFAULT_CONFIG_FILE}".')
+@click.option('--mode', '-m', 'mode', metavar='MODE', default=DEFAULT_MODE, type=click.Choice(MODE_CHOICES),
+              help=f'Configuration file. Defaults to "{DEFAULT_MODE}".')
 @click.option('--verbose', '-v', is_flag=True,
               help='Print more output.')
 @click.option('--version', is_flag=True,
               help='Show version number and exit.')
-def nc2zarr(input_files: List[str], output_file: str, config_file: str, verbose: bool, version: bool):
+def main(input_files: List[str], output_file: str, config_file: str, mode: str, verbose: bool, version: bool):
     """
     Convert NetCDF files to Zarr format.
 
@@ -48,18 +52,15 @@ def nc2zarr(input_files: List[str], output_file: str, config_file: str, verbose:
         print(version)
         return 0
 
-    from .convert import convert_netcdf_to_zarr
-    from .perf import measure_time
+    from nc2zarr.convert import convert_netcdf_to_zarr
+    from nc2zarr.perf import measure_time
     with measure_time('Converting'):
         convert_netcdf_to_zarr(input_paths=input_files,
                                output_path=output_file,
                                config_path=config_file,
+                               mode=mode,
                                verbose=verbose,
                                exception_type=click.ClickException)
-
-
-def main():
-    nc2zarr()
 
 
 if __name__ == '__main__':

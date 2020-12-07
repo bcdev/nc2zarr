@@ -26,17 +26,19 @@ import s3fs
 import xarray as xr
 import yaml
 
+from .constants import DEFAULT_CONFIG_FILE
+from .constants import DEFAULT_MODE
+from .constants import S3_CLIENT_KEYWORDS
+from .constants import S3_KEYWORDS
 from .perf import measure_time
 from .time import ensure_time_dim
-
-S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
-S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
 
 
 # noinspection PyUnusedLocal
 def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            output_path: str = None,
                            config_path: str = None,
+                           mode: str = DEFAULT_MODE,
                            verbose: bool = False,
                            exception_type: Type[Exception] = ValueError):
     """
@@ -45,17 +47,24 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param input_paths:
     :param output_path:
     :param config_path:
+    :param mode: 'slices' or 'all'
     :param verbose:
     :param exception_type:
     """
     config = {}
     if config_path is not None:
-        with open(config_path) as fp:
-            config = yaml.load(fp, Loader=yaml.SafeLoader)
-            print(f'Configuration {config_path} loaded.')
+        try:
+            with open(config_path) as fp:
+                config = yaml.load(fp, Loader=yaml.SafeLoader)
+                print(f'Configuration {config_path} loaded.')
+        except FileNotFoundError as e:
+            if config_path != DEFAULT_CONFIG_FILE:
+                raise exception_type(f'Configuration {config_path} not found')
+
+    mode = mode or config.get('mode', DEFAULT_MODE)
 
     input_config = config.get('input', {})
-    input_paths = input_config.get('paths', input_paths)
+    input_paths = input_paths or input_config.get('paths')
     input_variables = input_config.get('variables')
     input_concat_dim = input_config.get('concat_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
@@ -65,7 +74,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     process_rechunk = process_config.get('rechunk')
 
     output_config = config.get('output', {})
-    output_path = output_config.get('path', output_path)
+    output_path = output_path or output_config.get('path')
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
@@ -73,6 +82,13 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                         for k in S3_KEYWORDS if k in output_config}
     output_s3_client_kwargs = {k: output_config[k]
                                for k in S3_CLIENT_KEYWORDS if k in output_config}
+
+    if output_s3_kwargs or output_s3_client_kwargs:
+        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
+                               client_kwargs=output_s3_client_kwargs or None)
+        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
+    else:
+        output_path_or_store = output_path
 
     input_files = []
     if isinstance(input_paths, str):
@@ -90,7 +106,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
 
     first_dataset_shown = False
 
-    def preprocess_input_dataset(input_dataset: xr.Dataset) -> xr.Dataset:
+    def input_dataset_preprocessor(input_dataset: xr.Dataset) -> xr.Dataset:
         nonlocal first_dataset_shown
         input_file = input_dataset.encoding['source']
         with measure_time(f'Preprocessing {input_file}', verbose=verbose):
@@ -103,31 +119,65 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
             first_dataset_shown = True
         return input_dataset
 
+    read_and_write = read_and_write_in_slices if mode == 'slices' else read_and_write_in_one_go
+    read_and_write(input_files,
+                   input_engine,
+                   input_concat_dim,
+                   input_dataset_preprocessor,
+                   process_rename,
+                   process_rechunk,
+                   output_path,
+                   output_path_or_store,
+                   output_overwrite,
+                   output_consolidated,
+                   output_encoding)
+
+    # Test by reopening the dataset from target location
+    # test_dataset = xr.open_zarr(output_path_or_store,
+    #                             consolidated=output_consolidated)
+
+
+def read_and_write_in_slices(input_files, input_engine, input_concat_dim, input_dataset_preprocessor, process_rename,
+                             process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
+                             output_encoding):
+    n = len(input_files)
+    for i in range(n):
+        input_file = input_files[i]
+        with measure_time(f'Opening slice {i + 1} of {n}: {input_file}'):
+            input_dataset = xr.open_dataset(input_file, engine=input_engine)
+        input_dataset = input_dataset_preprocessor(input_dataset)
+        if process_rename:
+            input_dataset = input_dataset.rename(process_rename)
+        if process_rechunk:
+            input_dataset = input_dataset.chunk(process_rechunk)
+        if i == 0:
+            with measure_time(f'Writing first slice to {output_path}'):
+                input_dataset.to_zarr(output_path_or_store,
+                                      mode='w' if output_overwrite else 'w-',
+                                      encoding=output_encoding,
+                                      consolidated=output_consolidated)
+        else:
+            with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
+                input_dataset.to_zarr(output_path_or_store,
+                                      append_dim=input_concat_dim,
+                                      encoding=output_encoding,
+                                      consolidated=output_consolidated)
+
+
+def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, input_dataset_preprocessor, process_rename,
+                             process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
+                             output_encoding):
     with measure_time(f'Opening {len(input_files)} file(s)'):
         output_dataset = xr.open_mfdataset(input_files,
                                            engine=input_engine,
-                                           preprocess=preprocess_input_dataset,
+                                           preprocess=input_dataset_preprocessor,
                                            concat_dim=input_concat_dim)
-
     if process_rename:
         output_dataset = output_dataset.rename(process_rename)
-
     if process_rechunk:
         output_dataset = output_dataset.chunk(process_rechunk)
-
-    if output_s3_kwargs or output_s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
-                               client_kwargs=output_s3_client_kwargs or None)
-        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
-    else:
-        output_path_or_store = output_path
-
     with measure_time(f'Writing dataset to {output_path}'):
         output_dataset.to_zarr(output_path_or_store,
                                mode='w' if output_overwrite else 'w-',
                                encoding=output_encoding,
                                consolidated=output_consolidated)
-
-    # Test by reopening the dataset from target location
-    # test_dataset = xr.open_zarr(output_path_or_store,
-    #                             consolidated=output_consolidated)

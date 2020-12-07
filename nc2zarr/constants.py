@@ -19,25 +19,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import contextlib
-import time
+DEFAULT_OUTPUT_FILE = 'out.zarr'
+DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
+DEFAULT_MODE = 'slices'
 
+MODE_CHOICES = 'slices', 'one_go'
 
-class measure_time(contextlib.AbstractContextManager):
-
-    def __init__(self, tag: str = None, verbose: bool = True):
-        self.tag = tag or 'task'
-        self.verbose = verbose
-        self.start = None
-        self.duration = None
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        if self.verbose:
-            print(f'{self.tag}...')
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.duration = time.perf_counter() - self.start
-        if self.verbose and exc_type is None:
-            print(f'{self.tag} done: took {self.duration} seconds')
+S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
+S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
