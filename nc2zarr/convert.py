@@ -20,6 +20,8 @@
 # SOFTWARE.
 
 import glob
+import os.path
+import shutil
 from typing import Sequence, Union, Type
 
 import s3fs
@@ -35,8 +37,8 @@ from .logger import LOGGER
 from .perf import measure_time
 from .time import ensure_time_dim
 
-
 _BATCH_MARKER = '___batch___'
+
 
 # noinspection PyUnusedLocal
 def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
@@ -102,6 +104,10 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     if not input_files:
         raise exception_type('at least one input file must be given')
 
+    # TODO: we may sort using the actual coordinates of
+    #  input_concat_dim coordinate variable, use xcube code.
+    input_files = sorted(input_files)
+
     if not batch_mode \
             and process_rechunk \
             and input_concat_dim in process_rechunk \
@@ -132,13 +138,13 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     if output_s3_kwargs or output_s3_client_kwargs:
         s3 = s3fs.S3FileSystem(**output_s3_kwargs,
                                client_kwargs=output_s3_client_kwargs or None)
+        if output_overwrite and s3.isdir(output_path):
+            s3.rm(output_path, recursive=True)
         output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
     else:
+        if output_overwrite and os.path.isdir(output_path):
+            shutil.rmtree(output_path)
         output_path_or_store = output_path
-
-    # TODO: we may sort using the actual coordinates of
-    #  input_concat_dim coordinate variable, use xcube code.
-    input_files = sorted(input_files)
 
     first_dataset_shown = False
 
