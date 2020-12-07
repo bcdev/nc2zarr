@@ -1,4 +1,5 @@
 nc2zarr-config.yml
+*.zarr/
 
 # JetBrains IDEA
 .idea
