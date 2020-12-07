@@ -1,7 +1,7 @@
 import glob
 import os.path
 import shutil
-from typing import Sequence, Union, Type
+from typing import Sequence, Union, Type, Mapping, Any
 
 import s3fs
 import xarray as xr
@@ -143,7 +143,7 @@ def read_and_write_in_slices(input_files,
         if process_rename:
             input_dataset = input_dataset.rename(process_rename)
         if process_rechunk:
-            input_dataset = input_dataset.chunk(process_rechunk)
+            output_encoding = get_output_encoding(input_dataset, process_rechunk, output_encoding)
         if i == 0:
             with measure_time(f'Writing first slice to {output_path}'):
                 input_dataset.to_zarr(output_path_or_store,
@@ -154,7 +154,6 @@ def read_and_write_in_slices(input_files,
             with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
                 input_dataset.to_zarr(output_path_or_store,
                                       append_dim=input_concat_dim,
-                                      encoding=output_encoding,
                                       consolidated=output_consolidated)
         input_dataset.close()
 
@@ -178,7 +177,7 @@ def read_and_write_in_one_go(input_files,
     if process_rename:
         output_dataset = output_dataset.rename(process_rename)
     if process_rechunk:
-        output_dataset = output_dataset.chunk(process_rechunk)
+        output_encoding = get_output_encoding(output_dataset, process_rechunk, output_encoding)
     with measure_time(f'Writing dataset to {output_path}'):
         output_dataset.to_zarr(output_path_or_store,
                                mode='w' if output_overwrite else 'w-',
@@ -198,3 +197,21 @@ def get_input_files(input_paths: Sequence[str]) -> Sequence[str]:
     # TODO: we may sort using the actual coordinates of
     #  input_concat_dim coordinate variable, use xcube code.
     return sorted(input_files)
+
+
+def get_output_encoding(input_dataset,
+                        process_rechunk: Mapping[str, int],
+                        output_encoding: Mapping[str, Any] = None) -> Mapping[str, Any]:
+    updated_output_encoding = dict()
+    for k, v in input_dataset.data_vars.items():
+        chunks = []
+        for i in range(len(v.dims)):
+            d = v.dims[i]
+            chunks.append(process_rechunk.get(d, v.chunks[i] if v.chunks is not None else v.sizes[d]))
+        chunks = map(lambda d: process_rechunk.get(d, v.sizes.get(d)), v.dims())
+        var_encoding = dict(v.encoding)
+        if output_encoding and k in output_encoding:
+            var_encoding.update(output_encoding[k])
+        var_encoding.update(chunks=tuple(chunks))
+        updated_output_encoding.update({k: var_encoding})
+    return updated_output_encoding
