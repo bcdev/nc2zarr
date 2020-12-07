@@ -30,12 +30,12 @@ from nc2zarr.constants import MODE_CHOICES
 
 @click.command(name='nc2zarr')
 @click.argument('input_files', nargs=-1, metavar='[INPUT_FILES ...]')
-@click.option('--output', '-o', 'output_file', metavar='OUTPUT_FILE', default=DEFAULT_OUTPUT_FILE,
+@click.option('--output', '-o', 'output_file', metavar='OUTPUT_FILE',
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_FILE}".')
-@click.option('--config', '-c', 'config_file', metavar='CONFIG_FILE', default=DEFAULT_CONFIG_FILE,
+@click.option('--config', '-c', 'config_file', metavar='CONFIG_FILE',
               help=f'Configuration file. Defaults to "{DEFAULT_CONFIG_FILE}".')
-@click.option('--mode', '-m', 'mode', metavar='MODE', default=DEFAULT_MODE, type=click.Choice(MODE_CHOICES),
-              help=f'Configuration file. Defaults to "{DEFAULT_MODE}".')
+@click.option('--mode', '-m', 'mode', metavar='MODE', type=click.Choice(MODE_CHOICES),
+              help=f'Configuration file. Must be one of {MODE_CHOICES}. Defaults to "{DEFAULT_MODE}".')
 @click.option('--verbose', '-v', is_flag=True,
               help='Print more output.')
 @click.option('--version', is_flag=True,

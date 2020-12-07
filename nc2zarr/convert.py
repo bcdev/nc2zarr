@@ -28,8 +28,10 @@ import yaml
 
 from .constants import DEFAULT_CONFIG_FILE
 from .constants import DEFAULT_MODE
+from .constants import DEFAULT_OUTPUT_FILE
 from .constants import S3_CLIENT_KEYWORDS
 from .constants import S3_KEYWORDS
+from .logger import LOGGER
 from .perf import measure_time
 from .time import ensure_time_dim
 
@@ -38,7 +40,7 @@ from .time import ensure_time_dim
 def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            output_path: str = None,
                            config_path: str = None,
-                           mode: str = DEFAULT_MODE,
+                           mode: str = None,
                            verbose: bool = False,
                            exception_type: Type[Exception] = ValueError):
     """
@@ -52,14 +54,14 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param exception_type:
     """
     config = {}
-    if config_path is not None:
-        try:
-            with open(config_path) as fp:
-                config = yaml.load(fp, Loader=yaml.SafeLoader)
-                print(f'Configuration {config_path} loaded.')
-        except FileNotFoundError as e:
-            if config_path != DEFAULT_CONFIG_FILE:
-                raise exception_type(f'Configuration {config_path} not found')
+    config_path = config_path or DEFAULT_CONFIG_FILE
+    try:
+        with open(config_path) as fp:
+            config = yaml.load(fp, Loader=yaml.SafeLoader)
+            LOGGER.info(f'Configuration {config_path} loaded.')
+    except FileNotFoundError as e:
+        if config_path != DEFAULT_CONFIG_FILE:
+            raise exception_type(f'Configuration {config_path} not found')
 
     mode = mode or config.get('mode', DEFAULT_MODE)
 
@@ -74,7 +76,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     process_rechunk = process_config.get('rechunk')
 
     output_config = config.get('output', {})
-    output_path = output_path or output_config.get('path')
+    output_path = output_path or output_config.get('path', DEFAULT_OUTPUT_FILE)
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
@@ -82,13 +84,6 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                         for k in S3_KEYWORDS if k in output_config}
     output_s3_client_kwargs = {k: output_config[k]
                                for k in S3_CLIENT_KEYWORDS if k in output_config}
-
-    if output_s3_kwargs or output_s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
-                               client_kwargs=output_s3_client_kwargs or None)
-        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
-    else:
-        output_path_or_store = output_path
 
     input_files = []
     if isinstance(input_paths, str):
@@ -100,13 +95,39 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     if not input_files:
         raise exception_type('at least one input file must be given')
 
+    if process_rechunk and input_concat_dim in process_rechunk and process_rechunk[input_concat_dim] > 1:
+        batch_size = process_rechunk[input_concat_dim]
+        num_batches = len(input_files) // batch_size
+        # TODO: group and combine batches then exit
+        # TODO: remove test code here...
+        import subprocess
+        import uuid
+        job_id = str(uuid.uuid4())
+        for batch_id in range(num_batches):
+            batch_input_files = input_files[batch_id * num_batches: batch_id * (num_batches+1)]
+            batch_output_path = f'{job_id}-{batch_id}.zarr'
+            batch_exit_code = subprocess.call(['./nc2zarr',
+                                               '-c', config_path,
+                                               '-o', batch_output_path,
+                                               *batch_input_files])
+            if batch_exit_code != 0:
+                raise exception_type(f'batch processing failed with exit code {batch_exit_code}')
+        return
+
+    if output_s3_kwargs or output_s3_client_kwargs:
+        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
+                               client_kwargs=output_s3_client_kwargs or None)
+        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
+    else:
+        output_path_or_store = output_path
+
     # TODO: we may sort using the actual coordinates of
     #  input_concat_dim coordinate variable, use xcube code.
     input_files = sorted(input_files)
 
     first_dataset_shown = False
 
-    def input_dataset_preprocessor(input_dataset: xr.Dataset) -> xr.Dataset:
+    def preprocess_input(input_dataset: xr.Dataset) -> xr.Dataset:
         nonlocal first_dataset_shown
         input_file = input_dataset.encoding['source']
         with measure_time(f'Preprocessing {input_file}', verbose=verbose):
@@ -115,7 +136,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                 drop_variables = set(input_dataset.data_vars).difference(input_variables)
                 input_dataset = input_dataset.drop_vars(drop_variables)
         if verbose and not first_dataset_shown:
-            print(f'First input dataset:\n{input_dataset}')
+            LOGGER.info(f'First input dataset:\n{input_dataset}')
             first_dataset_shown = True
         return input_dataset
 
@@ -123,7 +144,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     read_and_write(input_files,
                    input_engine,
                    input_concat_dim,
-                   input_dataset_preprocessor,
+                   preprocess_input,
                    process_rename,
                    process_rechunk,
                    output_path,
@@ -137,7 +158,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     #                             consolidated=output_consolidated)
 
 
-def read_and_write_in_slices(input_files, input_engine, input_concat_dim, input_dataset_preprocessor, process_rename,
+def read_and_write_in_slices(input_files, input_engine, input_concat_dim, preprocess_input, process_rename,
                              process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
                              output_encoding):
     n = len(input_files)
@@ -145,7 +166,7 @@ def read_and_write_in_slices(input_files, input_engine, input_concat_dim, input_
         input_file = input_files[i]
         with measure_time(f'Opening slice {i + 1} of {n}: {input_file}'):
             input_dataset = xr.open_dataset(input_file, engine=input_engine)
-        input_dataset = input_dataset_preprocessor(input_dataset)
+        input_dataset = preprocess_input(input_dataset)
         if process_rename:
             input_dataset = input_dataset.rename(process_rename)
         if process_rechunk:
@@ -162,15 +183,16 @@ def read_and_write_in_slices(input_files, input_engine, input_concat_dim, input_
                                       append_dim=input_concat_dim,
                                       encoding=output_encoding,
                                       consolidated=output_consolidated)
+        input_dataset.close()
 
 
-def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, input_dataset_preprocessor, process_rename,
+def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, preprocess_input, process_rename,
                              process_rechunk, output_path, output_path_or_store, output_overwrite, output_consolidated,
                              output_encoding):
     with measure_time(f'Opening {len(input_files)} file(s)'):
         output_dataset = xr.open_mfdataset(input_files,
                                            engine=input_engine,
-                                           preprocess=input_dataset_preprocessor,
+                                           preprocess=preprocess_input,
                                            concat_dim=input_concat_dim)
     if process_rename:
         output_dataset = output_dataset.rename(process_rename)
@@ -181,3 +203,4 @@ def read_and_write_in_one_go(input_files, input_engine, input_concat_dim, input_
                                mode='w' if output_overwrite else 'w-',
                                encoding=output_encoding,
                                consolidated=output_consolidated)
+    output_dataset.close()

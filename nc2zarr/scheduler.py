@@ -19,11 +19,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
-DEFAULT_MODE = 'slices'
+from abc import abstractmethod
+from typing import Sequence, Tuple
 
-MODE_CHOICES = 'slices', 'one_go'
 
-S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
-S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
+class Scheduler:
+    @abstractmethod
+    def group(commands: Sequence[Tuple[str, str]]):
+        pass
+
+    @abstractmethod
+    def combine(output: str):
+        pass
+
+
+class LocalScheduler(Scheduler):
+    def group(commands: Sequence[Tuple[str, str]]):
+        pass
+
+    def combine(output: str):
+        pass
+
+
+class SlurmScheduler(Scheduler):
+    def group(commands: Sequence[Tuple[str, str]]):
+        pass
+
+    def combine(output: str):
+        pass

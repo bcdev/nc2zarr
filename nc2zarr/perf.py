@@ -22,6 +22,8 @@
 import contextlib
 import time
 
+from .logger import LOGGER
+
 
 class measure_time(contextlib.AbstractContextManager):
 
@@ -34,10 +36,10 @@ class measure_time(contextlib.AbstractContextManager):
     def __enter__(self):
         self.start = time.perf_counter()
         if self.verbose:
-            print(f'{self.tag}...')
+            LOGGER.info(f'{self.tag}...')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.duration = time.perf_counter() - self.start
         if self.verbose and exc_type is None:
-            print(f'{self.tag} done: took {self.duration} seconds')
+            LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')

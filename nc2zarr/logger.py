@@ -19,11 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
-DEFAULT_MODE = 'slices'
+import logging
 
-MODE_CHOICES = 'slices', 'one_go'
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(msg)s')
 
-S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
-S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
+LOGGER = logging.getLogger('nc2zarr')
