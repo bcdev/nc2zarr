@@ -10,9 +10,13 @@ input:
     - cfc
     - cfc_std
 
+process:
+  rechunk:
+    time: 6
+
 output:
   endpoint_url: http://cci-ke-o.s3-ext.jc.rl.ac.uk
-  path: esacci-test/cloud_L3C_MERIS-AATSR_v2.0_2011.zarr
+  path: esacci-test/cloud_L3C_MERIS-AATSR_v2.0_2011_day.zarr
   anon: false
   key: ...
   secret: ...
