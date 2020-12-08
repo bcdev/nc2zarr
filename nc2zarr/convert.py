@@ -217,22 +217,26 @@ def _process_dataset(ds: xr.Dataset,
         -> Tuple[xr.Dataset, Dict[str, Dict[str, Any]]]:
     if process_rename:
         ds = ds.rename(process_rename)
-    if remove_fill_value:
-        _remove_fill_value(ds)
     # fill_value_encoding = dict()
     if process_rechunk:
         chunk_encoding = _get_chunk_encodings(ds, process_rechunk)
     else:
         chunk_encoding = dict()
+    if remove_fill_value:
+        # This will only take place in "slice" mode.
+        # For all slices except the first we must remove "_FillValue" attribute.
+        ds = _remove_fill_value(ds)
     return ds, _merge_encodings(ds,
                                 chunk_encoding,
                                 output_encoding or {})
 
 
-def _remove_fill_value(ds: xr.Dataset):
+def _remove_fill_value(ds: xr.Dataset) -> xr.Dataset:
+    ds = ds.copy()
     for v in ds.data_vars.values():
         if '_FillValue' in v.attrs:
             del v.attrs['_FillValue']
+    return ds
 
 
 def _get_chunk_encodings(ds: xr.Dataset,
