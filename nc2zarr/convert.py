@@ -1,12 +1,13 @@
 import glob
 import os.path
 import shutil
-from typing import Sequence, Union, Type, Mapping, Any
+from typing import Sequence, Union, Type, Any, Tuple, Dict, List
 
 import s3fs
 import xarray as xr
 import yaml
 
+from .append import ensure_append_dim
 from .batch import run_batch_mode
 from .constants import DEFAULT_CONFIG_FILE
 from .constants import DEFAULT_MODE
@@ -15,7 +16,6 @@ from .constants import S3_CLIENT_KEYWORDS
 from .constants import S3_KEYWORDS
 from .logger import LOGGER
 from .perf import measure_time
-from .time import ensure_time_dim
 
 
 # noinspection PyUnusedLocal
@@ -24,6 +24,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            config_path: str = None,
                            batch_size: int = None,
                            mode: str = None,
+                           decode_cf: bool = False,
                            verbose: bool = False,
                            exception_type: Type[Exception] = ValueError):
     """
@@ -34,6 +35,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param config_path:
     :param mode: 'slices' or 'one_go'
     :param verbose:
+    :param decode_cf:
     :param exception_type:
     """
     config = {}
@@ -51,9 +53,10 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     input_config = config.get('input', {})
     input_paths = input_paths or input_config.get('paths')
     input_variables = input_config.get('variables')
-    input_concat_dim = input_config.get('concat_dim', 'time')
+    input_append_dim = input_config.get('append_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
     input_batch_size = batch_size or input_config.get('batch_size')
+    input_decode_cf = decode_cf or input_config.get('decode_cf', False)
 
     process_config = config.get('process', {})
     process_rename = process_config.get('rename')
@@ -69,7 +72,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     output_s3_client_kwargs = {k: output_config[k]
                                for k in S3_CLIENT_KEYWORDS if k in output_config}
 
-    input_files = get_input_files(input_paths)
+    input_files = _get_input_files(input_paths)
     if not input_files:
         raise exception_type('at least one input file must be given')
 
@@ -96,7 +99,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         nonlocal first_dataset_shown
         input_file = input_dataset.encoding['source']
         with measure_time(f'Preprocessing {input_file}', verbose=verbose):
-            input_dataset = ensure_time_dim(input_dataset)
+            input_dataset = ensure_append_dim(input_dataset, input_append_dim)
             if input_variables:
                 drop_variables = set(input_dataset.data_vars).difference(input_variables)
                 input_dataset = input_dataset.drop_vars(drop_variables)
@@ -105,10 +108,11 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
             first_dataset_shown = True
         return input_dataset
 
-    read_and_write = read_and_write_in_slices if mode == 'slices' else read_and_write_in_one_go
+    read_and_write = _read_and_write_in_slices if mode == 'slices' else _read_and_write_in_one_go
     read_and_write(input_files,
                    input_engine,
-                   input_concat_dim,
+                   input_append_dim,
+                   input_decode_cf,
                    preprocess_input,
                    process_rename,
                    process_rechunk,
@@ -123,27 +127,31 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     #                             consolidated=output_consolidated)
 
 
-def read_and_write_in_slices(input_files,
-                             input_engine,
-                             input_concat_dim,
-                             preprocess_input,
-                             process_rename,
-                             process_rechunk,
-                             output_path,
-                             output_path_or_store,
-                             output_overwrite,
-                             output_consolidated,
-                             output_encoding):
+def _read_and_write_in_slices(input_files,
+                              input_engine,
+                              input_append_dim,
+                              input_decode_cf,
+                              preprocess_input,
+                              process_rename,
+                              process_rechunk,
+                              output_path,
+                              output_path_or_store,
+                              output_overwrite,
+                              output_consolidated,
+                              output_encoding):
     n = len(input_files)
     for i in range(n):
         input_file = input_files[i]
         with measure_time(f'Opening slice {i + 1} of {n}: {input_file}'):
-            input_dataset = xr.open_dataset(input_file, engine=input_engine)
+            input_dataset = xr.open_dataset(input_file,
+                                            engine=input_engine,
+                                            decode_cf=input_decode_cf)
         input_dataset = preprocess_input(input_dataset)
-        if process_rename:
-            input_dataset = input_dataset.rename(process_rename)
-        if process_rechunk:
-            output_encoding = get_output_encoding(input_dataset, process_rechunk, output_encoding)
+        output_dataset, output_encoding = _process_dataset(input_dataset,
+                                                           process_rechunk,
+                                                           process_rename,
+                                                           output_encoding,
+                                                           i > 0 and not input_decode_cf)
         if i == 0:
             with measure_time(f'Writing first slice to {output_path}'):
                 input_dataset.to_zarr(output_path_or_store,
@@ -153,31 +161,33 @@ def read_and_write_in_slices(input_files,
         else:
             with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
                 input_dataset.to_zarr(output_path_or_store,
-                                      append_dim=input_concat_dim,
+                                      append_dim=input_append_dim,
                                       consolidated=output_consolidated)
         input_dataset.close()
 
 
-def read_and_write_in_one_go(input_files,
-                             input_engine,
-                             input_concat_dim,
-                             preprocess_input,
-                             process_rename,
-                             process_rechunk,
-                             output_path,
-                             output_path_or_store,
-                             output_overwrite,
-                             output_consolidated,
-                             output_encoding):
+def _read_and_write_in_one_go(input_files,
+                              input_engine,
+                              input_append_dim,
+                              input_decode_cf,
+                              preprocess_input,
+                              process_rename,
+                              process_rechunk,
+                              output_path,
+                              output_path_or_store,
+                              output_overwrite,
+                              output_consolidated,
+                              output_encoding):
     with measure_time(f'Opening {len(input_files)} file(s)'):
         output_dataset = xr.open_mfdataset(input_files,
                                            engine=input_engine,
                                            preprocess=preprocess_input,
-                                           concat_dim=input_concat_dim)
-    if process_rename:
-        output_dataset = output_dataset.rename(process_rename)
-    if process_rechunk:
-        output_encoding = get_output_encoding(output_dataset, process_rechunk, output_encoding)
+                                           concat_dim=input_append_dim,
+                                           decode_cf=input_decode_cf)
+    output_dataset, output_encoding = _process_dataset(output_dataset,
+                                                       process_rechunk,
+                                                       process_rename,
+                                                       output_encoding)
     with measure_time(f'Writing dataset to {output_path}'):
         output_dataset.to_zarr(output_path_or_store,
                                mode='w' if output_overwrite else 'w-',
@@ -186,7 +196,7 @@ def read_and_write_in_one_go(input_files,
     output_dataset.close()
 
 
-def get_input_files(input_paths: Sequence[str]) -> Sequence[str]:
+def _get_input_files(input_paths: List[str]) -> List[str]:
     input_files = []
     if isinstance(input_paths, str):
         input_files.extend(glob.glob(input_paths, recursive=True))
@@ -199,21 +209,59 @@ def get_input_files(input_paths: Sequence[str]) -> Sequence[str]:
     return sorted(input_files)
 
 
-def get_output_encoding(input_dataset,
-                        process_rechunk: Mapping[str, int],
-                        output_encoding: Mapping[str, Any] = None) -> Mapping[str, Any]:
-    updated_output_encoding = dict()
-    for k, v in input_dataset.data_vars.items():
+def _process_dataset(ds: xr.Dataset,
+                     process_rechunk: Dict[str, int] = None,
+                     process_rename: Dict[str, str] = None,
+                     output_encoding: Dict[str, Dict[str, Any]] = None,
+                     remove_fill_value: bool = False) \
+        -> Tuple[xr.Dataset, Dict[str, Dict[str, Any]]]:
+    if process_rename:
+        ds = ds.rename(process_rename)
+    if remove_fill_value:
+        _remove_fill_value(ds)
+    # fill_value_encoding = dict()
+    if process_rechunk:
+        chunk_encoding = _get_chunk_encodings(ds, process_rechunk)
+    else:
+        chunk_encoding = dict()
+    return ds, _merge_encodings(ds,
+                                chunk_encoding,
+                                output_encoding or {})
+
+
+def _remove_fill_value(ds: xr.Dataset):
+    for v in ds.data_vars.values():
+        if '_FillValue' in v.attrs:
+            del v.attrs['_FillValue']
+
+
+def _get_chunk_encodings(ds: xr.Dataset,
+                         process_rechunk: Dict[str, int]) \
+        -> Dict[str, Dict[str, Any]]:
+    output_encoding = dict()
+    for k, v in ds.data_vars.items():
+        var_name = str(k)
         chunks = []
         for dim_index in range(len(v.dims)):
             dim_name = v.dims[dim_index]
             if dim_name in process_rechunk:
                 chunks.append(process_rechunk[dim_name])
             else:
-                chunks.append(v.chunks[dim_index] if v.chunks is not None else v.sizes[dim_name])
-        var_encoding = dict(v.encoding)
-        if output_encoding and k in output_encoding:
-            var_encoding.update(output_encoding[k])
-        var_encoding.update(chunks=tuple(chunks))
-        updated_output_encoding[k] = var_encoding
-    return updated_output_encoding
+                chunks.append(v.chunks[dim_index]
+                              if v.chunks is not None else v.sizes[dim_name])
+        output_encoding[var_name] = dict(chunks=tuple(chunks))
+    return output_encoding
+
+
+def _merge_encodings(ds: xr.Dataset,
+                     *encodings: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    output_encoding = dict()
+    for encoding in encodings:
+        for k, v in ds.data_vars.items():
+            var_name = str(k)
+            if var_name in encoding:
+                if var_name not in output_encoding:
+                    output_encoding[var_name] = dict(encoding[var_name])
+                else:
+                    output_encoding[var_name].update(encoding[var_name])
+    return output_encoding

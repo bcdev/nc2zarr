@@ -22,8 +22,10 @@
 import logging
 import sys
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-                    stream=sys.stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s: %(levelname)s: %(name)s: %(message)s',
+    stream=sys.stderr,
+)
 
 LOGGER = logging.getLogger('nc2zarr')

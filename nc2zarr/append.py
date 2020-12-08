@@ -20,11 +20,9 @@
 # SOFTWARE.
 
 import re
-import warnings
 from datetime import datetime
 from typing import Tuple, Optional
 
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -35,66 +33,60 @@ _RE_TO_DATETIME_FORMATS = [(re.compile(14 * '\\d'), '%Y%m%d%H%M%S'),
                            (re.compile(4 * '\\d'), '%Y')]
 
 
-def ensure_time_dim(ds: xr.Dataset) -> xr.Dataset:
+def ensure_append_dim(ds: xr.Dataset, append_dim_name: str) -> xr.Dataset:
     """
-    Add a time coordinate variable and their associated bounds coordinate variables
-    if either temporal CF attributes ``time_coverage_start`` and ``time_coverage_end``
-    are given or time information can be extracted from the file name but the time dimension is missing.
-
-    In case the time information is given by a variable called 't' instead of 'time', it will be renamed into 'time'.
-
-    The new time coordinate variable will be named ``time`` with dimension ['time'] and shape [1].
-    The time bounds coordinates variable will be named ``time_bnds`` with dimensions ['time', 'bnds'] and shape [1,2].
-    Both are of data type ``datetime64``.
-
     :param ds: Dataset to adjust
+    :param append_dim_name: Name of dimension to be appended
     :return: Adjusted dataset
     """
-    time = None
-    if 'time' in ds and isinstance(ds.time.values[0], (datetime, np.datetime64)):
-        time = ds.time
-    elif 't' in ds and isinstance(ds.t.values[0], (datetime, np.datetime64)):
-        # if 't' in ds.t.dims:
-        #     ds = ds.rename_dims({"t": "time"})
-        ds = ds.rename_vars({"t": "time"})
-        time = ds.time
+    append_dim_var = None
+    if append_dim_name in ds:
+        append_dim_var = ds[append_dim_name]
 
-    if time is not None:
-        if 'time' not in ds.coords or not time.dims:
-            ds = ds.assign_coords(time=xr.DataArray(ds.time, dims=('time',)))
-    else:
+    if append_dim_var is not None:
+        if not append_dim_var.dims:
+            # if the append_dim_var does not yet have a dimension, add it
+            ds = ds.assign_coords({append_dim_name: xr.DataArray(append_dim_var, dims=(append_dim_name,))})
+    elif append_dim_name == 'time':
         time_coverage_start, time_coverage_end = get_time_coverage_from_ds(ds)
         if not time_coverage_start and not time_coverage_end:
             # Can't do anything
-            return ds
+            raise ValueError(f'cannot determine "{append_dim_name}" coordinate')
 
         time_coverage_start = time_coverage_start or time_coverage_end
         time_coverage_end = time_coverage_end or time_coverage_start
         ds = ds.assign_coords(
-            time=xr.DataArray([time_coverage_start + 0.5 * (time_coverage_end - time_coverage_start)], dims=('time',)),
-            time_bnds=xr.DataArray([[time_coverage_start, time_coverage_end]], dims=('time', 'bnds'))
+            time=xr.DataArray([time_coverage_start + 0.5 * (time_coverage_end - time_coverage_start)],
+                              dims=('time',),
+                              attrs=dict(bounds='time_bnds')),
+            time_bnds=xr.DataArray([[time_coverage_start, time_coverage_end]],
+                                   dims=('time', 'bnds'))
         )
+        append_dim_var = ds.time
+    else:
+        # Can't do anything
+        raise ValueError(f'cannot determine "{append_dim_name}" coordinate')
 
-    is_time_used_as_dim = any(('time' in ds[var_name].dims) for var_name in ds.data_vars)
-    if not is_time_used_as_dim:
-        time = ds.time
-        time_bnds = ds.time_bnds if 'time_bnds' in ds else None
+    is_append_dim_used = any((append_dim_name in ds[var_name].dims) for var_name in ds.data_vars)
+    if not is_append_dim_used:
+        append_dim_bnds_name = append_dim_var.attrs.get('bounds', f'{append_dim_name}_bnds')
+        append_dim_bnds_var = ds[append_dim_bnds_name] if append_dim_bnds_name in ds else None
 
-        if time_bnds is not None:
-            ds = ds.drop_vars(['time', 'time_bnds'])
+        # ds.expand_dims() will raise if coordinates exist, so remove them temporarily
+        if append_dim_bnds_var is not None:
+            ds = ds.drop_vars([append_dim_name, append_dim_bnds_name])
         else:
-            ds = ds.drop_vars('time')
+            ds = ds.drop_vars(append_dim_name)
 
-        if 'time' in ds.dims:
-            ds = ds.drop_dims('time')
+        # if append_dim_name is still a dimension, drop it too
+        if append_dim_name in ds.dims:
+            ds = ds.drop_dims(append_dim_name)
 
-        try:
-            ds = ds.expand_dims(time=time)
-        except BaseException as e:
-            warnings.warn(f'failed adding time dimension: {e}')
-
-        if time_bnds is not None:
-            ds = ds.assign_coords(time_bnds=time_bnds)
+        # expand dataset by append_dim_name/append_dim_var, this will add the dimension and the coordinate
+        ds = ds.expand_dims({append_dim_name: append_dim_var})
+        # also (re)assign bounds coordinates
+        if append_dim_bnds_var is not None:
+            ds = ds.assign_coords(time_bnds=append_dim_bnds_var)
 
     # TODO: update output_dataset.attrs to reflect actual extent
     #  of spatio-temporal coordinates, use xcube code.
