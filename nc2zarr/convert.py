@@ -154,15 +154,15 @@ def _read_and_write_in_slices(input_files,
                                                            i > 0 and not input_decode_cf)
         if i == 0:
             with measure_time(f'Writing first slice to {output_path}'):
-                input_dataset.to_zarr(output_path_or_store,
-                                      mode='w' if output_overwrite else 'w-',
-                                      encoding=output_encoding,
-                                      consolidated=output_consolidated)
+                output_dataset.to_zarr(output_path_or_store,
+                                       mode='w' if output_overwrite else 'w-',
+                                       encoding=output_encoding,
+                                       consolidated=output_consolidated)
         else:
             with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
-                input_dataset.to_zarr(output_path_or_store,
-                                      append_dim=input_append_dim,
-                                      consolidated=output_consolidated)
+                output_dataset.to_zarr(output_path_or_store,
+                                       append_dim=input_append_dim,
+                                       consolidated=output_consolidated)
         input_dataset.close()
 
 
@@ -213,7 +213,7 @@ def _process_dataset(ds: xr.Dataset,
                      process_rechunk: Dict[str, int] = None,
                      process_rename: Dict[str, str] = None,
                      output_encoding: Dict[str, Dict[str, Any]] = None,
-                     remove_fill_value: bool = False) \
+                     prepare_for_append: bool = False) \
         -> Tuple[xr.Dataset, Dict[str, Dict[str, Any]]]:
     if process_rename:
         ds = ds.rename(process_rename)
@@ -222,20 +222,19 @@ def _process_dataset(ds: xr.Dataset,
         chunk_encoding = _get_chunk_encodings(ds, process_rechunk)
     else:
         chunk_encoding = dict()
-    if remove_fill_value:
+    if prepare_for_append:
         # This will only take place in "slice" mode.
-        # For all slices except the first we must remove "_FillValue" attribute.
-        ds = _remove_fill_value(ds)
+        # For all slices except the first we must remove encoding attributes e.g. "_FillValue" .
+        ds = _remove_variable_attrs(ds)
     return ds, _merge_encodings(ds,
                                 chunk_encoding,
                                 output_encoding or {})
 
 
-def _remove_fill_value(ds: xr.Dataset) -> xr.Dataset:
+def _remove_variable_attrs(ds: xr.Dataset) -> xr.Dataset:
     ds = ds.copy()
-    for v in ds.data_vars.values():
-        if '_FillValue' in v.attrs:
-            del v.attrs['_FillValue']
+    for k, v in ds.variables.items():
+        v.attrs = dict()
     return ds
 
 
@@ -243,7 +242,7 @@ def _get_chunk_encodings(ds: xr.Dataset,
                          process_rechunk: Dict[str, int]) \
         -> Dict[str, Dict[str, Any]]:
     output_encoding = dict()
-    for k, v in ds.data_vars.items():
+    for k, v in ds.variables.items():
         var_name = str(k)
         chunks = []
         for dim_index in range(len(v.dims)):
@@ -261,7 +260,7 @@ def _merge_encodings(ds: xr.Dataset,
                      *encodings: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     output_encoding = dict()
     for encoding in encodings:
-        for k, v in ds.data_vars.items():
+        for k, v in ds.variables.items():
             var_name = str(k)
             if var_name in encoding:
                 if var_name not in output_encoding:
