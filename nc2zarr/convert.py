@@ -25,6 +25,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            batch_size: int = None,
                            mode: str = None,
                            decode_cf: bool = False,
+                           dry_run: bool = False,
                            verbose: bool = False,
                            exception_type: Type[Exception] = ValueError):
     """
@@ -34,8 +35,9 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     :param output_path:
     :param config_path:
     :param mode: 'slices' or 'one_go'
-    :param verbose:
     :param decode_cf:
+    :param dry_run:
+    :param verbose:
     :param exception_type:
     """
     config = {}
@@ -48,15 +50,19 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         if config_path is not None:
             raise exception_type(f'Configuration {config_path} not found')
 
-    mode = mode or config.get('mode', DEFAULT_MODE)
+    mode = mode if mode is not None else config.get('mode', DEFAULT_MODE)
+
+    dry_run = dry_run if dry_run is not None else  config.get('dry_run', False)
+    if dry_run:
+        LOGGER.warn('Dry run!')
 
     input_config = config.get('input', {})
     input_paths = input_paths or input_config.get('paths')
     input_variables = input_config.get('variables')
     input_append_dim = input_config.get('append_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
-    input_batch_size = batch_size or input_config.get('batch_size')
-    input_decode_cf = decode_cf or input_config.get('decode_cf', False)
+    input_batch_size = batch_size if batch_size is not None else input_config.get('batch_size')
+    input_decode_cf = decode_cf if decode_cf is not None else input_config.get('decode_cf', False)
 
     process_config = config.get('process', {})
     process_rename = process_config.get('rename')
@@ -120,7 +126,8 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                    output_path_or_store,
                    output_overwrite,
                    output_consolidated,
-                   output_encoding)
+                   output_encoding,
+                   dry_run)
 
     # Test by reopening the dataset from target location
     # test_dataset = xr.open_zarr(output_path_or_store,
@@ -138,7 +145,8 @@ def _read_and_write_in_slices(input_files,
                               output_path_or_store,
                               output_overwrite,
                               output_consolidated,
-                              output_encoding):
+                              output_encoding,
+                              dry_run):
     n = len(input_files)
     for i in range(n):
         input_file = input_files[i]
@@ -152,17 +160,25 @@ def _read_and_write_in_slices(input_files,
                                                            process_rename,
                                                            output_encoding,
                                                            i > 0 and not input_decode_cf)
+
         if i == 0:
             with measure_time(f'Writing first slice to {output_path}'):
-                output_dataset.to_zarr(output_path_or_store,
-                                       mode='w' if output_overwrite else 'w-',
-                                       encoding=output_encoding,
-                                       consolidated=output_consolidated)
+                if not dry_run:
+                    output_dataset.to_zarr(output_path_or_store,
+                                           mode='w' if output_overwrite else 'w-',
+                                           encoding=output_encoding,
+                                           consolidated=output_consolidated)
+                else:
+                    LOGGER.warn('Writing disabled, dry run!')
         else:
             with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
-                output_dataset.to_zarr(output_path_or_store,
-                                       append_dim=input_append_dim,
-                                       consolidated=output_consolidated)
+                if not dry_run:
+                    output_dataset.to_zarr(output_path_or_store,
+                                           append_dim=input_append_dim,
+                                           consolidated=output_consolidated)
+                else:
+                    LOGGER.warn('Writing disabled, dry run!')
+
         input_dataset.close()
 
 
@@ -177,7 +193,8 @@ def _read_and_write_in_one_go(input_files,
                               output_path_or_store,
                               output_overwrite,
                               output_consolidated,
-                              output_encoding):
+                              output_encoding,
+                              dry_run):
     with measure_time(f'Opening {len(input_files)} file(s)'):
         output_dataset = xr.open_mfdataset(input_files,
                                            engine=input_engine,
@@ -189,10 +206,13 @@ def _read_and_write_in_one_go(input_files,
                                                        process_rename,
                                                        output_encoding)
     with measure_time(f'Writing dataset to {output_path}'):
-        output_dataset.to_zarr(output_path_or_store,
-                               mode='w' if output_overwrite else 'w-',
-                               encoding=output_encoding,
-                               consolidated=output_consolidated)
+        if not dry_run:
+            output_dataset.to_zarr(output_path_or_store,
+                                   mode='w' if output_overwrite else 'w-',
+                                   encoding=output_encoding,
+                                   consolidated=output_consolidated)
+        else:
+            LOGGER.warn('Writing disabled, dry run!')
     output_dataset.close()
 
 

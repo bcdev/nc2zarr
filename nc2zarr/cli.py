@@ -39,8 +39,12 @@ from nc2zarr.constants import MODE_CHOICES
               help=f'Batch size. If greater zero, conversion will be performed in batches of the given size.')
 @click.option('--mode', '-m', 'mode', metavar='MODE', type=click.Choice(MODE_CHOICES),
               help=f'Configuration file. Must be one of {MODE_CHOICES}. Defaults to "{DEFAULT_MODE}".')
-@click.option('--decode-cf', '-d', 'decode_cf', is_flag=True,
-              help=f'Decode variables according to CF conventions.')
+@click.option('--decode-cf', 'decode_cf', is_flag=True,
+              help=f'Decode variables according to CF conventions. '
+                   f'Caution: array data may be converted to floating point type '
+                   f'if a "_FillValue" attribute is present.')
+@click.option('--dry-run', '-d', 'dry_run', is_flag=True,
+              help='Open and process inputs only, omit data writing.')
 @click.option('--verbose', '-v', is_flag=True,
               help='Print more output.')
 @click.option('--version', is_flag=True,
@@ -51,6 +55,7 @@ def main(input_files: List[str],
          batch_size: Optional[int],
          mode: str,
          decode_cf: bool,
+         dry_run: bool,
          verbose: bool,
          version: bool):
     """
@@ -62,10 +67,11 @@ def main(input_files: List[str],
     Accordingly the following option overwrite settings in CONFIG_FILE:
 
     \b
-    --mode overwrites mode
-    --batch overwrites input/batch_size (not implemented yet)
-    --decode-cf overwrites input/decode_cf
-    --output overwrites output/path
+    --mode overwrites CONFIG_FILE/mode
+    --dry-run overwrites CONFIG_FILE/dry_run
+    --batch overwrites CONFIG_FILE/input/batch_size (not implemented yet)
+    --decode-cf overwrites CONFIG_FILE/input/decode_cf
+    --output overwrites CONFIG_FILE/output/path
     """
 
     if version:
@@ -86,6 +92,7 @@ def main(input_files: List[str],
                                mode=mode,
                                decode_cf=decode_cf,
                                verbose=verbose,
+                               dry_run=dry_run,
                                exception_type=click.ClickException)
 
 
