@@ -108,7 +108,7 @@ def cp(ctx, from_path: str, to_path: str, recursive: bool):
 
 
 def _get_config(ctx):
-    config_path = ctx.get('config_path')
+    config_path = ctx.obj.get('config_path')
     config_path = config_path or DEFAULT_CONFIG_FILE if os.path.isfile(DEFAULT_CONFIG_FILE) else None
     if config_path:
         with open(config_path, 'r') as stream:
