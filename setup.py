@@ -38,6 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             'nc2zarr = nc2zarr.cli:main',
+            'fs = nc2zarr.fscli:main',
         ],
     },
 )
