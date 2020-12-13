@@ -1,3 +1,4 @@
+fs-config.yml
 nc2zarr-config.yml
 *.zarr/
 

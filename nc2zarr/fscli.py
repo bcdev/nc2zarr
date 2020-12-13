@@ -19,33 +19,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os.path
 from typing import Optional
 
 import click
 import yaml
 
-DEFAULT_CONFIG_FILE = 'fs-config.yml'
+DEFAULT_CONFIG_FILE = os.path.join('.', 'fs-config.yml')
 
 
 @click.group(name='fs')
-@click.option('--config', '-c', 'fs_config_path', metavar='FS_CONFIG',
-              help=f'Configuration file. Defaults to "{DEFAULT_CONFIG_FILE}".')
-@click.option('--version', is_flag=True,
-              help='Show version number and exit.')
+@click.option('--config', '-c', 'config_path', metavar='CONFIG',
+              help=f'File systems configuration file. Defaults to "{DEFAULT_CONFIG_FILE}".')
 @click.pass_context
-def main(ctx, fs_config_path: Optional[str], version: bool):
+def main(ctx, config_path: Optional[str]):
     """
     CLI wrapper for fsspec.FileSystem.
     """
-    if version:
-        from nc2zarr.version import version
-        print(version)
-        raise click.exceptions.Exit(0)
     ctx.ensure_object(dict)
-    if fs_config_path:
-        with open(fs_config_path, 'r') as stream:
-            fs_config = yaml.load(stream, Loader=yaml.SafeLoader)
-            ctx.obj.update(fs_config)
+    ctx.obj.update(config_path=config_path)
 
 
 @main.command(name='ls')
@@ -53,18 +45,38 @@ def main(ctx, fs_config_path: Optional[str], version: bool):
 @click.pass_context
 def ls(ctx, path: str):
     """
-    Copy files and directories.
+    List files and directories.
     """
-
     import fsspec
-    s3_options = ctx.obj.get('s3', {})
-    local_options = ctx.obj.get('file', {})
+    config = _get_config(ctx)
+    s3_options = config.get('s3', {})
+    local_options = config.get('file', {})
     if path.startswith('s3://'):
         fs: fsspec.AbstractFileSystem = fsspec.filesystem('s3', **s3_options)
     else:
         fs: fsspec.AbstractFileSystem = fsspec.filesystem('file', **local_options)
     for p in fs.ls(path):
         print(p)
+
+
+@main.command(name='rm')
+@click.argument('path', nargs=1, metavar='PATH')
+@click.option('--recursive', '-r', is_flag=True,
+              help='Remove directories recursively.')
+@click.pass_context
+def rm(ctx, path: str, recursive: bool):
+    """
+    Remove files and directories.
+    """
+    import fsspec
+    config = _get_config(ctx)
+    s3_options = config.get('s3', {})
+    local_options = config.get('file', {})
+    if path.startswith('s3://'):
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem('s3', **s3_options)
+    else:
+        fs: fsspec.AbstractFileSystem = fsspec.filesystem('file', **local_options)
+    fs.rm(path, recursive=recursive)
 
 
 @main.command(name='cp')
@@ -77,10 +89,10 @@ def cp(ctx, from_path: str, to_path: str, recursive: bool):
     """
     Copy files and directories.
     """
-
     import fsspec
-    s3_options = ctx.obj.get('s3', {})
-    local_options = ctx.obj.get('file', {})
+    config = _get_config(ctx)
+    s3_options = config.get('s3', {})
+    local_options = config.get('file', {})
     if from_path.startswith('s3://') and to_path.startswith('s3://'):
         fs: fsspec.AbstractFileSystem = fsspec.filesystem('s3', **s3_options)
         fs.copy(from_path, to_path, recursive=recursive)
@@ -93,6 +105,17 @@ def cp(ctx, from_path: str, to_path: str, recursive: bool):
     else:
         fs: fsspec.AbstractFileSystem = fsspec.filesystem('file', **local_options)
         fs.copy(from_path, to_path, recursive=recursive)
+
+
+def _get_config(ctx):
+    config_path = ctx.get('config_path')
+    config_path = config_path or DEFAULT_CONFIG_FILE if os.path.isfile(DEFAULT_CONFIG_FILE) else None
+    if config_path:
+        with open(config_path, 'r') as stream:
+            config = yaml.load(stream, Loader=yaml.SafeLoader)
+            print(f'Configuration {config_path} loaded.')
+            return config
+    return {}
 
 
 if __name__ == '__main__':
