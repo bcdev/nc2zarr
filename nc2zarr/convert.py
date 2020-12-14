@@ -8,11 +8,8 @@ import xarray as xr
 import yaml
 
 from .append import ensure_append_dim
-from .batch import run_batch_mode
-from .constants import DEFAULT_CONFIG_FILE
 from .constants import DEFAULT_MODE
 from .constants import DEFAULT_OUTPUT_FILE
-from .constants import S3_CLIENT_KEYWORDS
 from .constants import S3_KEYWORDS
 from .logger import LOGGER
 from .perf import measure_time
@@ -21,7 +18,7 @@ from .perf import measure_time
 # noinspection PyUnusedLocal
 def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            output_path: str = None,
-                           config_path: str = None,
+                           config_paths: List[str] = None,
                            batch_size: int = None,
                            mode: str = None,
                            decode_cf: bool = False,
@@ -33,62 +30,84 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
 
     :param input_paths:
     :param output_path:
-    :param config_path:
+    :param config_paths:
+    :param batch_size:
     :param mode: 'slices' or 'one_go'
     :param decode_cf:
     :param dry_run:
     :param verbose:
     :param exception_type:
     """
-    config = {}
-    try:
-        effective_config_path = config_path or DEFAULT_CONFIG_FILE
-        with open(effective_config_path) as fp:
-            config = yaml.load(fp, Loader=yaml.SafeLoader)
-            LOGGER.info(f'Configuration {effective_config_path} loaded.')
-    except FileNotFoundError as e:
-        if config_path is not None:
-            raise exception_type(f'Configuration {config_path} not found')
 
-    mode = mode if mode is not None else config.get('mode', DEFAULT_MODE)
+    arg_config = dict(input=dict(), process=dict(), output=dict())
+    if mode is not None:
+        arg_config['mode'] = mode
+    if dry_run:
+        arg_config['dry_run'] = True
+    if decode_cf:
+        arg_config['input']['decode_cf'] = True
+    if batch_size is not None:
+        arg_config['input']['batch_size'] = batch_size
+    if input_paths:
+        arg_config['input']['paths'] = input_paths
+    if output_path:
+        arg_config['output']['path'] = output_path
 
-    dry_run = dry_run if dry_run is not None else  config.get('dry_run', False)
+    configs = [_load_config(config_path, exception_type)
+               for config_path in config_paths] + [arg_config]
+
+    effective_request = _merge_configs(configs)
+
+    _convert_netcdf_to_zarr(effective_request, verbose, exception_type)
+
+
+def _convert_netcdf_to_zarr(effective_request: Dict[str, Any],
+                            verbose: bool,
+                            exception_type: Type[Exception]):
+    mode = effective_request.get('mode', DEFAULT_MODE)
+
+    dry_run = effective_request.get('dry_run', False)
     if dry_run:
         LOGGER.warn('Dry run!')
 
-    input_config = config.get('input', {})
-    input_paths = input_paths or input_config.get('paths')
+    input_config = effective_request.get('input', {})
+    input_paths = input_config.get('paths')
     input_variables = input_config.get('variables')
     input_append_dim = input_config.get('append_dim', 'time')
     input_engine = input_config.get('engine', 'netcdf4')
-    input_batch_size = batch_size if batch_size is not None else input_config.get('batch_size')
-    input_decode_cf = decode_cf if decode_cf is not None else input_config.get('decode_cf', False)
+    input_decode_cf = input_config.get('decode_cf', False)
+    input_sort_by = input_config.get('sort_by', 'path')
+    input_batch_size = input_config.get('batch_size')
+    if input_batch_size is not None:
+        raise NotImplementedError('batch processing not supported yet')
 
-    process_config = config.get('process', {})
+    process_config = effective_request.get('process', {})
     process_rename = process_config.get('rename')
     process_rechunk = process_config.get('rechunk')
 
-    output_config = config.get('output', {})
-    output_path = output_path or output_config.get('path', DEFAULT_OUTPUT_FILE)
+    output_config = effective_request.get('output', {})
+    output_path = output_config.get('path', DEFAULT_OUTPUT_FILE)
     output_encoding = output_config.get('encoding')
     output_consolidated = output_config.get('consolidated', False)
     output_overwrite = output_config.get('overwrite', False)
     output_s3_kwargs = {k: output_config[k]
                         for k in S3_KEYWORDS if k in output_config}
-    output_s3_client_kwargs = {k: output_config[k]
-                               for k in S3_CLIENT_KEYWORDS if k in output_config}
 
     input_files = _get_input_files(input_paths)
     if not input_files:
         raise exception_type('at least one input file must be given')
+    if input_sort_by:
+        if input_sort_by == 'path' or input_sort_by is True:
+            input_files = sorted(input_files)
+        elif input_sort_by == 'name':
+            input_files = sorted(input_files, key=os.path.basename)
+    if verbose:
+        LOGGER.info('Input files:\n'
+                    + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
+                                     zip(range(len(input_files)), input_files)))))
 
-    if batch_size:
-        run_batch_mode(input_files, batch_size, config_path, exception_type=exception_type)
-        return
-
-    if output_s3_kwargs or output_s3_client_kwargs:
-        s3 = s3fs.S3FileSystem(**output_s3_kwargs,
-                               client_kwargs=output_s3_client_kwargs or None)
+    if output_s3_kwargs:
+        s3 = s3fs.S3FileSystem(**output_s3_kwargs)
         if output_overwrite and s3.isdir(output_path):
             with measure_time(f'Removing existing {output_path}'):
                 s3.rm(output_path, recursive=True)
@@ -223,10 +242,7 @@ def _get_input_files(input_paths: List[str]) -> List[str]:
     elif input_paths is not None and len(input_paths):
         for input_path in input_paths:
             input_files.extend(glob.glob(input_path, recursive=True))
-
-    # TODO: we may sort using the actual coordinates of
-    #  input_concat_dim coordinate variable, use xcube code.
-    return sorted(input_files)
+    return input_files
 
 
 def _process_dataset(ds: xr.Dataset,
@@ -288,3 +304,26 @@ def _merge_encodings(ds: xr.Dataset,
                 else:
                     output_encoding[var_name].update(encoding[var_name])
     return output_encoding
+
+
+def _load_config(path: str, exception_type) -> Dict[str, Any]:
+    try:
+        with open(path) as fp:
+            config = yaml.load(fp, Loader=yaml.SafeLoader)
+            LOGGER.info(f'Configuration {path} loaded.')
+        return config
+    except FileNotFoundError as e:
+        raise exception_type(f'{path} not found.') from e
+
+
+def _merge_configs(configs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    effective_request = dict()
+    for config in configs:
+        effective_request.update(**config)
+    for config in configs:
+        for k in ('input', 'process', 'output'):
+            if k in config:
+                if k not in effective_request:
+                    effective_request[k] = dict()
+                effective_request[k].update(**config[k])
+    return effective_request

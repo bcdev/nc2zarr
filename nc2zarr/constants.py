@@ -20,10 +20,8 @@
 # SOFTWARE.
 
 DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_CONFIG_FILE = 'nc2zarr-config.yml'
 DEFAULT_MODE = 'slices'
 
 MODE_CHOICES = 'slices', 'one_go'
 
-S3_KEYWORDS = 'anon', 'key', 'secret', 'token'
-S3_CLIENT_KEYWORDS = 'endpoint_url', 'region_name'
+S3_KEYWORDS = 'anon', 'key', 'secret', 'token', 'client_kwargs'
