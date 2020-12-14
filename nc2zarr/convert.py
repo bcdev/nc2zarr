@@ -107,7 +107,7 @@ def _convert_netcdf_to_zarr(effective_request: Dict[str, Any],
         if output_overwrite and s3.isdir(output_path):
             with measure_time(f'Removing existing {output_path}'):
                 s3.rm(output_path, recursive=True)
-        output_path_or_store = s3fs.S3Map(output_path, s3=s3)  # , create=True)
+        output_path_or_store = s3fs.S3Map(output_path, s3=s3, create=True)
     else:
         if output_overwrite and os.path.isdir(output_path):
             with measure_time(f'Removing existing {output_path}'):
