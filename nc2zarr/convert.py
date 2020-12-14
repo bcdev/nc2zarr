@@ -107,7 +107,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         with measure_time(f'Preprocessing {input_file}', verbose=verbose):
             input_dataset = ensure_append_dim(input_dataset, input_append_dim)
             if input_variables:
-                drop_variables = set(input_dataset.data_vars).difference(input_variables)
+                drop_variables = set(input_dataset.variables).difference(input_variables)
                 input_dataset = input_dataset.drop_vars(drop_variables)
         if verbose and not first_dataset_shown:
             LOGGER.info(f'First input dataset:\n{input_dataset}')
