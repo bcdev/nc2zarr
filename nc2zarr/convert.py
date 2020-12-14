@@ -1,7 +1,7 @@
 import glob
 import os.path
 import shutil
-from typing import Sequence, Union, Type, Any, Tuple, Dict, List
+from typing import Sequence, Union, Type, Any, Tuple, Dict, List, Optional
 
 import s3fs
 import xarray as xr
@@ -93,16 +93,12 @@ def _convert_netcdf_to_zarr(effective_request: Dict[str, Any],
     output_s3_kwargs = {k: output_config[k]
                         for k in S3_KEYWORDS if k in output_config}
 
-    input_files = _get_input_files(input_paths)
+    input_files = _get_input_files(input_paths, input_sort_by, exception_type)
     if not input_files:
         raise exception_type('at least one input file must be given')
-    if input_sort_by:
-        if input_sort_by == 'path' or input_sort_by is True:
-            input_files = sorted(input_files)
-        elif input_sort_by == 'name':
-            input_files = sorted(input_files, key=os.path.basename)
+    LOGGER.info(f'{len(input_files)} input file(s) given.')
     if verbose:
-        LOGGER.info('Input files:\n'
+        LOGGER.info('Input file(s):\n'
                     + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
                                      zip(range(len(input_files)), input_files)))))
 
@@ -235,14 +231,33 @@ def _read_and_write_in_one_go(input_files,
     output_dataset.close()
 
 
-def _get_input_files(input_paths: List[str]) -> List[str]:
+def _get_input_files(input_paths: List[str],
+                     sort_by: Optional[str],
+                     exception_type) -> List[str]:
     input_files = []
     if isinstance(input_paths, str):
         input_files.extend(glob.glob(input_paths, recursive=True))
     elif input_paths is not None and len(input_paths):
         for input_path in input_paths:
             input_files.extend(glob.glob(input_path, recursive=True))
-    return input_files
+
+    if sort_by:
+        # Get rid of doubles and sort
+        input_files = set(input_files)
+        if sort_by == 'path' or sort_by is True:
+            return sorted(input_files)
+        if sort_by == 'name':
+            return sorted(input_files, key=os.path.basename)
+        raise exception_type(f'Cannot sort by "{sort_by}".')
+    else:
+        # Get rid of doubles, but preserve order
+        seen_input_files = set()
+        unique_input_files = []
+        for input_file in input_files:
+            if input_file not in seen_input_files:
+                unique_input_files.append(input_file)
+                seen_input_files.add(input_file)
+        return unique_input_files
 
 
 def _process_dataset(ds: xr.Dataset,
