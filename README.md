@@ -91,10 +91,19 @@ process:
     <old_var_name_1>: <new_var_name_1>
     <old_var_name_2>: <new_var_name_2>
 
-  # (Re)chunk dimensions
+  # (Re)chunk variable dimensions
   rechunk:
-    <dim_1>: <chunk_size_1>
-    <dim_2>: <chunk_size_2>
+    # default sizes for all variables
+    "*":  
+        <dim_name_1>: <chunk_size_1>
+        <dim_name_2>: <chunk_size_2>
+    # special sizes
+    <var_name_1>:
+        <dim_name_1>: <chunk_size_1>
+        <dim_name_2>: <chunk_size_2>
+    <var_name_2>:
+        <dim_name_1>: <chunk_size_1>
+        <dim_name_2>: <chunk_size_2>
 
 output:
   path: <output_path>
@@ -110,9 +119,7 @@ output:
   anon: null
   key: null
   secret: null
-  # If one of the following is given, 
-  # all of them will be passed as client_kwargs arg to s3fs.S3FileSystem()
-  endpoint_url: null
-  region_name: null
-
+  client_kwargs:
+    endpoint_url: null
+    region_name: null
 ```

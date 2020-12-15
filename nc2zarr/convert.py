@@ -291,16 +291,19 @@ def _remove_variable_attrs(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _get_chunk_encodings(ds: xr.Dataset,
-                         process_rechunk: Dict[str, int]) \
+                         process_rechunk: Dict[str, Dict[str, int]]) \
         -> Dict[str, Dict[str, Any]]:
     output_encoding = dict()
+    all_chunk_sizes = process_rechunk.get('*', {})
     for k, v in ds.variables.items():
         var_name = str(k)
+        var_chunk_sizes = dict(all_chunk_sizes)
+        var_chunk_sizes.update(process_rechunk.get(var_name, {}))
         chunks = []
         for dim_index in range(len(v.dims)):
             dim_name = v.dims[dim_index]
-            if dim_name in process_rechunk:
-                chunks.append(process_rechunk[dim_name])
+            if dim_name in var_chunk_sizes:
+                chunks.append(var_chunk_sizes[dim_name])
             else:
                 chunks.append(v.chunks[dim_index]
                               if v.chunks is not None else v.sizes[dim_name])
