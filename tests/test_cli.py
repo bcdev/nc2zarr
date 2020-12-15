@@ -100,9 +100,7 @@ class OpMainTest(MainTest):
 
     @classmethod
     def _remove_inputs(cls):
-        if not os.path.exists(cls.input_dir):
-            shutil.rmtree(cls.input_dir)
-            pass
+        shutil.rmtree(cls.input_dir, ignore_errors=True)
 
     @classmethod
     def _new_test_dataset(cls, w: int, h: int, day: int):
