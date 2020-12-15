@@ -21,25 +21,26 @@
 
 import contextlib
 import time
+from typing import Union
 
 from .logger import LOGGER
 
 
 class measure_time(contextlib.AbstractContextManager):
 
-    def __init__(self, tag: str = None, verbose: bool = True):
+    def __init__(self, tag: str = None, verbose: Union[bool, int] = True):
         self.tag = tag or 'task'
-        self.verbose = verbose
+        self.verbose = int(verbose)
         self.start = None
         self.duration = None
 
     def __enter__(self):
         self.start = time.perf_counter()
-        if self.verbose:
+        if self.verbose > 1:
             LOGGER.info(f'{self.tag}...')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.duration = time.perf_counter() - self.start
-        if self.verbose and exc_type is None:
+        if self.verbose > 0 and exc_type is None:
             LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')

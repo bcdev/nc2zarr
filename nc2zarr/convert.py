@@ -118,12 +118,10 @@ def _convert_netcdf_to_zarr(effective_request: Dict[str, Any],
 
     def preprocess_input(input_dataset: xr.Dataset) -> xr.Dataset:
         nonlocal first_dataset_shown
-        input_file = input_dataset.encoding['source']
-        with measure_time(f'Preprocessing {input_file}', verbose=verbose):
-            input_dataset = ensure_append_dim(input_dataset, input_append_dim)
-            if input_variables:
-                drop_variables = set(input_dataset.variables).difference(input_variables)
-                input_dataset = input_dataset.drop_vars(drop_variables)
+        input_dataset = ensure_append_dim(input_dataset, input_append_dim)
+        if input_variables:
+            drop_variables = set(input_dataset.variables).difference(input_variables)
+            input_dataset = input_dataset.drop_vars(drop_variables)
         if verbose and not first_dataset_shown:
             LOGGER.info(f'First input dataset:\n{input_dataset}')
             first_dataset_shown = True
@@ -165,10 +163,13 @@ def _read_and_write_in_slices(input_files,
     n = len(input_files)
     for i in range(n):
         input_file = input_files[i]
-        with measure_time(f'Opening slice {i + 1} of {n}: {input_file}'):
+        LOGGER.info(f'Processing slice {i + 1} of {n}: {input_file} --> {output_path}')
+
+        with measure_time('Opening'):
             input_dataset = xr.open_dataset(input_file,
                                             engine=input_engine,
                                             decode_cf=input_decode_cf)
+
         input_dataset = preprocess_input(input_dataset)
         output_dataset, output_encoding = _process_dataset(input_dataset,
                                                            process_rechunk,
@@ -177,7 +178,7 @@ def _read_and_write_in_slices(input_files,
                                                            i > 0 and not input_decode_cf)
 
         if i == 0:
-            with measure_time(f'Writing first slice to {output_path}'):
+            with measure_time('Writing first slice'):
                 if not dry_run:
                     output_dataset.to_zarr(output_path_or_store,
                                            mode='w' if output_overwrite else 'w-',
@@ -186,13 +187,13 @@ def _read_and_write_in_slices(input_files,
                 else:
                     LOGGER.warn('Writing disabled, dry run!')
         else:
-            with measure_time(f'Appending slice {i + 1} of {n} to {output_path}'):
+            with measure_time('Appending slice'):
                 if not dry_run:
                     output_dataset.to_zarr(output_path_or_store,
                                            append_dim=input_append_dim,
                                            consolidated=output_consolidated)
                 else:
-                    LOGGER.warn('Writing disabled, dry run!')
+                    LOGGER.warn('Appending disabled, dry run!')
 
         input_dataset.close()
 
