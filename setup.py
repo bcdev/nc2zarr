@@ -23,7 +23,6 @@
 
 from setuptools import setup
 
-
 version = None
 with open('nc2zarr/version.py') as f:
     exec(f.read())
@@ -37,7 +36,7 @@ setup(
     packages=['nc2zarr'],
     entry_points={
         'console_scripts': [
-            'nc2zarr = nc2zarr.cli:main',
+            'nc2zarr = nc2zarr.cli:nc2zarr',
         ],
     },
 )

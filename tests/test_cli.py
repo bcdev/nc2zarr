@@ -9,14 +9,14 @@ import click.testing
 import numpy as np
 import xarray as xr
 
-from nc2zarr.cli import main
+from nc2zarr.cli import nc2zarr
 
 
 class MainTest(unittest.TestCase):
 
     def _invoke_cli(self, args: List[str]):
         self.runner = click.testing.CliRunner()
-        return self.runner.invoke(main, args, catch_exceptions=False)
+        return self.runner.invoke(nc2zarr, args, catch_exceptions=False)
 
 
 class NoOpMainTest(MainTest):
@@ -33,7 +33,7 @@ class NoOpMainTest(MainTest):
 class OpMainTest(MainTest):
     input_dir = os.path.join(os.path.dirname(__file__), 'inputs')
 
-    def test_simple_slices(self):
+    def test_slices(self):
         self.output('out.zarr')
         result = self._invoke_cli([os.path.join(self.input_dir, '*.nc')])
         self.assertEqual(0, result.exit_code)
@@ -49,9 +49,9 @@ class OpMainTest(MainTest):
                                           '2020-12-04T10:00:00',
                                           '2020-12-05T10:00:00'], dtype='datetime64'))
 
-    def test_simple_one_go(self):
+    def test_multi_file(self):
         self.output('out.zarr')
-        result = self._invoke_cli(['--mode', 'one_go', os.path.join(self.input_dir, '*.nc')])
+        result = self._invoke_cli(['--multi-file', os.path.join(self.input_dir, '*.nc')])
         self.assertEqual(0, result.exit_code)
         self.assertTrue(os.path.isdir('out.zarr'))
         ds = xr.open_zarr('out.zarr')
