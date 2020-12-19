@@ -49,9 +49,10 @@ class DatasetWriter:
                     shutil.rmtree(self._output_path)
             self._output_store = self._output_path
 
-    def write_dataset(self, ds: xr.Dataset, output_encoding=None):
+    def write_dataset(self, ds: xr.Dataset, output_encoding=None, output_append: bool = False):
         output_encoding = output_encoding if output_encoding is not None else self._output_encoding
-        if not self._output_append or not self._output_store_exists:
+        output_append = output_append or self._output_append
+        if not output_append or not self._output_store_exists:
             with log_duration(f'Writing dataset'):
                 if not self._dry_run:
                     ds.to_zarr(self._output_store,

@@ -35,7 +35,6 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         input_concat_dim = output_append_dim = DEFAULT_CONCAT_DIM
     elif input_concat_dim is None or output_append_dim is None:
         input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
-    output_append = True if not input_multi_file else output_append
 
     if dry_run:
         LOGGER.warn('Dry run!')
@@ -77,5 +76,5 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         for input_dataset in opener.open_slices():
             preprocessed_dataset = pre_processor.preprocess_dataset(input_dataset)
             output_dataset, output_encoding = processor.process_dataset(preprocessed_dataset)
-            writer.write_dataset(output_dataset, output_encoding=output_encoding)
+            writer.write_dataset(output_dataset, output_encoding=output_encoding, output_append=True)
             input_dataset.close()

@@ -33,12 +33,17 @@ class DatasetProcessor:
         for k, v in ds.variables.items():
             var_name = str(k)
             var_chunk_sizes = dict(all_chunk_sizes)
-            var_chunk_sizes.update(process_rechunk.get(var_name, {}))
+            var_chunk_sizes_delta = process_rechunk.get(var_name, {})
+            if var_chunk_sizes_delta is None:
+                var_chunk_sizes_delta = {dim_name: None for dim_name in v.dims}
+            elif isinstance(var_chunk_sizes_delta, int):
+                var_chunk_sizes_delta = {var_name: var_chunk_sizes_delta}
+            var_chunk_sizes.update(var_chunk_sizes_delta)
             chunks = []
             for dim_index in range(len(v.dims)):
                 dim_name = v.dims[dim_index]
                 if dim_name in var_chunk_sizes:
-                    chunks.append(var_chunk_sizes[dim_name])
+                    chunks.append(var_chunk_sizes[dim_name] or v.sizes[dim_name])
                 else:
                     chunks.append(v.chunks[dim_index]
                                   if v.chunks is not None else v.sizes[dim_name])
