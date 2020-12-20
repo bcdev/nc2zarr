@@ -46,14 +46,14 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
 Options:
   -c, --config CONFIG_FILE  Configuration file (YAML). Multiple may be given.
   -o, --output OUTPUT_PATH  Output name. Defaults to "out.zarr".
+  -d, --concat-dim DIM      Dimension for concatenation. Defaults to "time".
   -m, --multi-file          Open multiple input files as one block. Works for
                             NetCDF files only. Use --concat-dim to specify the
                             dimension for concatenation.
 
-  -d, --concat-dim DIM      Dimension for concatenation. Defaults to "time".
-  -x, --overwrite           Overwrite existing existing OUTPUT_PATH. If
-                            OUTPUT_PATH does not exist, the option has no
-                            effect. Cannot be used with --append.
+  -w, --overwrite           Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
+                            does not exist, the option has no effect. Cannot
+                            be used with --append.
 
   -a, --append              Append inputs to existing OUTPUT_PATH. If
                             OUTPUT_PATH does not exist, the option has no

@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import List, Optional, Union, Sequence
+from typing import List, Optional, Sequence
 
 import click
 
@@ -33,13 +33,13 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help=f'Configuration file (YAML). Multiple may be given.')
 @click.option('--output', '-o', 'output_path', metavar='OUTPUT_PATH',
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_PATH}".')
+@click.option('--concat-dim', '-d', 'concat_dim', metavar='DIM',
+              help=f'Dimension for concatenation. Defaults to "{DEFAULT_CONCAT_DIM}".')
 @click.option('--multi-file', '-m', 'multi_file', is_flag=True,
               help='Open multiple input files as one block. Works for NetCDF files only. '
                    'Use --concat-dim to specify the dimension for concatenation.')
-@click.option('--concat-dim', '-d', 'concat_dim', metavar='DIM',
-              help=f'Dimension for concatenation. Defaults to "{DEFAULT_CONCAT_DIM}".')
-@click.option('--overwrite', '-x', 'overwrite', is_flag=True,
-              help='Overwrite existing existing OUTPUT_PATH. '
+@click.option('--overwrite', '-w', 'overwrite', is_flag=True,
+              help='Overwrite existing OUTPUT_PATH. '
                    'If OUTPUT_PATH does not exist, the option has no effect. '
                    'Cannot be used with --append.')
 @click.option('--append', '-a', 'append', is_flag=True,
