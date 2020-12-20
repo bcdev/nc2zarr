@@ -15,15 +15,31 @@ class PathCollector:
     def reset_paths(self):
         self._outputs = []
 
-    def add_path(self, path, keep=False, delete=True):
-        if not keep:
-            self._outputs.append(path)
-        if delete:
+    def add_path(self, path, ensure_deleted=True):
+        self._outputs.append(path)
+        if ensure_deleted:
             delete_path(path)
 
     def delete_paths(self, ignore_errors=False):
         for path in self._outputs:
             delete_path(path, ignore_errors=ignore_errors)
+
+
+class IOCollector(PathCollector):
+
+    def add_inputs(self, input_dir_path, day_offset=1, num_days=5, prefix='input'):
+        self.add_path(input_dir_path)
+        for day in range(day_offset, day_offset + num_days):
+            self.add_input(input_dir_path, day, prefix=prefix, add=False)
+
+    def add_input(self, input_dir_path, day, prefix='input', add=True):
+        input_path = os.path.join(input_dir_path, '{}-{:02d}.nc'.format(prefix, day))
+        if add:
+            self.add_path(input_path)
+        if not os.path.exists(input_dir_path):
+            os.makedirs(input_dir_path)
+        ds = new_test_dataset(w=36, h=18, day=day)
+        ds.to_netcdf(input_path)
 
 
 def delete_path(path, ignore_errors=False):

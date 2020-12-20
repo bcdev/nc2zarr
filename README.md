@@ -71,22 +71,28 @@ Options:
 
 ### Examples
 
-Convert multiple NetCDFs to single Zarr
+Convert multiple NetCDFs to single Zarr:
 
 ```bash
-$ nc2zarr -d time -o outputs/SST.zarr inputs/**/SST-*.nc
+$ nc2zarr -o outputs/SST.zarr inputs/**/SST-*.nc
 ```
 
-Append single NetCDF to an existing Zarr
+Append single NetCDF to an existing Zarr:
 
 ```bash
-$ nc2zarr -a -d time -o outputs/SST.zarr inputs/2020/SST-20200610.nc
+$ nc2zarr -a -o outputs/SST.zarr inputs/2020/SST-20200610.nc
 ```
 
-Append one Zarr to another Zarr
+Concatenate multiple Zarrs to a new Zarr:
 
 ```bash
-$ nc2zarr -a -d time -o outputs/SST.zarr outputs/SST-part2.zarr
+$ nc2zarr -o outputs/SST.zarr outputs/SST-part1.zarr outputs/SST-part2.zarr
+```
+
+Append one Zarr to existing Zarr:
+
+```bash
+$ nc2zarr -a -o outputs/SST.zarr outputs/SST-part3.zarr
 ```
 
 ### Config file format
@@ -116,22 +122,23 @@ input:
 process:
   # Rename variables
   rename:
-    <old_var_name_1>: <new_var_name_1>
-    <old_var_name_2>: <new_var_name_2>
+    <var_name>: <new_var_name>
+    <var_name>: <new_var_name>
 
   # (Re)chunk variable dimensions
   rechunk:
-    # default sizes for all variables
+    # Set selected dimensions of all variables to chunk_size.  
     "*":
-      <dim_name_1>: <chunk_size_1>
-      <dim_name_2>: <chunk_size_2>
-    # special sizes
-    <var_name_1>:
-      <dim_name_1>: <chunk_size_1>
-      <dim_name_2>: <chunk_size_2>
-    <var_name_2>:
-      <dim_name_1>: <chunk_size_1>
-      <dim_name_2>: <chunk_size_2>
+      <dim_name>: <chunk_size>
+      <dim_name>: <chunk_size>
+    # Set selected dimensions of individual variables to chunk_size.  
+    <var_name>:
+      <dim_name>: <chunk_size>
+      <dim_name>: <chunk_size>
+    # Set dimension dim_name=var_name of individual variable to chunk_size.  
+    <var_name>: <chunk_size>
+    # Don't chunk individual variable at all.  
+    <var_name>: null
 
 output:
   # if s3 is given this is a relative path "<bucket_name>/path/to/my.zarr", 

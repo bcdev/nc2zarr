@@ -1,6 +1,6 @@
 import glob
 import os.path
-from typing import List, Optional, Iterator, Callable
+from typing import List, Optional, Iterator, Callable, Union
 
 import xarray as xr
 
@@ -11,70 +11,95 @@ from .log import log_duration
 
 class DatasetOpener:
     def __init__(self,
-                 input_paths: List[str],
+                 input_paths: Union[str, List[str]],
+                 input_multi_file: bool = False,
                  input_sort_by: str = None,
                  input_decode_cf: bool = False,
                  input_concat_dim: str = None,
                  input_engine: str = None,
-                 verbosity: int = None):
+                 verbosity: int = 0):
         self._input_paths = input_paths
+        self._input_multi_file = input_multi_file
         self._input_sort_by = input_sort_by
         self._input_decode_cf = input_decode_cf
         self._input_concat_dim = input_concat_dim
         self._input_engine = input_engine
+        self._verbosity = verbosity
 
-        input_files = self.get_input_files(self._input_paths, self._input_sort_by)
+    def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+            -> Iterator[xr.Dataset]:
+        if self._input_multi_file:
+            return self._open_mfdataset(preprocess)
+        else:
+            return self._open_datasets(preprocess)
+
+    def _open_mfdataset(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+            -> xr.Dataset:
+        input_paths = self._resolve_input_paths()
+        with log_duration(f'Opening {len(input_paths)} file(s)'):
+            yield xr.open_mfdataset(input_paths,
+                                    engine=self._input_engine,
+                                    preprocess=preprocess,
+                                    concat_dim=self._input_concat_dim,
+                                    decode_cf=self._input_decode_cf)
+
+    def _open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+            -> Iterator[xr.Dataset]:
+        input_paths = self._resolve_input_paths()
+        n = len(input_paths)
+        for i in range(n):
+            input_file = input_paths[i]
+            LOGGER.info(f'Processing input {i + 1} of {n}: {input_file}')
+            with log_duration('Opening'):
+                ds = xr.open_dataset(input_file,
+                                     engine=self._get_engine(input_file),
+                                     decode_cf=self._input_decode_cf)
+                if preprocess:
+                    ds = preprocess(ds)
+                yield ds
+
+    def _get_engine(self, input_file: str) -> Optional[str]:
+        engine = self._input_engine
+        if not engine and input_file.endswith('.zarr') and os.path.isdir(input_file):
+            engine = 'zarr'
+        return engine
+
+    def _resolve_input_paths(self) -> List[str]:
+        input_files = self.resolve_input_paths(self._input_paths, self._input_sort_by)
         if not input_files:
-            raise ConverterError('at least one input file must be given')
+            raise ConverterError('At least one input file must be given.')
         LOGGER.info(f'{len(input_files)} input file(s) given.')
-        if verbosity:
+        if self._verbosity:
             LOGGER.info('Input file(s):\n'
                         + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
                                          zip(range(len(input_files)), input_files)))))
-        self._input_files = input_files
-
-    def open_slices(self) -> Iterator[xr.Dataset]:
-        n = len(self._input_files)
-        for i in range(n):
-            input_file = self._input_files[i]
-            LOGGER.info(f'Processing slice {i + 1} of {n}: {input_file}')
-            with log_duration('Opening'):
-                yield xr.open_dataset(input_file,
-                                      engine=self._input_engine,
-                                      decode_cf=self._input_decode_cf)
-
-    def open_dataset(self, pre_process: Callable[[xr.Dataset], xr.Dataset] = None) -> xr.Dataset:
-        with log_duration(f'Opening {len(self._input_files)} file(s)'):
-            return xr.open_mfdataset(self._input_files,
-                                     engine=self._input_engine,
-                                     preprocess=pre_process,
-                                     concat_dim=self._input_concat_dim,
-                                     decode_cf=self._input_decode_cf)
+        return input_files
 
     @classmethod
-    def get_input_files(cls,
-                        input_paths: List[str],
-                        sort_by: Optional[str]) -> List[str]:
-        input_files = []
+    def resolve_input_paths(cls,
+                            input_paths: Union[str, List[str]],
+                            sort_by: str = None) -> List[str]:
+
+        resolved_input_files = []
         if isinstance(input_paths, str):
-            input_files.extend(glob.glob(input_paths, recursive=True))
+            resolved_input_files.extend(glob.glob(input_paths, recursive=True))
         elif input_paths is not None and len(input_paths):
             for input_path in input_paths:
-                input_files.extend(glob.glob(input_path, recursive=True))
+                resolved_input_files.extend(glob.glob(input_path, recursive=True))
 
         if sort_by:
             # Get rid of doubles and sort
-            input_files = set(input_files)
+            resolved_input_files = set(resolved_input_files)
             if sort_by == 'path' or sort_by is True:
-                return sorted(input_files)
+                return sorted(resolved_input_files)
             if sort_by == 'name':
-                return sorted(input_files, key=os.path.basename)
-            raise ConverterError(f'Cannot sort by "{sort_by}".')
+                return sorted(resolved_input_files, key=os.path.basename)
+            raise ConverterError(f'Can sort by "path" or "name" only, got "{sort_by}".')
         else:
             # Get rid of doubles, but preserve order
             seen_input_files = set()
             unique_input_files = []
-            for input_file in input_files:
+            for input_file in resolved_input_files:
                 if input_file not in seen_input_files:
                     unique_input_files.append(input_file)
                     seen_input_files.add(input_file)

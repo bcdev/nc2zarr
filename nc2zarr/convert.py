@@ -36,13 +36,14 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     elif input_concat_dim is None or output_append_dim is None:
         input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
 
-    if dry_run:
-        LOGGER.warn('Dry run!')
-
     if output_overwrite and output_append:
         raise ConverterError('Output overwrite and append flags cannot be given both')
 
+    if dry_run:
+        LOGGER.warn('Dry run!')
+
     opener = DatasetOpener(input_paths=input_paths,
+                           input_multi_file=input_multi_file,
                            input_sort_by=input_sort_by,
                            input_decode_cf=input_decode_cf,
                            input_concat_dim=input_concat_dim,
@@ -67,14 +68,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            dry_run=dry_run,
                            reset_attrs=not input_decode_cf)
 
-    if input_multi_file:
-        input_dataset = opener.open_dataset(pre_process=pre_processor.preprocess_dataset)
+    for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
         output_dataset, output_encoding = processor.process_dataset(input_dataset)
-        writer.write_dataset(output_dataset, output_encoding=output_encoding)
+        writer.write_dataset(output_dataset, output_encoding=output_encoding, output_append=True)
         input_dataset.close()
-    else:
-        for input_dataset in opener.open_slices():
-            preprocessed_dataset = pre_processor.preprocess_dataset(input_dataset)
-            output_dataset, output_encoding = processor.process_dataset(preprocessed_dataset)
-            writer.write_dataset(output_dataset, output_encoding=output_encoding, output_append=True)
-            input_dataset.close()
