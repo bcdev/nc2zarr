@@ -14,10 +14,11 @@ process:
 
   rechunk:
     '*':
-      lon: 720
-      lat: 360
-    lon: 720
-    lat: 360
+      lon: null
+      lat: null
+      time: 1
+    lon: null
+    lat: null
     time: 12
 
 output:

@@ -103,7 +103,7 @@ def nc2zarr(input_paths: List[str],
         with log_duration('Converting'):
             config_kwargs = load_config(config_paths=config_paths,
                                         return_kwargs=True,
-                                        input_paths=input_paths,
+                                        input_paths=input_paths or None,
                                         input_decode_cf=decode_cf,
                                         input_multi_file=multi_file,
                                         input_concat_dim=concat_dim,

@@ -15,12 +15,12 @@ input:
 process:
   rechunk:
     '*':
-      lon: 720  # no chunking for lon dim in all variables
-      lat: 360  # no chunking for lon dim in all variables
-      time: 1   # chunk size 1 for time dim in all variable
-    lon: null   # no chunking for lon dim in lon variable
-    lat: null   # no chunking for lat dim in lat variable
-    time: 100   # chunk size 100 for time variable
+      lon: null  # no chunking for lon dim in all variables
+      lat: null  # no chunking for lon dim in all variables
+      time: 1    # chunk size 1 for time dim in all variable
+    lon: null    # no chunking for lon dim in lon variable
+    lat: null    # no chunking for lat dim in lat variable
+    time: 128    # chunk size 128 for time variable
 
 output:
   path: esacci-test/cloud_L3C_MERIS-AATSR_v2.0_2011_day.zarr
