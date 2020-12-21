@@ -68,7 +68,9 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
                            dry_run=dry_run,
                            reset_attrs=not input_decode_cf)
 
+    append = None
     for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
         output_dataset, output_encoding = processor.process_dataset(input_dataset)
-        writer.write_dataset(output_dataset, output_encoding=output_encoding, output_append=True)
+        writer.write_dataset(output_dataset, encoding=output_encoding, append=append)
         input_dataset.close()
+        append = True
