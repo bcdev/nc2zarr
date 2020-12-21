@@ -13,7 +13,9 @@ class DatasetPreProcessorTest(unittest.TestCase):
     def test_filters_vars(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
-        pre_processor = DatasetPreProcessor(input_variables=['r_i32', 'lon', 'lat', 'time'], input_concat_dim='time')
+        pre_processor = DatasetPreProcessor(input_variables=['r_i32', 'lon', 'lat', 'time'],
+                                            input_concat_dim='time',
+                                            verbosity=2)
         new_ds = pre_processor.preprocess_dataset(ds)
         self.assertIsInstance(new_ds, xr.Dataset)
         self.assertAllInDataset(['r_i32', 'lon', 'lat', 'time'], new_ds)
@@ -22,7 +24,8 @@ class DatasetPreProcessorTest(unittest.TestCase):
     def test_leaves_time_coord_untouched(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
-        pre_processor = DatasetPreProcessor(input_variables=None, input_concat_dim='time')
+        pre_processor = DatasetPreProcessor(input_variables=None,
+                                            input_concat_dim='time')
         new_ds = pre_processor.preprocess_dataset(ds)
         self.assertIsInstance(new_ds, xr.Dataset)
         self.assertAllInDataset(['r_ui16', 'r_ui16', 'r_i32', 'lon', 'lat', 'time'], new_ds)

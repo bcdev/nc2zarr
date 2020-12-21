@@ -101,23 +101,18 @@ def nc2zarr(input_paths: List[str],
     from nc2zarr.error import ConverterError
     try:
         with log_duration('Converting'):
-            config = load_config(config_paths=config_paths,
-                                 input_paths=input_paths,
-                                 input_decode_cf=decode_cf,
-                                 input_multi_file=multi_file,
-                                 input_concat_dim=concat_dim,
-                                 output_path=output_path,
-                                 output_overwrite=overwrite,
-                                 output_append=append,
-                                 verbosity=sum(verbosity) if verbosity else 0,
-                                 dry_run=dry_run)
-            input_params = config.pop('input')
-            process_params = config.pop('process')
-            output_params = config.pop('output')
-            convert_netcdf_to_zarr(**{'input_' + k: v for k, v in input_params.items()},
-                                   **{'process_' + k: v for k, v in process_params.items()},
-                                   **{'output_' + k: v for k, v in output_params.items()},
-                                   **config)
+            config_kwargs = load_config(config_paths=config_paths,
+                                        return_kwargs=True,
+                                        input_paths=input_paths,
+                                        input_decode_cf=decode_cf,
+                                        input_multi_file=multi_file,
+                                        input_concat_dim=concat_dim,
+                                        output_path=output_path,
+                                        output_overwrite=overwrite,
+                                        output_append=append,
+                                        verbosity=sum(verbosity) if verbosity else None,
+                                        dry_run=dry_run)
+            convert_netcdf_to_zarr(**config_kwargs)
     except ConverterError as e:
         raise click.ClickException(e) from e
 
