@@ -37,29 +37,35 @@ class DatasetWriter:
         self._init_output_store()
 
     def _init_output_store(self):
+        # TODO (forman): use fsspec here so we can get rid of following 2 code blocks
         if self._output_s3_kwargs:
             s3 = s3fs.S3FileSystem(**self._output_s3_kwargs)
             self._output_store_exists = s3.isdir(self._output_path)
             if self._output_overwrite and self._output_store_exists:
                 with log_duration(f'Removing existing {self._output_path}'):
                     s3.rm(self._output_path, recursive=True)
+                    self._output_store_exists = False
             self._output_store = s3fs.S3Map(self._output_path, s3=s3, create=True)
         else:
             self._output_store_exists = os.path.isdir(self._output_path)
             if self._output_overwrite and self._output_store_exists:
                 with log_duration(f'Removing existing {self._output_path}'):
                     shutil.rmtree(self._output_path)
+                    self._output_store_exists = False
             self._output_store = self._output_path
 
-    def write_dataset(self, ds: xr.Dataset, output_encoding=None, output_append: bool = False):
-        output_encoding = output_encoding if output_encoding is not None else self._output_encoding
-        output_append = output_append or self._output_append
-        if not output_append or not self._output_store_exists:
+    def write_dataset(self,
+                      ds: xr.Dataset,
+                      encoding: Dict[str, Any] = None,
+                      append: bool = None):
+        encoding = encoding if encoding is not None else self._output_encoding
+        append = append if append is not None else self._output_append
+        if not append or not self._output_store_exists:
             with log_duration(f'Writing dataset'):
                 if not self._dry_run:
                     ds.to_zarr(self._output_store,
                                mode='w' if self._output_overwrite else 'w-',
-                               encoding=output_encoding,
+                               encoding=encoding,
                                consolidated=self._output_consolidated)
                 else:
                     LOGGER.warning('Writing disabled, dry run!')
