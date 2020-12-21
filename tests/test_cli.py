@@ -1,6 +1,5 @@
 import os
 import os.path
-import shutil
 import unittest
 from typing import List
 
@@ -9,14 +8,15 @@ import click.testing
 import numpy as np
 import xarray as xr
 
-from nc2zarr.cli import main
+from nc2zarr.cli import nc2zarr
+from tests.helpers import IOCollector
 
 
 class MainTest(unittest.TestCase):
 
     def _invoke_cli(self, args: List[str]):
         self.runner = click.testing.CliRunner()
-        return self.runner.invoke(main, args, catch_exceptions=False)
+        return self.runner.invoke(nc2zarr, args, catch_exceptions=False)
 
 
 class NoOpMainTest(MainTest):
@@ -30,112 +30,136 @@ class NoOpMainTest(MainTest):
         self.assertEqual(0, self._invoke_cli(['--help']).exit_code)
 
 
-class OpMainTest(MainTest):
-    input_dir = os.path.join(os.path.dirname(__file__), 'inputs')
-
-    def test_simple_slices(self):
-        self.output('out.zarr')
-        result = self._invoke_cli([os.path.join(self.input_dir, '*.nc')])
-        self.assertEqual(0, result.exit_code)
-        self.assertTrue(os.path.isdir('out.zarr'))
-        ds = xr.open_zarr('out.zarr')
-        self.assertEqual({'lon', 'lat', 'time', 'chl_1', 'chl_2', 'chl_3'},
-                         set(ds.variables))
-        self.assertEqual(5, len(ds.time))
-        np.testing.assert_equal(ds.time.values,
-                                np.array(['2020-12-01T10:00:00',
-                                          '2020-12-02T10:00:00',
-                                          '2020-12-03T10:00:00',
-                                          '2020-12-04T10:00:00',
-                                          '2020-12-05T10:00:00'], dtype='datetime64'))
-
-    def test_simple_one_go(self):
-        self.output('out.zarr')
-        result = self._invoke_cli(['--mode', 'one_go', os.path.join(self.input_dir, '*.nc')])
-        self.assertEqual(0, result.exit_code)
-        self.assertTrue(os.path.isdir('out.zarr'))
-        ds = xr.open_zarr('out.zarr')
-        self.assertEqual({'lon', 'lat', 'time', 'chl_1', 'chl_2', 'chl_3'},
-                         set(ds.variables))
-        self.assertEqual(5, len(ds.time))
-        np.testing.assert_equal(ds.time.values,
-                                np.array(['2020-12-01T10:00:00',
-                                          '2020-12-02T10:00:00',
-                                          '2020-12-03T10:00:00',
-                                          '2020-12-04T10:00:00',
-                                          '2020-12-05T10:00:00'], dtype='datetime64'))
-
-    def output(self, path, keep=False):
-        if not keep:
-            self._outputs.append(path)
-        self._delete(path)
-
+class OpMainTest(MainTest, IOCollector):
     def setUp(self):
-        self._outputs = []
+        self.reset_paths()
 
     def tearDown(self):
-        for path in self._outputs:
-            self._delete(path)
+        self.delete_paths()
 
-    def _delete(self, path):
-        if os.path.isdir(path):
-            shutil.rmtree(path)
-        elif os.path.exists(path):
-            os.remove(path)
+    def test_slices_with_defaults(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_path('out.zarr')
+        result = self._invoke_cli(['inputs/*.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
 
-    @classmethod
-    def setUpClass(cls):
-        if not os.path.exists(cls.input_dir):
-            os.mkdir(cls.input_dir)
-        else:
-            cls._remove_inputs()
-        num_days = 5
-        for day in range(1, num_days + 1):
-            ds = cls._new_test_dataset(w=36, h=18, day=day)
-            ds.to_netcdf(os.path.join(cls.input_dir, 'CHL-{:02d}.nc'.format(day)))
+    def test_slices_with_overwrite(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_path('out.zarr')
+        result = self._invoke_cli(['--overwrite', 'inputs/*.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
 
-    @classmethod
-    def tearDownClass(cls):
-        cls._remove_inputs()
+    def test_multi_file_with_defaults(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_path('out.zarr')
+        result = self._invoke_cli(['--multi-file', 'inputs/*.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
 
-    @classmethod
-    def _remove_inputs(cls):
-        shutil.rmtree(cls.input_dir, ignore_errors=True)
+    def test_output(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_path('my.zarr')
+        result = self._invoke_cli(['--output', 'my.zarr', 'inputs/*.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='my.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
 
-    @classmethod
-    def _new_test_dataset(cls, w: int, h: int, day: int):
-        res = 180 / h
-        ds = xr.Dataset(
-            data_vars=dict(
-                chl_1=xr.DataArray(
-                    np.random.random(size=(1, h, w)),
-                    dims=('time', 'lat', 'lon')
-                ),
-                chl_2=xr.DataArray(
-                    np.random.random(size=(1, h, w)),
-                    dims=('time', 'lat', 'lon')
-                ),
-                chl_3=xr.DataArray(
-                    np.random.random(size=(1, h, w)),
-                    dims=('time', 'lat', 'lon')
-                ),
-            ),
-            coords=dict(
-                lon=xr.DataArray(
-                    np.linspace(-180 + res, 180 - res, num=w),
-                    dims=('lon',)
-                ),
-                lat=xr.DataArray(
-                    np.linspace(-90 + res, 90 - res, num=h),
-                    dims=('lat',)
-                ),
-                time=xr.DataArray(
-                    np.array(['2020-12-{:02d}T10:00:00'.format(day)], dtype='datetime64[s]'),
-                    dims=('time',),
-                ),
-            ))
-        ds.time.encoding.update(
-            calendar="proleptic_gregorian",
-            units="seconds since 1970-01-01 00:00:00"
-        )
-        return ds
+    def test_append_one_to_many(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_path('out.zarr')
+        result = self._invoke_cli(['inputs/*.nc'])
+        self.assertCliResultOk(result, 'out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
+        self.add_input('inputs', day=4)
+        result = self._invoke_cli(['--append', 'inputs/input-04.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00',
+                                               '2020-12-04T10:00:00'])
+
+    def test_append_one_to_one(self):
+        self.add_input('inputs', day=1)
+        self.add_path('out.zarr')
+        result = self._invoke_cli(['--append', 'inputs/input-01.nc'])
+        self.assertCliResultOk(result, 'out.zarr',
+                               expected_times=['2020-12-01T10:00:00'])
+        self.add_input('inputs', day=2)
+        result = self._invoke_cli(['--append', 'inputs/input-02.nc'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00'])
+
+    def test_append_zarr_to_zarr(self):
+        self.add_inputs('inputs', day_offset=1, num_days=6)
+        self.add_path('out-1.zarr')
+        self.add_path('out-2.zarr')
+        self.add_path('out.zarr')
+
+        result = self._invoke_cli(['-o', 'out-1.zarr',
+                                   'inputs/input-01.nc', 'inputs/input-02.nc', 'inputs/input-03.nc'])
+        self.assertCliResultOk(result, 'out-1.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00'])
+
+        result = self._invoke_cli(['-o', 'out-2.zarr',
+                                   'inputs/input-04.nc', 'inputs/input-05.nc', 'inputs/input-06.nc'])
+        self.assertCliResultOk(result, 'out-2.zarr',
+                               expected_times=['2020-12-04T10:00:00',
+                                               '2020-12-05T10:00:00',
+                                               '2020-12-06T10:00:00'])
+
+        result = self._invoke_cli(['out-1.zarr', 'out-2.zarr'])
+        self.assertCliResultOk(result,
+                               expected_output_path='out.zarr',
+                               expected_times=['2020-12-01T10:00:00',
+                                               '2020-12-02T10:00:00',
+                                               '2020-12-03T10:00:00',
+                                               '2020-12-04T10:00:00',
+                                               '2020-12-05T10:00:00',
+                                               '2020-12-06T10:00:00'])
+
+    def assertCliResultOk(self,
+                          result,
+                          expected_output_path=None,
+                          expected_vars=None,
+                          expected_times=None):
+        expected_output_path = expected_output_path or 'out.zarr'
+        expected_vars = expected_vars or {'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'}
+        expected_times = expected_times or ['2020-12-01T10:00:00',
+                                            '2020-12-02T10:00:00',
+                                            '2020-12-03T10:00:00',
+                                            '2020-12-04T10:00:00',
+                                            '2020-12-05T10:00:00']
+        if result.exit_code != 0:
+            if result.stderr_bytes:
+                print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
+            if result.stdout_bytes:
+                print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
+        self.assertEqual(0, result.exit_code, msg='Unexpected exit code')
+        self.assertTrue(os.path.isdir(expected_output_path))
+        ds = xr.open_zarr(expected_output_path)
+        self.assertEqual(expected_vars, set(ds.variables))
+        self.assertEqual(len(expected_times), len(ds.time))
+        np.testing.assert_equal(ds.time.values,
+                                np.array(expected_times, dtype='datetime64'))
+
+

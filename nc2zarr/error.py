@@ -19,28 +19,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import contextlib
-import time
-from typing import Union
-
-from .logger import LOGGER
-
-
-class measure_time(contextlib.AbstractContextManager):
-
-    def __init__(self, tag: str = None, verbose: Union[bool, int] = True):
-        self.tag = tag or 'task'
-        self.verbose = int(verbose)
-        self.start = None
-        self.duration = None
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        if self.verbose > 1:
-            LOGGER.info(f'{self.tag}...')
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.duration = time.perf_counter() - self.start
-        if self.verbose > 0 and exc_type is None:
-            LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')
+class ConverterError(BaseException):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

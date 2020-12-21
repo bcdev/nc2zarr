@@ -19,9 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-DEFAULT_OUTPUT_FILE = 'out.zarr'
-DEFAULT_MODE = 'slices'
-
-MODE_CHOICES = 'slices', 'one_go'
+DEFAULT_OUTPUT_PATH = 'out.zarr'
+DEFAULT_CONCAT_DIM = 'time'
 
 S3_KEYWORDS = 'anon', 'key', 'secret', 'token', 'client_kwargs'
