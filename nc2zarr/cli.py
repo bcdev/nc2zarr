@@ -35,22 +35,22 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_PATH}".')
 @click.option('--concat-dim', '-d', 'concat_dim', metavar='DIM',
               help=f'Dimension for concatenation. Defaults to "{DEFAULT_CONCAT_DIM}".')
-@click.option('--multi-file', '-m', 'multi_file', is_flag=True,
+@click.option('--multi-file', '-m', 'multi_file', is_flag=True, default=None,
               help='Open multiple input files as one block. Works for NetCDF files only. '
                    'Use --concat-dim to specify the dimension for concatenation.')
-@click.option('--overwrite', '-w', 'overwrite', is_flag=True,
+@click.option('--overwrite', '-w', 'overwrite', is_flag=True, default=None,
               help='Overwrite existing OUTPUT_PATH. '
                    'If OUTPUT_PATH does not exist, the option has no effect. '
                    'Cannot be used with --append.')
-@click.option('--append', '-a', 'append', is_flag=True,
+@click.option('--append', '-a', 'append', is_flag=True, default=None,
               help=f'Append inputs to existing OUTPUT_PATH. '
                    f'If OUTPUT_PATH does not exist, the option has no effect. '
                    'Cannot be used with --overwrite.')
-@click.option('--decode-cf', 'decode_cf', is_flag=True,
+@click.option('--decode-cf', 'decode_cf', is_flag=True, default=None,
               help=f'Decode variables according to CF conventions. '
                    f'Caution: array data may be converted to floating point type '
                    f'if a "_FillValue" attribute is present.')
-@click.option('--dry-run', '-d', 'dry_run', is_flag=True,
+@click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
 @click.option('--verbose', '-v', 'verbosity', is_flag=True, multiple=True,
               help='Print more output.')
