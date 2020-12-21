@@ -62,7 +62,7 @@ class DatasetWriter:
                                encoding=output_encoding,
                                consolidated=self._output_consolidated)
                 else:
-                    LOGGER.warn('Writing disabled, dry run!')
+                    LOGGER.warning('Writing disabled, dry run!')
                 self._output_store_exists = True
         else:
             with log_duration('Appending dataset'):
@@ -76,7 +76,7 @@ class DatasetWriter:
                                append_dim=self._output_append_dim,
                                consolidated=self._output_consolidated)
                 else:
-                    LOGGER.warn('Appending disabled, dry run!')
+                    LOGGER.warning('Appending disabled, dry run!')
 
     @classmethod
     def _remove_variable_attrs(cls, ds: xr.Dataset) -> xr.Dataset:

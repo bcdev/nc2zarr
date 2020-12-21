@@ -40,7 +40,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         raise ConverterError('Output overwrite and append flags cannot be given both')
 
     if dry_run:
-        LOGGER.warn('Dry run!')
+        LOGGER.warning('Dry run!')
 
     opener = DatasetOpener(input_paths=input_paths,
                            input_multi_file=input_multi_file,

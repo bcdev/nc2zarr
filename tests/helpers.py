@@ -73,14 +73,14 @@ def new_test_dataset(w: int = 36,
         coords = dict(lon=lon, lat=lat, time=time)
 
     r_ui16 = xr.DataArray(
-        np.random.random_integers(0, 1000, size=var_shape).astype(dtype=np.uint16),
+        np.random.randint(0, 1000, size=var_shape).astype(dtype=np.uint16),
         dims=var_dims,
         attrs=dict(_FillValue=9999,
                    scale_factor=1 / 1000,
                    add_offset=0.0)
     )
     r_i32 = xr.DataArray(
-        np.random.random_integers(0, 1000, size=var_shape).astype(dtype=np.int32),
+        np.random.randint(0, 1000, size=var_shape).astype(dtype=np.int32),
         dims=var_dims,
         attrs=dict(_FillValue=-1,
                    scale_factor=1 / 1000,
