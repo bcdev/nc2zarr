@@ -37,11 +37,12 @@ class DatasetOpener:
             -> xr.Dataset:
         input_paths = self._resolve_input_paths()
         with log_duration(f'Opening {len(input_paths)} file(s)'):
-            yield xr.open_mfdataset(input_paths,
-                                    engine=self._input_engine,
-                                    preprocess=preprocess,
-                                    concat_dim=self._input_concat_dim,
-                                    decode_cf=self._input_decode_cf)
+            ds = xr.open_mfdataset(input_paths,
+                                   engine=self._input_engine,
+                                   preprocess=preprocess,
+                                   concat_dim=self._input_concat_dim,
+                                   decode_cf=self._input_decode_cf)
+        yield ds
 
     def _open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
@@ -56,7 +57,7 @@ class DatasetOpener:
                                      decode_cf=self._input_decode_cf)
                 if preprocess:
                     ds = preprocess(ds)
-                yield ds
+            yield ds
 
     def _get_engine(self, input_file: str) -> Optional[str]:
         engine = self._input_engine
