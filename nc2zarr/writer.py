@@ -21,6 +21,8 @@ class DatasetWriter:
                  output_s3_kwargs: Dict[str, Any] = None,
                  reset_attrs: bool = False,
                  dry_run: bool = False):
+        if not output_path:
+            raise ValueError('output_path must be given')
         self._output_path = output_path
         self._output_consolidated = output_consolidated
         self._output_encoding = output_encoding

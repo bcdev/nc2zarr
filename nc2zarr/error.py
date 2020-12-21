@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-class ConverterError(BaseException):
+class ConverterError(ValueError):
     def __init__(self, *args, **kwargs):
+        # noinspection PyArgumentList
         super().__init__(*args, **kwargs)

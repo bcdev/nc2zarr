@@ -32,7 +32,7 @@ class DatasetOpenerTest(unittest.TestCase):
         self.assertEqual('At least one input file must be given.', f'{cm.exception}')
 
     def test_open_datasets(self):
-        opener = DatasetOpener(input_paths='inputs/*.nc')
+        opener = DatasetOpener(input_paths='inputs/*.nc', verbosity=1)
 
         result = list(opener.open_datasets())
         self.assertEqual(3, len(result))

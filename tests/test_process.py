@@ -51,6 +51,31 @@ class DatasetProcessorTest(unittest.TestCase):
             'time': {'chunks': (100,)},
         }, new_encoding)
 
+    def test_rechunk_all_unchunked_except_time(self):
+        ds = new_test_dataset(day=1)
+        self.assertIn('r_f32', ds)
+        processor = DatasetProcessor(process_rechunk=
+        {
+            '*':
+                {
+                    'lon': None,
+                    'lat': None,
+                    'time': 1
+                },
+            'lon': None,
+            'lat': None,
+            'time': 128
+        })
+        new_ds, new_encoding = processor.process_dataset(ds)
+        self.assertIs(ds, new_ds)
+        self.assertEqual({'r_f32': {'chunks': (1, 18, 36)},
+                          'r_i32': {'chunks': (1, 18, 36)},
+                          'r_ui16': {'chunks': (1, 18, 36)},
+                          'lon': {'chunks': (36,)},
+                          'lat': {'chunks': (18,)},
+                          'time': {'chunks': (128,)}},
+                         new_encoding)
+
     def test_rechunk_and_encodings_merged(self):
         ds = new_test_dataset(day=1)
         self.assertIn('r_f32', ds)

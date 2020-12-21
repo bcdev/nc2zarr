@@ -4,7 +4,9 @@
 #
 
 input:
-  paths: /neodc/esacci/cloud/data/phase-2/L3C/MERIS-AATSR/v2.0/2011/*.nc
+  paths:
+    - /neodc/esacci/cloud/data/phase-2/L3C/MERIS-AATSR/v2.0/2011/*.nc
+
   variables:
     - nobs
     - cfc
@@ -12,14 +14,22 @@ input:
 
 process:
   rechunk:
-    time: 6
+    '*':
+      lon: 720  # no chunking for lon dim in all variables
+      lat: 360  # no chunking for lon dim in all variables
+      time: 1   # chunk size 1 for time dim in all variable
+    lon: null   # no chunking for lon dim in lon variable
+    lat: null   # no chunking for lat dim in lat variable
+    time: 100   # chunk size 100 for time variable
 
 output:
-  endpoint_url: http://cci-ke-o.s3-ext.jc.rl.ac.uk
   path: esacci-test/cloud_L3C_MERIS-AATSR_v2.0_2011_day.zarr
-  anon: false
-  key: ...
-  secret: ...
-
   overwrite: true
   consolidated: true
+  s3:
+    anon: false
+    key: ...
+    secret: ...
+    client_kwargs:
+      endpoint_url: http://cci-ke-o.s3-ext.jc.rl.ac.uk
+

@@ -4,7 +4,8 @@
 #
 
 input:
-  paths: D:\BC\QA4ECV-L3-Mosaic-Albedo-NoSnow-05\*.nc
+  paths:
+    - D:\BC\QA4ECV-L3-Mosaic-Albedo-NoSnow-05\*.nc
 
 process:
   rename:
@@ -12,14 +13,18 @@ process:
     y: lat
 
   rechunk:
+    '*':
+      lon: 720
+      lat: 360
     lon: 720
     lat: 360
     time: 12
 
 output:
   path: eurodatacube-scratch/QA4ECV-L3-Mosaic-Albedo-NoSnow-05.zarr
-  anon: false
-
   overwrite: true
   consolidated: true
+
+  s3:
+    anon: false
 

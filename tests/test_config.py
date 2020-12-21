@@ -29,6 +29,9 @@ class LoadConfigTest(unittest.TestCase, IOCollector):
                     'decode_cf': False,
                     'concat_dim': 'time',
                 },
+                'process': {
+                    'rename': {'lons': 'lon'}
+                },
                 'output': {
                     'path': 'my.zarr',
                     'overwrite': False,
@@ -39,6 +42,7 @@ class LoadConfigTest(unittest.TestCase, IOCollector):
                         input_decode_cf=False,
                         input_concat_dim='time',
                         input_multi_file=True,
+                        process_rename=dict(lons='lon'),
                         output_path='my.zarr',
                         output_overwrite=False,
                         output_append=True,
