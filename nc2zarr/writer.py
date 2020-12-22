@@ -5,7 +5,7 @@ from typing import Dict, Any
 import s3fs
 import xarray as xr
 
-from .constants import DEFAULT_CONCAT_DIM
+from .constants import DEFAULT_CONCAT_DIM_NAME
 from .log import LOGGER
 from .log import log_duration
 
@@ -13,7 +13,7 @@ from .log import log_duration
 class DatasetWriter:
     def __init__(self,
                  output_path: str,
-                 output_append_dim: str = DEFAULT_CONCAT_DIM,
+                 output_append_dim: str = DEFAULT_CONCAT_DIM_NAME,
                  output_consolidated: bool = False,
                  output_encoding: Dict[str, Dict[str, Any]] = None,
                  output_overwrite: bool = False,

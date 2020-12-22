@@ -20,6 +20,6 @@
 # SOFTWARE.
 
 DEFAULT_OUTPUT_PATH = 'out.zarr'
-DEFAULT_CONCAT_DIM = 'time'
+DEFAULT_CONCAT_DIM_NAME = 'time'
 
 S3_KEYWORDS = 'anon', 'key', 'secret', 'token', 'client_kwargs'

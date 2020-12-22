@@ -1,6 +1,6 @@
 from typing import Sequence, Union, Any, Dict, List
 
-from .constants import DEFAULT_CONCAT_DIM
+from .constants import DEFAULT_CONCAT_DIM_NAME
 from .constants import DEFAULT_OUTPUT_PATH
 from .error import ConverterError
 from .log import LOGGER
@@ -32,7 +32,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
     input_paths = [input_paths] if isinstance(input_paths, str) else input_paths
     output_path = output_path or DEFAULT_OUTPUT_PATH
     if input_concat_dim is None and output_append_dim is None:
-        input_concat_dim = output_append_dim = DEFAULT_CONCAT_DIM
+        input_concat_dim = output_append_dim = DEFAULT_CONCAT_DIM_NAME
     elif input_concat_dim is None or output_append_dim is None:
         input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
 
