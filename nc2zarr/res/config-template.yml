@@ -76,12 +76,22 @@ output:
   # Object storage file system configuration.
   # If given, content are the keyword arguments passed to s3fs.S3FileSystem()
   s3:
-    # Anonymous access. ass true, if the bucket if publicly writable.
-    anon: null
+    # Anonymous access.
+    # - false: Access with credentials (default). Either key/secret must
+    #          be passed, or they are passed as environment variables, or,
+    #          in the case of AWS S3, credentials are read from
+    #          ~/.aws/credentials.
+    # - true: Access with credentials. key/secret are ignored. Bucket must
+    #         be publicly writable. (Which is almost always no good idea.)
+    anon: false
     # Key identifier
     key: null
     # Secret access key
     secret: null
+    # Optionally specify the object storage service in use.
     client_kwargs:
+      # URL of the object storage endpoint.
+      # Must be set if object storage other than AWS S3 is used.
       endpoint_url: null
+      # Optional name of the region where data is stored.
       region_name: null

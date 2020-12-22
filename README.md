@@ -14,6 +14,10 @@ A Python tool that converts multiple NetCDF files to single Zarr datasets.
     $ conda activate nc2zarr
     $ python setup.py develop
 
+### Testing and Test Coverage
+
+    $ pytest --cov nc2zarr --cov-report=html tests   
+
 ### Usage
 
 ```
