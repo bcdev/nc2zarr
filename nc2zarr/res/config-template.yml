@@ -46,6 +46,11 @@ input:
   # Whether to decode inputs according to CF conventions.
   # This is off by default, because we don't want any data interpretation.
   decode_cf: false
+  # Optional date-time format when parsing time information from
+  # a dataset's attributes such as "time_coverage_start", "time_coverage_end".
+  # Most formats should be automatically detected, e.g. "20150101T103018Z"
+  # or "2015-01-01 10:30:18".
+  datetime_format: null
 
 # Configuration of input to output processing
 process:
