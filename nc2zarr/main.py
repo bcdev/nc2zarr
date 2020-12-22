@@ -31,25 +31,46 @@ from .processor import DatasetProcessor
 from .writer import DatasetWriter
 
 
-# noinspection PyUnusedLocal
-def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
-                           input_variables: List[str] = None,
-                           input_multi_file: bool = False,
-                           input_concat_dim: str = None,
-                           input_engine: str = None,
-                           input_decode_cf: bool = False,
-                           input_sort_by: str = None,
-                           process_rename: Dict[str, str] = None,
-                           process_rechunk: Dict[str, Dict[str, int]] = None,
-                           output_path: str = None,
-                           output_encoding: Dict[str, Dict[str, Any]] = None,
-                           output_consolidated: bool = False,
-                           output_overwrite: bool = False,
-                           output_append: bool = False,
-                           output_append_dim: str = None,
-                           output_s3: Dict[str, Any] = None,
-                           dry_run: bool = False,
-                           verbosity: int = None):
+def nc2zarr(input_paths: Union[str, Sequence[str]] = None,
+            input_variables: List[str] = None,
+            input_multi_file: bool = False,
+            input_concat_dim: str = None,
+            input_engine: str = None,
+            input_decode_cf: bool = False,
+            input_sort_by: str = None,
+            process_rename: Dict[str, str] = None,
+            process_rechunk: Dict[str, Dict[str, int]] = None,
+            output_path: str = None,
+            output_encoding: Dict[str, Dict[str, Any]] = None,
+            output_consolidated: bool = False,
+            output_overwrite: bool = False,
+            output_append: bool = False,
+            output_append_dim: str = None,
+            output_s3: Dict[str, Any] = None,
+            dry_run: bool = False,
+            verbosity: int = None):
+    """
+    TODO: describe me any py params.
+
+    :param input_paths:
+    :param input_variables:
+    :param input_multi_file:
+    :param input_concat_dim:
+    :param input_engine:
+    :param input_decode_cf:
+    :param input_sort_by:
+    :param process_rename:
+    :param process_rechunk:
+    :param output_path:
+    :param output_encoding:
+    :param output_consolidated:
+    :param output_overwrite:
+    :param output_append:
+    :param output_append_dim:
+    :param output_s3:
+    :param dry_run:
+    :param verbosity:
+    """
     input_paths = [input_paths] if isinstance(input_paths, str) else input_paths
     output_path = output_path or DEFAULT_OUTPUT_PATH
     if input_concat_dim is None and output_append_dim is None:
@@ -58,7 +79,7 @@ def convert_netcdf_to_zarr(input_paths: Union[str, Sequence[str]] = None,
         input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
 
     if output_overwrite and output_append:
-        raise ConverterError('Output overwrite and append flags cannot be given both')
+        raise ConverterError('Output overwrite and append flags cannot be given both.')
 
     if dry_run:
         LOGGER.warning('Dry run!')

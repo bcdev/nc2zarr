@@ -25,6 +25,7 @@ from typing import List
 import numpy as np
 import xarray as xr
 
+from nc2zarr.error import ConverterError
 from nc2zarr.preprocessor import DatasetPreProcessor
 from tests.helpers import new_test_dataset
 
@@ -71,6 +72,26 @@ class DatasetPreProcessorTest(unittest.TestCase):
                         time_coverage_end='20200908123000')
         self._test_adds_time_dim(ds)
 
+    def test_illegal_time_coverage(self):
+        ds = new_test_dataset(day=None)
+        ds.attrs.update(time_coverage_start='yesterday',
+                        time_coverage_end='20200908123000')
+        self._test_raises(ds, 'Cannot parse timestamp from "yesterday".')
+
+    def test_missing_time_coverage(self):
+        ds = new_test_dataset(day=None)
+        self._test_raises(ds, 'Missing time_coverage_start and/or time_coverage_end in dataset attributes.')
+
+        ds = new_test_dataset(day=None)
+        ds.attrs.update(start_time='2020-09-08T10:30:00Z',
+                        end_time='2020-09-08T12:30:00Z')
+        self._test_raises(ds, 'Missing time_coverage_start and/or time_coverage_end in dataset attributes.')
+
+    def test_illegal_concat_dim(self):
+        ds = new_test_dataset(day=None)
+        self._test_raises(ds, 'Missing (coordinate) variable "t" for dimension "t".',
+                          input_concat_dim='t')
+
     def _test_adds_time_dim(self, ds: xr.Dataset):
         self.assertNotIn('time', ds)
         pre_processor = DatasetPreProcessor(input_variables=None, input_concat_dim='time')
@@ -86,6 +107,12 @@ class DatasetPreProcessorTest(unittest.TestCase):
                          np.array(new_ds.time_bnds[0][0], dtype='datetime64[ns]'))
         self.assertEqual(np.array(['2020-09-08T12:30:00'], dtype='datetime64[ns]'),
                          np.array(new_ds.time_bnds[0][1], dtype='datetime64[ns]'))
+
+    def _test_raises(self, ds, expected_message: str, input_concat_dim='time'):
+        pre_processor = DatasetPreProcessor(input_variables=None, input_concat_dim=input_concat_dim)
+        with self.assertRaises(ConverterError) as cm:
+            pre_processor.preprocess_dataset(ds)
+        self.assertEqual(expected_message, f'{cm.exception}')
 
     def assertAllInDataset(self, var_names: List[str], ds: xr.Dataset):
         for var_name in var_names:

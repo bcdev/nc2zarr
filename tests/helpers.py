@@ -22,7 +22,7 @@
 import os
 import os.path
 import shutil
-from typing import List
+from typing import List, Collection
 
 import numpy as np
 import xarray as xr
@@ -61,6 +61,25 @@ class IOCollector(PathCollector):
             os.makedirs(input_dir_path)
         ds = new_test_dataset(w=36, h=18, day=day)
         ds.to_netcdf(input_path)
+
+    def add_output(self, output_path: str):
+        self.add_path(output_path)
+
+
+# noinspection PyUnresolvedReferences
+class ZarrOutputTestMixin:
+
+    # noinspection PyPep8Naming
+    def assertZarrOutputOk(self,
+                           expected_output_path: str,
+                           expected_vars: Collection[str],
+                           expected_times: Collection[str]):
+        self.assertTrue(os.path.isdir(expected_output_path))
+        ds = xr.open_zarr(expected_output_path)
+        self.assertEqual(set(expected_vars), set(ds.variables))
+        self.assertEqual(len(expected_times), len(ds.time))
+        np.testing.assert_equal(ds.time.values,
+                                np.array(expected_times, dtype='datetime64'))
 
 
 def delete_path(path, ignore_errors=False):

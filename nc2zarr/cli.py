@@ -75,9 +75,20 @@ def nc2zarr(input_paths: List[str],
 
     OUTPUT_PATH must be directory which will contain the output Zarr dataset, e.g. "L3_SST.zarr".
 
-    CONFIG_FILE has YAML format. If multiple are given, their "input", "process", and "output"
-    entries are merged while other settings overwrite each other in the order they appear.
-    Command line arguments overwrite settings in any CONFIG_FILE:
+    CONFIG_FILE has YAML format. It comprises the optional objects "input", "process", and "output".
+    See nc2zarr/res/config-template.yml for a template file that describes the format.
+    Multiple --config options may be passed as a chain to allow for
+    reuse of credentials and other common parameters. Contained configuration objects
+    are recursively merged, lists are appended, other values overwrite each other from
+    left to right. For example:
+
+    \b
+    nc2zarr -c s3.yml -c common.yml -c inputs-01.yml -o out-01.zarr
+    nc2zarr -c s3.yml -c common.yml -c inputs-02.yml -o out-02.zarr
+    nc2zarr out-01.zarr out-02.zarr -o final.zarr
+
+    Command line arguments and options have precedence over other configurations and thus overwrite
+    settings in any CONFIG_FILE:
 
     \b
     [--dry-run] overwrites /dry_run
@@ -96,7 +107,7 @@ def nc2zarr(input_paths: List[str],
         return 0
 
     from nc2zarr.config import load_config
-    from nc2zarr.convert import convert_netcdf_to_zarr
+    from nc2zarr.main import nc2zarr
     from nc2zarr.log import log_duration
     from nc2zarr.error import ConverterError
     try:
@@ -112,7 +123,7 @@ def nc2zarr(input_paths: List[str],
                                         output_append=append,
                                         verbosity=sum(verbosity) if verbosity else None,
                                         dry_run=dry_run)
-            convert_netcdf_to_zarr(**config_kwargs)
+            nc2zarr(**config_kwargs)
     except ConverterError as e:
         raise click.ClickException(e) from e
 

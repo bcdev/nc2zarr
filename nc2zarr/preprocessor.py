@@ -97,7 +97,7 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
         concat_dim_var = ds.time
     else:
         # Can't do anything
-        raise ConverterError(f'Cannot determine "{concat_dim_name}" coordinate')
+        raise ConverterError(f'Missing (coordinate) variable "{concat_dim_name}" for dimension "{concat_dim_name}".')
 
     is_concat_dim_used = any((concat_dim_name in ds[var_name].dims) for var_name in ds.data_vars)
     if not is_concat_dim_used:
@@ -140,7 +140,7 @@ def get_time_coverage_from_ds(ds: xr.Dataset,
 
     # TODO: use special parameters to parse time_coverage_start, time_coverage_end from source_path
     # source_path = ds.encoding.get('source', '')
-    raise ConverterError('Missing time_coverage_start and/or time_coverage_end in dataset attributes')
+    raise ConverterError('Missing time_coverage_start and/or time_coverage_end in dataset attributes.')
 
 
 def parse_timestamp(string: str, datetime_format: str = None) \
@@ -148,4 +148,4 @@ def parse_timestamp(string: str, datetime_format: str = None) \
     try:
         return pd.to_datetime(string, format=datetime_format)
     except ValueError as e:
-        raise ConverterError(f'Cannot parse timestamp from "{string}"') from e
+        raise ConverterError(f'Cannot parse timestamp from "{string}".') from e

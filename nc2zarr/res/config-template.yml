@@ -1,3 +1,16 @@
+#############################################################################
+# Configuration file template for the nc2zarr CLI tool.                     #
+#                                                                           #
+# Usage                                                                     #
+#                                                                           #
+#   nc2zarr --config CONFIG_FILE                                            #
+#                                                                           #
+# For more information                                                      #
+#                                                                           #
+#   nc2zarr --help                                                          #
+#                                                                           #
+#############################################################################
+
 # No actual output is written.
 # Good for testing validity of configurations.
 dry_run: false

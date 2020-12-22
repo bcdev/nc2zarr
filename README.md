@@ -33,10 +33,20 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   OUTPUT_PATH must be directory which will contain the output Zarr dataset,
   e.g. "L3_SST.zarr".
 
-  CONFIG_FILE has YAML format. If multiple are given, their "input",
-  "process", and "output" entries are merged while other settings overwrite
-  each other in the order they appear. Command line arguments overwrite
-  settings in all given CONFIG_FILE as follows:
+  CONFIG_FILE has YAML format. It comprises the optional objects "input",
+  "process", and "output". See nc2zarr/res/config-template.yml for a
+  template file that describes the format. Multiple --config options may be
+  passed as a chain to allow for reuse of credentials and other common
+  parameters. Contained configuration objects are recursively merged, lists
+  are appended, other values overwrite each other from left to right. For
+  example:
+
+  nc2zarr -c s3.yml -c common.yml -c inputs-01.yml -o out-01.zarr
+  nc2zarr -c s3.yml -c common.yml -c inputs-02.yml -o out-02.zarr
+  nc2zarr out-01.zarr out-02.zarr -o final.zarr
+
+  Command line arguments and options have precedence over other
+  configurations and thus overwrite settings in any CONFIG_FILE:
 
   [--dry-run] overwrites /dry_run
   [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
@@ -54,16 +64,20 @@ Options:
   -m, --multi-file           Open multiple input files as one block. Works for
                              NetCDF files only. Use --concat-dim to specify
                              the dimension for concatenation.
+
   -w, --overwrite            Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
                              does not exist, the option has no effect. Cannot
                              be used with --append.
+
   -a, --append               Append inputs to existing OUTPUT_PATH. If
                              OUTPUT_PATH does not exist, the option has no
                              effect. Cannot be used with --overwrite.
+
   --decode-cf                Decode variables according to CF conventions.
                              Caution: array data may be converted to floating
                              point type if a "_FillValue" attribute is
                              present.
+
   -d, --dry-run              Open and process inputs only, omit data writing.
   -v, --verbose              Print more output.
   --version                  Show version number and exit.

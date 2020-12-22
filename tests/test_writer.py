@@ -49,6 +49,16 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         writer.write_dataset(ds)
         self.assertFalse(os.path.isdir('out.zarr'))
 
+    def test_local_dry_run_for_existing(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr', output_overwrite=True)
+        writer.write_dataset(ds)
+        self.assertTrue(os.path.isdir('my.zarr'))
+        writer = DatasetWriter('my.zarr', output_overwrite=True, dry_run=True)
+        writer.write_dataset(ds)
+        self.assertTrue(os.path.isdir('my.zarr'))
+
     def test_local(self):
         self.add_path('my.zarr')
         writer = DatasetWriter('my.zarr', output_overwrite=False, dry_run=False)

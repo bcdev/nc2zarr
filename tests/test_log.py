@@ -19,36 +19,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import contextlib
-import logging
-import sys
 import time
-from typing import Union
+import unittest
+from typing import List
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s: %(levelname)s: %(name)s: %(message)s',
-    stream=sys.stderr,
-)
-
-LOGGER = logging.getLogger('nc2zarr')
+from nc2zarr.log import log_duration
 
 
-class log_duration(contextlib.AbstractContextManager):
+class LogTest(unittest.TestCase):
 
-    def __init__(self, tag: str = None, verbosity: int = 1):
-        self.tag = tag or 'task'
-        self.verbosity = verbosity
-        self.start = None
-        self.duration = None
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        if self.verbosity > 1:
-            LOGGER.info(f'{self.tag}...')
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.duration = time.perf_counter() - self.start
-        if self.verbosity > 0 and exc_type is None:
-            LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')
+    def test_log_duration(self):
+        with log_duration('Waiting', verbosity=2) as cm:
+            time.sleep(0.05)
+            time.sleep(0.05)
+        self.assertTrue(cm.duration >= 0.05)
