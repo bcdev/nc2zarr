@@ -28,7 +28,7 @@ import zarr.errors
 from nc2zarr.writer import DatasetWriter
 from tests.helpers import IOCollector
 from tests.helpers import new_test_dataset
-import botocore.exceptions
+
 
 class DatasetWriterTest(unittest.TestCase, IOCollector):
     def setUp(self):
