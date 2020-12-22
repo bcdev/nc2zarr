@@ -1,8 +1,7 @@
-import os.path
-import shutil
 from typing import Dict, Any
 
-import s3fs
+import fsspec
+import fsspec.implementations.local
 import xarray as xr
 
 from .constants import DEFAULT_CONCAT_DIM_NAME
@@ -32,27 +31,12 @@ class DatasetWriter:
         self._output_s3_kwargs = output_s3_kwargs
         self._reset_attrs = reset_attrs
         self._dry_run = dry_run
-        self._output_store = None
-        self._output_store_exists = None
-        self._init_output_store()
-
-    def _init_output_store(self):
-        # TODO (forman): use fsspec here so we can get rid of following 2 code blocks
-        if self._output_s3_kwargs:
-            s3 = s3fs.S3FileSystem(**self._output_s3_kwargs)
-            self._output_store_exists = s3.isdir(self._output_path)
-            if self._output_overwrite and self._output_store_exists:
-                with log_duration(f'Removing existing {self._output_path}'):
-                    s3.rm(self._output_path, recursive=True)
-                    self._output_store_exists = False
-            self._output_store = s3fs.S3Map(self._output_path, s3=s3, create=True)
+        if output_s3_kwargs or output_path.startswith('s3://'):
+            self._fs = fsspec.filesystem('s3', **(output_s3_kwargs or {}))
         else:
-            self._output_store_exists = os.path.isdir(self._output_path)
-            if self._output_overwrite and self._output_store_exists:
-                with log_duration(f'Removing existing {self._output_path}'):
-                    shutil.rmtree(self._output_path)
-                    self._output_store_exists = False
-            self._output_store = self._output_path
+            self._fs = fsspec.filesystem('file')
+        self._output_store = None
+        self._output_path_exists = None
 
     def write_dataset(self,
                       ds: xr.Dataset,
@@ -60,29 +44,51 @@ class DatasetWriter:
                       append: bool = None):
         encoding = encoding if encoding is not None else self._output_encoding
         append = append if append is not None else self._output_append
-        if not append or not self._output_store_exists:
-            with log_duration(f'Writing dataset'):
-                if not self._dry_run:
-                    ds.to_zarr(self._output_store,
-                               mode='w' if self._output_overwrite else 'w-',
-                               encoding=encoding,
-                               consolidated=self._output_consolidated)
-                else:
-                    LOGGER.warning('Writing disabled, dry run!')
-                self._output_store_exists = True
+        self._ensure_store()
+        if not append or not self._output_path_exists:
+            self._create_dataset(ds, encoding)
         else:
-            with log_duration('Appending dataset'):
-                if self._reset_attrs:
-                    # For all slices except the first we must remove
-                    # encoding attributes e.g. "_FillValue" .
-                    ds = self._remove_variable_attrs(ds)
+            self._append_dataset(ds)
 
-                if not self._dry_run:
-                    ds.to_zarr(self._output_store,
-                               append_dim=self._output_append_dim,
-                               consolidated=self._output_consolidated)
-                else:
-                    LOGGER.warning('Appending disabled, dry run!')
+    def _ensure_store(self):
+        if self._output_store is None:
+            self._output_path_exists = self._fs.isdir(self._output_path)
+            if self._output_overwrite and self._output_path_exists:
+                self._remove_dataset()
+            self._output_store = self._fs.get_mapper(self._output_path, check=False, create=False)
+
+    def _create_dataset(self, ds, encoding):
+        with log_duration(f'Writing dataset'):
+            if not self._dry_run:
+                ds.to_zarr(self._output_store,
+                           mode='w' if self._output_overwrite else 'w-',
+                           encoding=encoding,
+                           consolidated=self._output_consolidated)
+            else:
+                LOGGER.warning('Writing disabled, dry run!')
+            self._output_path_exists = True
+
+    def _append_dataset(self, ds):
+        with log_duration('Appending dataset'):
+            if self._reset_attrs:
+                # For all slices except the first we must remove
+                # encoding attributes e.g. "_FillValue" .
+                ds = self._remove_variable_attrs(ds)
+
+            if not self._dry_run:
+                ds.to_zarr(self._output_store,
+                           append_dim=self._output_append_dim,
+                           consolidated=self._output_consolidated)
+            else:
+                LOGGER.warning('Appending disabled, dry run!')
+
+    def _remove_dataset(self):
+        with log_duration(f'Removing dataset {self._output_path}'):
+            if not self._dry_run:
+                self._fs.delete(self._output_path, recursive=True)
+            else:
+                LOGGER.warning('Removal disabled, dry run!')
+            self._output_path_exists = False
 
     @classmethod
     def _remove_variable_attrs(cls, ds: xr.Dataset) -> xr.Dataset:

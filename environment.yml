@@ -8,6 +8,7 @@ dependencies:
   # Production
   - click
   - dask
+  - fsspec
   - netcdf4
   - numpy
   - pandas
