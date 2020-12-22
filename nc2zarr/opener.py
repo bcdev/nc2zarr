@@ -37,15 +37,13 @@ class DatasetOpener:
                  input_sort_by: str = None,
                  input_decode_cf: bool = False,
                  input_concat_dim: str = None,
-                 input_engine: str = None,
-                 verbosity: int = 0):
+                 input_engine: str = None):
         self._input_paths = input_paths
         self._input_multi_file = input_multi_file
         self._input_sort_by = input_sort_by
         self._input_decode_cf = input_decode_cf
         self._input_concat_dim = input_concat_dim
         self._input_engine = input_engine
-        self._verbosity = verbosity
 
     def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
@@ -91,10 +89,9 @@ class DatasetOpener:
         if not input_files:
             raise ConverterError('At least one input file must be given.')
         LOGGER.info(f'{len(input_files)} input file(s) given.')
-        if self._verbosity:
-            LOGGER.info('Input file(s):\n'
-                        + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
-                                         zip(range(len(input_files)), input_files)))))
+        LOGGER.debug('Input file(s):\n'
+                     + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
+                                      zip(range(len(input_files)), input_files)))))
         return input_files
 
     @classmethod

@@ -25,6 +25,7 @@ from .constants import DEFAULT_CONCAT_DIM_NAME
 from .constants import DEFAULT_OUTPUT_PATH
 from .error import ConverterError
 from .log import LOGGER
+from .log import set_verbosity
 from .opener import DatasetOpener
 from .preprocessor import DatasetPreProcessor
 from .processor import DatasetProcessor
@@ -32,12 +33,13 @@ from .writer import DatasetWriter
 
 
 def nc2zarr(input_paths: Union[str, Sequence[str]] = None,
+            input_sort_by: str = None,
             input_variables: List[str] = None,
             input_multi_file: bool = False,
             input_concat_dim: str = None,
             input_engine: str = None,
             input_decode_cf: bool = False,
-            input_sort_by: str = None,
+            input_datetime_format: str = None,
             process_rename: Dict[str, str] = None,
             process_rechunk: Dict[str, Dict[str, int]] = None,
             output_path: str = None,
@@ -53,12 +55,13 @@ def nc2zarr(input_paths: Union[str, Sequence[str]] = None,
     TODO: describe me any py params.
 
     :param input_paths:
+    :param input_sort_by:
     :param input_variables:
     :param input_multi_file:
     :param input_concat_dim:
     :param input_engine:
     :param input_decode_cf:
-    :param input_sort_by:
+    :param input_datetime_format:
     :param process_rename:
     :param process_rechunk:
     :param output_path:
@@ -81,6 +84,9 @@ def nc2zarr(input_paths: Union[str, Sequence[str]] = None,
     if output_overwrite and output_append:
         raise ConverterError('Output overwrite and append flags cannot be given both.')
 
+    if isinstance(verbosity, int):
+        set_verbosity(verbosity)
+
     if dry_run:
         LOGGER.warning('Dry run!')
 
@@ -89,12 +95,11 @@ def nc2zarr(input_paths: Union[str, Sequence[str]] = None,
                            input_sort_by=input_sort_by,
                            input_decode_cf=input_decode_cf,
                            input_concat_dim=input_concat_dim,
-                           input_engine=input_engine,
-                           verbosity=verbosity)
+                           input_engine=input_engine)
 
     pre_processor = DatasetPreProcessor(input_variables=input_variables,
                                         input_concat_dim=input_concat_dim,
-                                        verbosity=verbosity)
+                                        input_datetime_format=input_datetime_format)
 
     processor = DatasetProcessor(process_rechunk=process_rechunk,
                                  process_rename=process_rename,

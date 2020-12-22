@@ -32,12 +32,11 @@ from tests.helpers import new_test_dataset
 
 class DatasetPreProcessorTest(unittest.TestCase):
 
-    def test_filters_vars(self):
+    def test_select_variables(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
         pre_processor = DatasetPreProcessor(input_variables=['r_i32', 'lon', 'lat', 'time'],
-                                            input_concat_dim='time',
-                                            verbosity=2)
+                                            input_concat_dim='time')
         new_ds = pre_processor.preprocess_dataset(ds)
         self.assertIsInstance(new_ds, xr.Dataset)
         self.assertAllInDataset(['r_i32', 'lon', 'lat', 'time'], new_ds)

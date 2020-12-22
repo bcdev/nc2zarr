@@ -23,32 +23,57 @@ import contextlib
 import logging
 import sys
 import time
-from typing import Union
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s: %(levelname)s: %(name)s: %(message)s',
     stream=sys.stderr,
 )
 
 LOGGER = logging.getLogger('nc2zarr')
+LOGGER.setLevel(logging.WARNING)
+
+
+def get_verbosity() -> int:
+    if LOGGER.level == logging.INFO:
+        return 1
+    if LOGGER.level < logging.INFO:
+        return 2
+    return 0
+
+
+@contextlib.contextmanager
+def use_verbosity(new_verbosity: int):
+    old_verbosity = set_verbosity(new_verbosity)
+    try:
+        yield None
+    finally:
+        set_verbosity(old_verbosity)
+
+
+def set_verbosity(verbosity: int) -> int:
+    old_verbosity = get_verbosity()
+    if verbosity == 1:
+        LOGGER.setLevel(logging.INFO)
+    elif verbosity >= 2:
+        LOGGER.setLevel(logging.DEBUG)
+    else:
+        LOGGER.setLevel(logging.WARNING)
+    return old_verbosity
 
 
 class log_duration(contextlib.AbstractContextManager):
 
-    def __init__(self, tag: str = None, verbosity: int = 1):
+    def __init__(self, tag: str = None):
         self.tag = tag or 'task'
-        self.verbosity = verbosity
         self.start = None
         self.duration = None
 
     def __enter__(self):
         self.start = time.perf_counter()
-        if self.verbosity > 1:
-            LOGGER.info(f'{self.tag}...')
+        LOGGER.debug(f'{self.tag}...')
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.duration = time.perf_counter() - self.start
-        if self.verbosity > 0 and exc_type is None:
-            LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')
+        LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')

@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import List, Optional, Sequence
+from typing import Optional, Tuple
 
 import click
 
@@ -52,20 +52,20 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
                    f'if a "_FillValue" attribute is present.')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
-@click.option('--verbose', '-v', 'verbosity', is_flag=True, multiple=True,
-              help='Print more output.')
+@click.option('--verbose', '-v', 'verbose', is_flag=True, multiple=True,
+              help='Print more output. Use twice for even more output.')
 @click.option('--version', is_flag=True,
               help='Show version number and exit.')
-def nc2zarr(input_paths: List[str],
+def nc2zarr(input_paths: Tuple[str],
             output_path: str,
-            config_paths: List[str],
+            config_paths: Tuple[str],
             multi_file: bool,
             concat_dim: Optional[str],
             overwrite: bool,
             append: bool,
             decode_cf: bool,
             dry_run: bool,
-            verbosity: Sequence[int],
+            verbose: Tuple[bool],
             version: bool):
     """
     Reads one or input datasets and writes or appends them to a single Zarr output dataset.
@@ -92,6 +92,7 @@ def nc2zarr(input_paths: List[str],
 
     \b
     [--dry-run] overwrites /dry_run
+    [--verbose] overwrites /verbosity
     [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
     [--multi-file] overwrites /input/multi_file
     [--concat-dim] overwrites /input/concat_dim
@@ -121,7 +122,7 @@ def nc2zarr(input_paths: List[str],
                                         output_path=output_path,
                                         output_overwrite=overwrite,
                                         output_append=append,
-                                        verbosity=sum(verbosity) if verbosity else None,
+                                        verbosity=sum(verbose) if verbose else None,
                                         dry_run=dry_run)
             nc2zarr(**config_kwargs)
     except ConverterError as e:

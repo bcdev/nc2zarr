@@ -35,12 +35,10 @@ class DatasetPreProcessor:
     def __init__(self,
                  input_variables: List[str] = None,
                  input_concat_dim: str = None,
-                 input_datetime_format: str = None,
-                 verbosity: int = 0):
+                 input_datetime_format: str = None):
         self._input_variables = input_variables
         self._input_concat_dim = input_concat_dim
         self._input_datetime_format = input_datetime_format
-        self._verbosity = verbosity
         self._first_dataset_shown = False
 
     def preprocess_dataset(self, ds: xr.Dataset) -> xr.Dataset:
@@ -50,8 +48,8 @@ class DatasetPreProcessor:
         if self._input_concat_dim:
             ds = ensure_dataset_has_concat_dim(ds, self._input_concat_dim,
                                                datetime_format=self._input_datetime_format)
-        if self._verbosity and not self._first_dataset_shown:
-            LOGGER.info(f'First input dataset:\n{ds}')
+        if not self._first_dataset_shown:
+            LOGGER.debug(f'First input dataset:\n{ds}')
             self._first_dataset_shown = True
         return ds
 
@@ -69,6 +67,7 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
     """
     :param ds: Dataset to adjust
     :param concat_dim_name: Name of dimension to be appended
+    :param datetime_format: Name of dimension to be appended
     :return: Adjusted dataset
     """
     concat_dim_var = None

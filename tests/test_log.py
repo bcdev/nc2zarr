@@ -19,17 +19,43 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import logging
 import time
 import unittest
-from typing import List
 
+from nc2zarr.log import LOGGER
+from nc2zarr.log import get_verbosity
 from nc2zarr.log import log_duration
+from nc2zarr.log import use_verbosity
 
 
 class LogTest(unittest.TestCase):
 
+    def test_LOGGER(self):
+        self.assertIsNotNone(LOGGER)
+        self.assertEqual(logging.WARNING, LOGGER.level)
+
+    def test_get_and_use_verbosity(self):
+        self.assertEqual(0, get_verbosity())
+
+        with use_verbosity(2):
+            self.assertEqual(2, get_verbosity())
+            self.assertEqual(logging.DEBUG, LOGGER.level)
+        self.assertEqual(0, get_verbosity())
+
+        with use_verbosity(0):
+            self.assertEqual(0, get_verbosity())
+            self.assertEqual(logging.WARNING, LOGGER.level)
+        self.assertEqual(0, get_verbosity())
+
+        with use_verbosity(1):
+            self.assertEqual(1, get_verbosity())
+            self.assertEqual(logging.INFO, LOGGER.level)
+        self.assertEqual(0, get_verbosity())
+
     def test_log_duration(self):
-        with log_duration('Waiting', verbosity=2) as cm:
-            time.sleep(0.05)
-            time.sleep(0.05)
-        self.assertTrue(cm.duration >= 0.05)
+        with use_verbosity(1):
+            with log_duration('Waiting') as cm:
+                time.sleep(0.05)
+                time.sleep(0.05)
+            self.assertTrue(cm.duration >= 0.05)

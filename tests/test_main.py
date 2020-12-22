@@ -55,10 +55,10 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
                                                 '2020-12-02T10:00:00',
                                                 '2020-12-03T10:00:00'])
 
-    def test_dry_run(self):
+    def test_dry_run_with_higher_verbosity(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        nc2zarr(input_paths='inputs/*.nc', dry_run=True)
+        nc2zarr(input_paths='inputs/*.nc', dry_run=True, verbosity=0)
         self.assertFalse(os.path.exists('out.zarr'))
 
     def test_slices_with_overwrite(self):
