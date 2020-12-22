@@ -32,7 +32,7 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   CONFIG_FILE has YAML format. If multiple are given, their "input",
   "process", and "output" entries are merged while other settings overwrite
   each other in the order they appear. Command line arguments overwrite
-  settings in any CONFIG_FILE:
+  settings in all given CONFIG_FILE as follows:
 
   [--dry-run] overwrites /dry_run
   [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
@@ -66,6 +66,11 @@ Options:
   --help                     Show this message and exit.
 ```
 
+### Configuration file format
+
+The format of the configuration files passed via the `--config` option is described
+as a [configuration template](https://github.com/bcdev/nc2zarr/blob/main/nc2zarr/res/config-template.yml).
+
 ### Examples
 
 Convert multiple NetCDFs to single Zarr:
@@ -90,73 +95,4 @@ Append one Zarr to existing Zarr:
 
 ```bash
 $ nc2zarr -a -o outputs/SST.zarr outputs/SST-part3.zarr
-```
-
-### Config file format
-
-```yaml
-
-dry_run: false
-verbosity: 0
-
-input:
-  paths:
-    - <input_path_or_glob_1>
-    - <input_path_or_glob_2>
-  # Filter variables. Comment out or set to null for all variables.
-  variables:
-    - <var_name_1>
-    - <var_name_2>
-  # Use xarray.open_mfdataset() passing all expanded paths
-  multi_file: false
-  # Dimension to be used for concatenation if multi_file: true
-  concat_dim: "time"
-  # xarray engine 
-  engine: "netcdf4"
-  decode_cf: false
-  sort_by: false # true, "path" (= true), or "name"  
-
-process:
-  # Rename variables
-  rename:
-    <var_name>: <new_var_name>
-    <var_name>: <new_var_name>
-
-  # (Re)chunk variable dimensions
-  rechunk:
-    # Set selected dimensions of all variables to chunk_size.  
-    "*":
-      <dim_name>: <chunk_size>
-      <dim_name>: <chunk_size>
-    # Set selected dimensions of individual variables to chunk_size.  
-    <var_name>:
-      <dim_name>: <chunk_size>
-      <dim_name>: <chunk_size>
-    # Set dimension dim_name=var_name of individual variable to chunk_size.  
-    <var_name>: <chunk_size>
-    # Don't chunk individual variable at all.  
-    <var_name>: null
-
-output:
-  # if s3 is given this is a relative path "<bucket_name>/path/to/my.zarr", 
-  # otherwise it may be any local FS directory path. 
-  path: <output_path>
-  # consolidated arg passed to xarray.Dataset.to_zarr()
-  consolidated: false
-  # encoding arg passed to xarray.Dataset.to_zarr()
-  encoding: null
-  # Overwrite existing dataset?
-  overwrite: false
-  # Append to existing dataset?
-  append: false
-  # Append dimension. Defaults to input/concat_dim or "time"
-  append_dim: false
-  # If given, will be passed to as s3fs.S3FileSystem(**s3)
-  s3:
-    anon: null
-    key: null
-    secret: null
-    client_kwargs:
-      endpoint_url: null
-      region_name: null
 ```

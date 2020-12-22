@@ -1,0 +1,87 @@
+# No actual output is written.
+dry_run: false
+# Verbosity of logging: 0 is off, 1 is basic, 2 is extended information.
+verbosity: 0
+
+# Configuration of inputs
+input:
+  # Input paths. May be passed as globs,
+  # i.e. a path may contain '**', '*', and '?' wildcards.
+  paths:
+    - <input_path_or_glob_1>
+    - <input_path_or_glob_2>
+  # Sort resolved paths list.
+  # - "name": sorts by file name
+  # - "path": sorts by whole path
+  # - true: same as "path"
+  # - false: no sorting, order as provided
+  sort_by: false # true, "path" (= true), or "name"
+  # Select given variables only. Comment out or set to null for all variables.
+  variables:
+    - <var_name_1>
+    - <var_name_2>
+  # Read all input files as one block?
+  # - true: Uses xarray.open_mfdataset(paths, ...)
+  # - false: Uses xarray.open_dataset(paths[i], ...)
+  multi_file: false
+  # Name of dimension to be used for concatenation if multi_file is true.
+  concat_dim: "time"
+  # xarray engine used for opening the dataset
+  engine: "netcdf4"
+  # Whether to decode inputs according to CF conventions.
+  # This is off by default, because we don't want any data interpretation.
+  decode_cf: false
+
+# Configuration of input to output processing
+process:
+  # Rename variables
+  rename:
+    <var_name>: <new_var_name>
+    <var_name>: <new_var_name>
+
+  # (Re)chunk variable dimensions
+  rechunk:
+    # Set selected dimensions of all variables to chunk_size.
+    "*":
+      <dim_name>: <chunk_size>
+      <dim_name>: <chunk_size>
+    # Set selected dimensions of individual variables to chunk_size.
+    <var_name>:
+      <dim_name>: <chunk_size>
+      <dim_name>: <chunk_size>
+    # Set dimension dim_name=var_name of individual variable to chunk_size.
+    <var_name>: <chunk_size>
+    # Don't chunk individual variable at all.
+    <var_name>: null
+
+# Configuration of output
+output:
+  # If output is in object storage is given this is a relative path
+  # "<bucket_name>/path/to/my.zarr" or "s3://<bucket_name>/path/to/my.zarr".
+  # Otherwise it may be any local FS directory path.
+  path: <output_path>
+  # The "consolidated" keyword argument passed to xarray.Dataset.to_zarr().
+  # Experimental Zarr feature. Improves access performance
+  # for targets in object storage.
+  consolidated: false
+  # The "encoding" keyword argument passed to xarray.Dataset.to_zarr()
+  # This is a mapping of variable names to variable encoding info.
+  encoding: null
+  # Overwrite existing dataset?
+  overwrite: false
+  # Append to existing dataset?
+  append: false
+  # Append dimension. Defaults to input/concat_dim or "time"
+  append_dim: false
+  # Object storage file system configuration.
+  # If given, content are the keyword arguments passed to s3fs.S3FileSystem()
+  s3:
+    # Anonymous access. ass true, if the bucket if publicly writable.
+    anon: null
+    # Key identifier
+    key: null
+    # Secret access key
+    secret: null
+    client_kwargs:
+      endpoint_url: null
+      region_name: null

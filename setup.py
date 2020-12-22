@@ -34,6 +34,9 @@ setup(
     license='MIT',
     author='Brockmann Consult GmbH',
     packages=['nc2zarr'],
+    package_data={'nc2zarr': [
+        'config-template.yml',
+    ]},
     entry_points={
         'console_scripts': [
             'nc2zarr = nc2zarr.cli:nc2zarr',
