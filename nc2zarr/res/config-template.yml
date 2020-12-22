@@ -1,5 +1,7 @@
 # No actual output is written.
+# Good for testing validity of configurations.
 dry_run: false
+
 # Verbosity of logging: 0 is off, 1 is basic, 2 is extended information.
 verbosity: 0
 
