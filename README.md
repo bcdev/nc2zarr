@@ -44,29 +44,26 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   [--append] overwrites /output/append
 
 Options:
-  -c, --config CONFIG_FILE  Configuration file (YAML). Multiple may be given.
-  -o, --output OUTPUT_PATH  Output name. Defaults to "out.zarr".
-  -d, --concat-dim DIM      Dimension for concatenation. Defaults to "time".
-  -m, --multi-file          Open multiple input files as one block. Works for
-                            NetCDF files only. Use --concat-dim to specify the
-                            dimension for concatenation.
-
-  -w, --overwrite           Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
-                            does not exist, the option has no effect. Cannot
-                            be used with --append.
-
-  -a, --append              Append inputs to existing OUTPUT_PATH. If
-                            OUTPUT_PATH does not exist, the option has no
-                            effect. Cannot be used with --overwrite.
-
-  --decode-cf               Decode variables according to CF conventions.
-                            Caution: array data may be converted to floating
-                            point type if a "_FillValue" attribute is present.
-
-  -d, --dry-run             Open and process inputs only, omit data writing.
-  -v, --verbose             Print more output.
-  --version                 Show version number and exit.
-  --help                    Show this message and exit.
+  -c, --config CONFIG_FILE   Configuration file (YAML). Multiple may be given.
+  -o, --output OUTPUT_PATH   Output name. Defaults to "out.zarr".
+  -d, --concat-dim DIM_NAME  Dimension for concatenation. Defaults to "time".
+  -m, --multi-file           Open multiple input files as one block. Works for
+                             NetCDF files only. Use --concat-dim to specify
+                             the dimension for concatenation.
+  -w, --overwrite            Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
+                             does not exist, the option has no effect. Cannot
+                             be used with --append.
+  -a, --append               Append inputs to existing OUTPUT_PATH. If
+                             OUTPUT_PATH does not exist, the option has no
+                             effect. Cannot be used with --overwrite.
+  --decode-cf                Decode variables according to CF conventions.
+                             Caution: array data may be converted to floating
+                             point type if a "_FillValue" attribute is
+                             present.
+  -d, --dry-run              Open and process inputs only, omit data writing.
+  -v, --verbose              Print more output.
+  --version                  Show version number and exit.
+  --help                     Show this message and exit.
 ```
 
 ### Examples
