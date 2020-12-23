@@ -64,7 +64,7 @@ class CliTest(MainTest, ZarrOutputTestMixin, IOCollector):
         self.add_output('out.zarr')
         result = self._invoke_cli([])
         self.assertCliResultError(result, 1,
-                                  expected_stdout='Error: At least one input file must be given.')
+                                  expected_stdout='Error: At least one input must be given.')
 
     def test_3_netcdf_inputs(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)

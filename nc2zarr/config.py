@@ -32,54 +32,60 @@ def load_config(config_paths: Union[str, Sequence[str]] = None,
                 return_kwargs: bool = False,
                 **kwargs) -> Dict[str, Any]:
     """
-    Create a new configuration.
+    Load single configuration by merging all given configurations read from YAML files in
+    *config_path* and then merge *kwargs*.
 
-    :param config_paths:
-    :param return_kwargs:
-    :param kwargs: see nc2zarr.convert.convert_netcdf_to_zarr
+    :param config_paths: Configuration file paths,
+    :param return_kwargs: Returned a flattened configuration so its items can be used as keyword arguments.
+    :param kwargs: see nc2zarr.converter.Converter
     :raise ConverterError
     """
-    arg_config = dict()
-    arg_input = dict()
-    arg_process = dict()
-    arg_output = dict()
+    if not config_paths and return_kwargs:
+        return kwargs
+
+    kwargs_config = kwargs_to_config(**kwargs)
+    if not config_paths:
+        return kwargs_config
+
+    config_paths = [config_paths] if isinstance(config_paths, str) else config_paths
+    configs = [_load_config(config_path)
+               for config_path in config_paths] + [kwargs_config]
+    config = _merge_configs(configs)
+    return config_to_kwargs(config) if return_kwargs else config
+
+
+def kwargs_to_config(**kwargs) -> Dict[str, Any]:
+    config = dict()
+    config_input = dict()
+    config_process = dict()
+    config_output = dict()
     for k, v in kwargs.items():
         if v is not None:
             if k.startswith('input_'):
-                arg_input[k[len('input_'):]] = v
+                config_input[k[len('input_'):]] = v
             elif k.startswith('process_'):
-                arg_process[k[len('process_'):]] = v
+                config_process[k[len('process_'):]] = v
             elif k.startswith('output_'):
-                arg_output[k[len('output_'):]] = v
+                config_output[k[len('output_'):]] = v
             else:
-                arg_config[k] = v
-
-    if arg_input:
-        arg_config['input'] = arg_input
-    if arg_process:
-        arg_config['process'] = arg_process
-    if arg_output:
-        arg_config['output'] = arg_output
-
-    if config_paths:
-        config_paths = [config_paths] if isinstance(config_paths, str) else config_paths
-        configs = [_load_config(config_path)
-                   for config_path in config_paths] + [arg_config]
-        config = _merge_configs(configs)
-    else:
-        config = arg_config
-
-    return config_to_kwargs(config) if return_kwargs else config
+                config[k] = v
+    if config_input:
+        config['input'] = config_input
+    if config_process:
+        config['process'] = config_process
+    if config_output:
+        config['output'] = config_output
+    return config
 
 
 def config_to_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     config = dict(config)
-    input_params = config.pop('input') if 'input' in config else {}
-    process_params = config.pop('process') if 'process' in config else {}
-    output_params = config.pop('output') if 'output' in config else {}
-    return dict(**{'input_' + k: v for k, v in input_params.items()},
-                **{'process_' + k: v for k, v in process_params.items()},
-                **{'output_' + k: v for k, v in output_params.items()},
+    config_input = config.pop('input') if 'input' in config else {}
+    config_process = config.pop('process') if 'process' in config else {}
+    config_output = config.pop('output') if 'output' in config else {}
+    return dict(**{'input_' + k: v for k, v in config_input.items()},
+                **{'process_' + k: v for k, v in config_process.items()},
+                **{'output_' + k: v for k, v in config_output.items()},
                 **config)
 
 

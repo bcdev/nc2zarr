@@ -71,6 +71,12 @@ class DatasetWriter:
         else:
             self._append_dataset(ds)
 
+    # def close(self):
+    #     if self._output_store is not None \
+    #             and hasattr(self._output_store, 'close') \
+    #             and callable(self._output_store.close):
+    #         self._output_store.close()
+
     def _ensure_store(self):
         if self._output_store is None:
             self._output_path_exists = self._fs.isdir(self._output_path)

@@ -50,7 +50,7 @@ class DatasetOpenerTest(unittest.TestCase):
         opener = DatasetOpener(input_paths='imports/*.nc')
         with self.assertRaises(ConverterError) as cm:
             list(opener.open_datasets())
-        self.assertEqual('At least one input file must be given.', f'{cm.exception}')
+        self.assertEqual('No inputs found.', f'{cm.exception}')
 
     def test_open_datasets(self):
         opener = DatasetOpener(input_paths='inputs/*.nc')

@@ -108,23 +108,21 @@ def nc2zarr(input_paths: Tuple[str],
         return 0
 
     from nc2zarr.config import load_config
-    from nc2zarr.main import nc2zarr
-    from nc2zarr.log import log_duration
+    from nc2zarr.converter import Converter
     from nc2zarr.error import ConverterError
     try:
-        with log_duration('Converting'):
-            config_kwargs = load_config(config_paths=config_paths,
-                                        return_kwargs=True,
-                                        input_paths=input_paths or None,
-                                        input_decode_cf=decode_cf,
-                                        input_multi_file=multi_file,
-                                        input_concat_dim=concat_dim,
-                                        output_path=output_path,
-                                        output_overwrite=overwrite,
-                                        output_append=append,
-                                        verbosity=sum(verbose) if verbose else None,
-                                        dry_run=dry_run)
-            nc2zarr(**config_kwargs)
+        config_kwargs = load_config(config_paths=config_paths,
+                                    return_kwargs=True,
+                                    input_paths=input_paths or None,
+                                    input_decode_cf=decode_cf,
+                                    input_multi_file=multi_file,
+                                    input_concat_dim=concat_dim,
+                                    output_path=output_path,
+                                    output_overwrite=overwrite,
+                                    output_append=append,
+                                    verbosity=sum(verbose) if verbose else None,
+                                    dry_run=dry_run)
+        Converter(**config_kwargs).run()
     except ConverterError as e:
         raise click.ClickException(e) from e
 

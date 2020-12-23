@@ -28,18 +28,12 @@ from nc2zarr.error import ConverterError
 from tests.helpers import IOCollector
 
 
-class LoadConfigTest(unittest.TestCase, IOCollector):
-
-    def setUp(self):
-        self.reset_paths()
-
-    def tearDown(self):
-        self.delete_paths()
+class ConfigKwargsTest(unittest.TestCase):
 
     def test_defaults(self):
         self.assertEqual({}, load_config())
 
-    def test_without_config_file(self):
+    def test_kwargs_to_config(self):
         self.assertEqual(
             {
                 'dry_run': True,
@@ -70,50 +64,116 @@ class LoadConfigTest(unittest.TestCase, IOCollector):
                         dry_run=True,
                         verbosity=2))
 
-    def test_with_config_files(self):
-        config_1 = {
-            'verbosity': 2,
-            'input': {
-                'paths': ['inputs/2009/*.nc'],
-                'decode_cf': True,
-                'concat_dim': 'time',
+    def test_kwargs_to_kwargs(self):
+        self.assertEqual(
+            {
+                'input_paths': 'inputs/*.nc',
+                'input_multi_file': True,
+                'input_decode_cf': False,
+                'input_concat_dim': 'time',
+                'process_rename': {'lons': 'lon'},
+                'output_path': 'my.zarr',
+                'output_overwrite': False,
+                'output_append': True,
+                'dry_run': True,
+                'verbosity': 2,
             },
-            'output': {
-                's3': {
-                    'key': 'mykey',
-                    'secret': 'mysecret',
-                },
-            },
-        }
+            load_config(return_kwargs=True,
+                        input_paths='inputs/*.nc',
+                        input_decode_cf=False,
+                        input_concat_dim='time',
+                        input_multi_file=True,
+                        process_rename=dict(lons='lon'),
+                        output_path='my.zarr',
+                        output_overwrite=False,
+                        output_append=True,
+                        dry_run=True,
+                        verbosity=2))
 
-        config_2 = {
-            'process': {
-                'rename': {
-                    'longitude': 'lon',
-                    'latitude': 'lat',
-                },
-            },
-            'output': {
-                'path': 'mybucket/my.zarr'
-            },
-        }
 
-        config_3 = {
-            'input': {
-                'paths': ['inputs/2010/*.nc'],
-                'decode_cf': False,
+class ConfigFileTest(unittest.TestCase, IOCollector):
+    config_1 = {
+        'verbosity': 2,
+        'input': {
+            'paths': ['inputs/2009/*.nc'],
+            'decode_cf': True,
+            'concat_dim': 'time',
+        },
+        'output': {
+            's3': {
+                'key': 'mykey',
+                'secret': 'mysecret',
             },
-            'output': {
-                'append': True
+        },
+    }
+
+    config_2 = {
+        'process': {
+            'rename': {
+                'longitude': 'lon',
+                'latitude': 'lat',
             },
-        }
+        },
+        'output': {
+            'path': 'mybucket/my.zarr'
+        },
+    }
+
+    config_3 = {
+        'input': {
+            'paths': ['inputs/2010/*.nc'],
+            'decode_cf': False,
+        },
+        'output': {
+            'append': True
+        },
+    }
+
+    def setUp(self):
+        self.reset_paths()
 
         config_paths = [f'config_{i + 1}.yml' for i in range(3)]
-        for config_path, config in zip(config_paths, (config_1, config_2, config_3)):
+        for config_path, config in zip(config_paths, (self.config_1, self.config_2, self.config_3)):
             self.add_path(config_path)
             with open(config_path, 'w') as fp:
                 yaml.dump(config, fp)
+        self.config_paths = config_paths
 
+    def tearDown(self):
+        self.delete_paths()
+
+    def test_one_config_file_to_config(self):
+        self.assertEqual(
+            {
+                'verbosity': 2,
+                'input': {
+                    'paths': ['inputs/2009/*.nc'],
+                    'concat_dim': 'time',
+                    'decode_cf': False,
+                },
+                'output': {
+                    's3': {'key': 'mykey', 'secret': 'mysecret'},
+                },
+            },
+            load_config(config_paths=[self.config_paths[0]],
+                        input_decode_cf=False,
+                        verbosity=2))
+
+    def test_one_config_file_to_kwargs(self):
+        self.assertEqual(
+            {
+                'verbosity': 2,
+                'input_paths': ['inputs/2009/*.nc'],
+                'input_concat_dim': 'time',
+                'input_decode_cf': False,
+                'output_s3': {'key': 'mykey', 'secret': 'mysecret'},
+            },
+            load_config(config_paths=[self.config_paths[0]],
+                        return_kwargs=True,
+                        input_decode_cf=False,
+                        verbosity=2))
+
+    def test_many_config_files_to_config(self):
         self.assertEqual(
             {
                 'dry_run': False,
@@ -122,6 +182,7 @@ class LoadConfigTest(unittest.TestCase, IOCollector):
                     'paths': [
                         'inputs/2009/*.nc',
                         'inputs/2010/*.nc',
+                        'inputs/2011/*.nc',
                     ],
                     'concat_dim': 'time',
                     'decode_cf': False,
@@ -138,7 +199,8 @@ class LoadConfigTest(unittest.TestCase, IOCollector):
                     's3': {'key': 'mykey', 'secret': 'mysecret'},
                 },
             },
-            load_config(config_paths=config_paths,
+            load_config(config_paths=self.config_paths,
+                        input_paths=['inputs/2011/*.nc'],
                         dry_run=False,
                         verbosity=1))
 
