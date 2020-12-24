@@ -13,6 +13,7 @@ dependencies:
   - numpy
   - pandas
   - pyyaml
+  - retry
   - s3fs
   - xarray
   - zarr

@@ -23,7 +23,7 @@ from typing import Optional, Tuple
 
 import click
 
-from nc2zarr.constants import DEFAULT_CONCAT_DIM_NAME
+from nc2zarr.constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 
 
@@ -34,7 +34,7 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 @click.option('--output', '-o', 'output_path', metavar='OUTPUT_PATH',
               help=f'Output name. Defaults to "{DEFAULT_OUTPUT_PATH}".')
 @click.option('--concat-dim', '-d', 'concat_dim', metavar='DIM_NAME',
-              help=f'Dimension for concatenation. Defaults to "{DEFAULT_CONCAT_DIM_NAME}".')
+              help=f'Dimension for concatenation. Defaults to "{DEFAULT_OUTPUT_APPEND_DIM_NAME}".')
 @click.option('--multi-file', '-m', 'multi_file', is_flag=True, default=None,
               help='Open multiple input files as one block. Works for NetCDF files only. '
                    'Use --concat-dim to specify the dimension for concatenation.')

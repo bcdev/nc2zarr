@@ -21,7 +21,7 @@
 
 from typing import Sequence, Union, Any, Dict, List
 
-from .constants import DEFAULT_CONCAT_DIM_NAME
+from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .constants import DEFAULT_OUTPUT_PATH
 from .error import ConverterError
 from .log import LOGGER
@@ -85,7 +85,7 @@ class Converter:
 
         output_path = output_path or DEFAULT_OUTPUT_PATH
         if input_concat_dim is None and output_append_dim is None:
-            input_concat_dim = output_append_dim = DEFAULT_CONCAT_DIM_NAME
+            input_concat_dim = output_append_dim = DEFAULT_OUTPUT_APPEND_DIM_NAME
         elif input_concat_dim is None or output_append_dim is None:
             input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
 

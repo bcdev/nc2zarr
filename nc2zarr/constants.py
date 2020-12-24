@@ -20,6 +20,5 @@
 # SOFTWARE.
 
 DEFAULT_OUTPUT_PATH = 'out.zarr'
-DEFAULT_CONCAT_DIM_NAME = 'time'
-
-S3_KEYWORDS = 'anon', 'key', 'secret', 'token', 'client_kwargs'
+DEFAULT_OUTPUT_APPEND_DIM_NAME = 'time'
+DEFAULT_OUTPUT_RETRY_KWARGS = dict(tries=1, delay=0.1, backoff=1.1)

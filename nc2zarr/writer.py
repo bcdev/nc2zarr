@@ -23,9 +23,11 @@ from typing import Dict, Any
 
 import fsspec
 import fsspec.implementations.local
+import retry.api
 import xarray as xr
 
-from .constants import DEFAULT_CONCAT_DIM_NAME
+from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
+from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .log import LOGGER
 from .log import log_duration
 
@@ -33,12 +35,13 @@ from .log import log_duration
 class DatasetWriter:
     def __init__(self,
                  output_path: str,
-                 output_append_dim: str = DEFAULT_CONCAT_DIM_NAME,
+                 output_append_dim: str = None,
                  output_consolidated: bool = False,
                  output_encoding: Dict[str, Dict[str, Any]] = None,
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_s3_kwargs: Dict[str, Any] = None,
+                 output_retry_kwargs: Dict[str, Any] = None,
                  reset_attrs: bool = False,
                  dry_run: bool = False):
         if not output_path:
@@ -48,8 +51,9 @@ class DatasetWriter:
         self._output_encoding = output_encoding
         self._output_overwrite = output_overwrite
         self._output_append = output_append
-        self._output_append_dim = output_append_dim
+        self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_s3_kwargs = output_s3_kwargs
+        self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
         self._reset_attrs = reset_attrs
         self._dry_run = dry_run
         if output_s3_kwargs or output_path.startswith('s3://'):
@@ -63,6 +67,16 @@ class DatasetWriter:
                       ds: xr.Dataset,
                       encoding: Dict[str, Any] = None,
                       append: bool = None):
+        retry.api.retry_call(self._write_dataset,
+                             fargs=[ds],
+                             fkwargs=dict(encoding=encoding, append=append),
+                             logger=LOGGER,
+                             **self._output_retry_kwargs)
+
+    def _write_dataset(self,
+                       ds: xr.Dataset,
+                       encoding: Dict[str, Any] = None,
+                       append: bool = None):
         encoding = encoding if encoding is not None else self._output_encoding
         append = append if append is not None else self._output_append
         self._ensure_store()

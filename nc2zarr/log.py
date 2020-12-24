@@ -76,4 +76,7 @@ class log_duration(contextlib.AbstractContextManager):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.duration = time.perf_counter() - self.start
-        LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')
+        if not any((exc_type, exc_value, traceback)):
+            LOGGER.info(f'{self.tag} done: took {self.duration:,.2f} seconds')
+        else:
+            LOGGER.error(f'{self.tag} failed: took {self.duration:,.2f} seconds')

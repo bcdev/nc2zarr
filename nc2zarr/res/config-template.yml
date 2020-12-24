@@ -93,6 +93,7 @@ output:
   append: false
   # Append dimension. Defaults to input/concat_dim or "time"
   append_dim: false
+
   # Object storage file system configuration.
   # If given, content are the keyword arguments passed to s3fs.S3FileSystem()
   s3:
@@ -115,3 +116,14 @@ output:
       endpoint_url: null
       # Optional name of the region where data is stored.
       region_name: null
+
+  # Re-execute writing on errors
+  # Content are the keyword arguments for retry.api.retry_call(..., **retry).
+  # If not given, will fall back to {tries: 3, delay: 0.1, backoff: 1.1}.
+  retry:
+    # the maximum number of attempts. -1 means infinite.
+    tries: 3
+    # initial delay in seconds between attempts.
+    delay: 0.1
+    # multiplier applied to delay between attempts. 1.0 means no backoff.
+    backoff: 1.1
