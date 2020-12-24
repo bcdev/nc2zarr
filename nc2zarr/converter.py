@@ -76,6 +76,7 @@ class Converter:
                  output_append: bool = False,
                  output_append_dim: str = None,
                  output_s3: Dict[str, Any] = None,
+                 output_retry: Dict[str, Any] = None,
                  dry_run: bool = False,
                  verbosity: int = None):
 
@@ -109,6 +110,7 @@ class Converter:
         self.output_append = output_append
         self.output_append_dim = output_append_dim
         self.output_s3 = output_s3
+        self.output_retry = output_retry
         self.dry_run = dry_run
         self.verbosity = verbosity
 
@@ -143,6 +145,7 @@ class Converter:
                                output_append=self.output_append,
                                output_append_dim=self.output_append_dim,
                                output_s3_kwargs=self.output_s3,
+                               output_retry_kwargs=self.output_retry,
                                dry_run=self.dry_run,
                                reset_attrs=not self.input_decode_cf)
 
