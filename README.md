@@ -24,7 +24,7 @@ A Python tool that converts multiple NetCDF files to single Zarr datasets.
 $ nc2zarr --help
 Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
 
-  Reads one or input datasets and writes or appends them to a single Zarr
+  Reads one or more input datasets and writes or appends them to a single Zarr
   output dataset.
 
   INPUT_FILE may refer to a NetCDF file, or Zarr dataset, or a glob that
