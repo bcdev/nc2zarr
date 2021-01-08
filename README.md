@@ -1,3 +1,5 @@
+[![Build Status](https://ci.appveyor.com/api/projects/status/n8c8lhbvcbvg3mht/branch/main?svg=true)](https://ci.appveyor.com/project/bcdev/nc2zarr)
+
 # nc2zarr
 
 A Python tool that converts multiple NetCDF files to single Zarr datasets.
