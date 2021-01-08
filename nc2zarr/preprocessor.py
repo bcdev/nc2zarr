@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright (c) 2020 by Brockmann Consult GmbH and contributors
+# Copyright (c) 2021 by Brockmann Consult GmbH and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -19,7 +19,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import re
 from datetime import datetime
 from typing import List
 from typing import Tuple, Optional
@@ -54,17 +53,12 @@ class DatasetPreProcessor:
         return ds
 
 
-_RE_TO_DATETIME_FORMATS = [(re.compile(14 * '\\d'), '%Y%m%d%H%M%S'),
-                           (re.compile(12 * '\\d'), '%Y%m%d%H%M'),
-                           (re.compile(8 * '\\d'), '%Y%m%d'),
-                           (re.compile(6 * '\\d'), '%Y%m'),
-                           (re.compile(4 * '\\d'), '%Y')]
-
-
 def ensure_dataset_has_concat_dim(ds: xr.Dataset,
                                   concat_dim_name: str,
                                   datetime_format: str = None) -> xr.Dataset:
     """
+    Ensure dataset *ds* has dimension *concat_dim*.
+
     :param ds: Dataset to adjust
     :param concat_dim_name: Name of dimension to be appended
     :param datetime_format: Name of dimension to be appended
