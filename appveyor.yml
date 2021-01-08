@@ -1,0 +1,38 @@
+version: '{build}'
+
+image:
+  - macos
+  - Ubuntu2004
+
+configuration: Release
+
+platform:
+  - x64
+
+for:
+-
+  matrix:
+    only:
+      - image: macos
+  install:
+    - curl -Ls https://micromamba.snakepit.net/api/micromamba/osx-64/latest | tar -xvj bin/micromamba
+    - mv bin/micromamba ./micromamba
+-
+  matrix:
+    only:
+      - image: Ubuntu2004
+  install:
+    - wget -qO- https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj bin/micromamba --strip-components=1
+
+build_script:
+  - ./micromamba shell init -s bash -p ~/micromamba
+  - source ~/.bashrc
+  - hash -r
+  - eval "$(./micromamba shell hook -s bash)"
+  - mkdir -p ~/micromamba/pkgs/
+  - export MAMBA_ROOT_PREFIX=~/micromamba
+  - export MAMBA_EXE=$(pwd)/micromamba
+  - . $MAMBA_ROOT_PREFIX/etc/profile.d/mamba.sh
+  - micromamba create -y -f environment.yml -c conda-forge
+  - micromamba activate
+  - pytest
