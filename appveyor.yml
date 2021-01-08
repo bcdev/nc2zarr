@@ -34,5 +34,5 @@ build_script:
   - export MAMBA_EXE=$(pwd)/micromamba
   - . $MAMBA_ROOT_PREFIX/etc/profile.d/mamba.sh
   - micromamba create -y -f environment.yml -c conda-forge
-  - micromamba activate
+  - micromamba activate nc2zarr
   - pytest
