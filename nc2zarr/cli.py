@@ -50,6 +50,9 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help=f'Decode variables according to CF conventions. '
                    f'Caution: array data may be converted to floating point type '
                    f'if a "_FillValue" attribute is present.')
+@click.option('--sort-by', '-s', 'sort_by', default=None,
+              type=click.Choice(['path', 'name'], case_sensitive=True),
+              help='Sort input files by specified property.')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
 @click.option('--verbose', '-v', 'verbose', is_flag=True, multiple=True,
@@ -64,31 +67,35 @@ def nc2zarr(input_paths: Tuple[str],
             overwrite: bool,
             append: bool,
             decode_cf: bool,
+            sort_by: str,
             dry_run: bool,
             verbose: Tuple[bool],
             version: bool):
     """
-    Reads one or input datasets and writes or appends them to a single Zarr output dataset.
+    Reads one or more input datasets and writes or appends them to a single
+    Zarr output dataset.
 
-    INPUT_FILE may refer to a NetCDF file, or Zarr dataset, or a glob that identifies multiple
-    of them, e.g. "L3_SST/**/*.nc".
+    INPUT_FILE may refer to a NetCDF file, or Zarr dataset, or a glob that
+    identifies multiple paths, e.g. "L3_SST/**/*.nc".
 
-    OUTPUT_PATH must be directory which will contain the output Zarr dataset, e.g. "L3_SST.zarr".
+    OUTPUT_PATH must be directory which will contain the output Zarr dataset,
+    e.g. "L3_SST.zarr".
 
-    CONFIG_FILE has YAML format. It comprises the optional objects "input", "process", and "output".
+    CONFIG_FILE must be in YAML format. It comprises the optional objects
+    "input", "process", and "output".
     See nc2zarr/res/config-template.yml for a template file that describes the format.
     Multiple --config options may be passed as a chain to allow for
     reuse of credentials and other common parameters. Contained configuration objects
-    are recursively merged, lists are appended, other values overwrite each other from
-    left to right. For example:
+    are recursively merged, lists are appended, and other values overwrite each
+    other from left to right. For example:
 
     \b
     nc2zarr -c s3.yml -c common.yml -c inputs-01.yml -o out-01.zarr
     nc2zarr -c s3.yml -c common.yml -c inputs-02.yml -o out-02.zarr
     nc2zarr out-01.zarr out-02.zarr -o final.zarr
 
-    Command line arguments and options have precedence over other configurations and thus overwrite
-    settings in any CONFIG_FILE:
+    Command line arguments and options have precedence over other
+    configurations and thus overwrite settings in any CONFIG_FILE:
 
     \b
     [--dry-run] overwrites /dry_run
@@ -97,6 +104,7 @@ def nc2zarr(input_paths: Tuple[str],
     [--multi-file] overwrites /input/multi_file
     [--concat-dim] overwrites /input/concat_dim
     [--decode-cf] overwrites /input/decode_cf
+    [--sort-by] overwrites /input/sort_by
     [--output OUTPUT_FILE] overwrites /output/path
     [--overwrite] overwrites /output/overwrite
     [--append] overwrites /output/append
@@ -117,6 +125,7 @@ def nc2zarr(input_paths: Tuple[str],
                                     input_decode_cf=decode_cf,
                                     input_multi_file=multi_file,
                                     input_concat_dim=concat_dim,
+                                    input_sort_by=sort_by,
                                     output_path=output_path,
                                     output_overwrite=overwrite,
                                     output_append=append,

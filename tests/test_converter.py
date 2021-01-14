@@ -38,7 +38,7 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
     def test_defaults(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        Converter(input_paths='inputs/*.nc').run()
+        Converter(input_paths='inputs/*.nc', input_sort_by="path").run()
         self.assertZarrOutputOk('out.zarr',
                                 expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
                                 expected_times=['2020-12-01T10:00:00',
@@ -48,7 +48,8 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
     def test_explicit_append_dim(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        Converter(input_paths='inputs/*.nc', output_append_dim='time').run()
+        Converter(input_paths='inputs/*.nc', input_sort_by="path",
+                  output_append_dim='time').run()
         self.assertZarrOutputOk('out.zarr',
                                 expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
                                 expected_times=['2020-12-01T10:00:00',
@@ -64,7 +65,8 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
     def test_slices_with_overwrite(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        Converter(input_paths='inputs/*.nc', output_overwrite=True).run()
+        Converter(input_paths='inputs/*.nc', input_sort_by="path",
+                  output_overwrite=True).run()
         self.assertZarrOutputOk('out.zarr',
                                 expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
                                 expected_times=['2020-12-01T10:00:00',
@@ -84,7 +86,8 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
     def test_output(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('my.zarr')
-        Converter(input_paths=['inputs/*.nc'], output_path='my.zarr').run()
+        Converter(input_paths=['inputs/*.nc'], input_sort_by="path",
+                  output_path='my.zarr').run()
         self.assertZarrOutputOk('my.zarr',
                                 expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
                                 expected_times=['2020-12-01T10:00:00',
@@ -94,7 +97,7 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
     def test_append_one_to_many(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        Converter(input_paths=['inputs/*.nc']).run()
+        Converter(input_paths=['inputs/*.nc'], input_sort_by="path").run()
         self.assertZarrOutputOk('out.zarr',
                                 expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
                                 expected_times=['2020-12-01T10:00:00',

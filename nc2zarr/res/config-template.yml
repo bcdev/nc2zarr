@@ -49,9 +49,8 @@ input:
   # Sort resolved paths list.
   # - "name": sorts by file name
   # - "path": sorts by whole path
-  # - true: same as "path"
-  # - false: no sorting, order as provided
-  sort_by: false # true, "path" (= true), or "name"
+  # - null: no sorting, order as provided; globbed paths in arbitrary order
+  sort_by: null
   # Select given variables only. Comment out or set to null for all variables.
   variables:
     - <var_name_1>
