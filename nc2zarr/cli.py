@@ -50,7 +50,7 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help=f'Decode variables according to CF conventions. '
                    f'Caution: array data may be converted to floating point type '
                    f'if a "_FillValue" attribute is present.')
-@click.option('--input-sort-by', '-s', 'input_sort_by', default=None,
+@click.option('--sort-by', '-s', 'sort_by', default=None,
               type=click.Choice(['path', 'name'], case_sensitive=True),
               help='Sort input files by specified property.')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
@@ -67,7 +67,7 @@ def nc2zarr(input_paths: Tuple[str],
             overwrite: bool,
             append: bool,
             decode_cf: bool,
-            input_sort_by: str,
+            sort_by: str,
             dry_run: bool,
             verbose: Tuple[bool],
             version: bool):
@@ -125,7 +125,7 @@ def nc2zarr(input_paths: Tuple[str],
                                     input_decode_cf=decode_cf,
                                     input_multi_file=multi_file,
                                     input_concat_dim=concat_dim,
-                                    input_sort_by=input_sort_by,
+                                    input_sort_by=sort_by,
                                     output_path=output_path,
                                     output_overwrite=overwrite,
                                     output_append=append,
