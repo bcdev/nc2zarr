@@ -104,7 +104,7 @@ def nc2zarr(input_paths: Tuple[str],
     [--multi-file] overwrites /input/multi_file
     [--concat-dim] overwrites /input/concat_dim
     [--decode-cf] overwrites /input/decode_cf
-    [--input-sort-by] overwrites /input/sort_by
+    [--sort-by] overwrites /input/sort_by
     [--output OUTPUT_FILE] overwrites /output/path
     [--overwrite] overwrites /output/overwrite
     [--append] overwrites /output/append

@@ -56,7 +56,7 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   [--multi-file] overwrites /input/multi_file
   [--concat-dim] overwrites /input/concat_dim
   [--decode-cf] overwrites /input/decode_cf
-  [--input-sort-by] overwrites /input/sort_by
+  [--sort-by] overwrites /input/sort_by
   [--output OUTPUT_FILE] overwrites /output/path
   [--overwrite] overwrites /output/overwrite
   [--append] overwrites /output/append
@@ -87,7 +87,7 @@ Options:
                                   converted to floating point type if a
                                   "_FillValue" attribute is present.
 
-  -s, --input-sort-by [path|name]
+  -s, --sort-by [path|name]
                                   Sort input files by specified property.
   -d, --dry-run                   Open and process inputs only, omit data
                                   writing.

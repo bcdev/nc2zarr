@@ -69,7 +69,7 @@ class CliTest(MainTest, ZarrOutputTestMixin, IOCollector):
     def test_3_netcdf_inputs(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        result = self._invoke_cli(['--input-sort-by', 'path', 'inputs/*.nc'])
+        result = self._invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
         self.assertCliResultOk(result,
                                'out.zarr',
                                expected_vars={'lon', 'lat', 'time', 'r_ui16',
