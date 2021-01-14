@@ -26,22 +26,22 @@ A Python tool that converts multiple NetCDF files to single Zarr datasets.
 $ nc2zarr --help
 Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
 
-  Reads one or more input datasets and writes or appends them to a single Zarr
-  output dataset.
+  Reads one or more input datasets and writes or appends them to a single
+  Zarr output dataset.
 
   INPUT_FILE may refer to a NetCDF file, or Zarr dataset, or a glob that
-  identifies multiple of them, e.g. "L3_SST/**/*.nc".
+  identifies multiple paths, e.g. "L3_SST/**/*.nc".
 
   OUTPUT_PATH must be directory which will contain the output Zarr dataset,
   e.g. "L3_SST.zarr".
 
-  CONFIG_FILE has YAML format. It comprises the optional objects "input",
-  "process", and "output". See nc2zarr/res/config-template.yml for a
-  template file that describes the format. Multiple --config options may be
-  passed as a chain to allow for reuse of credentials and other common
+  CONFIG_FILE must be in YAML format. It comprises the optional objects
+  "input", "process", and "output". See nc2zarr/res/config-template.yml for
+  a template file that describes the format. Multiple --config options may
+  be passed as a chain to allow for reuse of credentials and other common
   parameters. Contained configuration objects are recursively merged, lists
-  are appended, other values overwrite each other from left to right. For
-  example:
+  are appended, and other values overwrite each other from left to right.
+  For example:
 
   nc2zarr -c s3.yml -c common.yml -c inputs-01.yml -o out-01.zarr
   nc2zarr -c s3.yml -c common.yml -c inputs-02.yml -o out-02.zarr
@@ -51,39 +51,52 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   configurations and thus overwrite settings in any CONFIG_FILE:
 
   [--dry-run] overwrites /dry_run
+  [--verbose] overwrites /verbosity
   [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
   [--multi-file] overwrites /input/multi_file
   [--concat-dim] overwrites /input/concat_dim
   [--decode-cf] overwrites /input/decode_cf
+  [--input-sort-by] overwrites /input/sort_by
   [--output OUTPUT_FILE] overwrites /output/path
   [--overwrite] overwrites /output/overwrite
   [--append] overwrites /output/append
 
 Options:
-  -c, --config CONFIG_FILE   Configuration file (YAML). Multiple may be given.
-  -o, --output OUTPUT_PATH   Output name. Defaults to "out.zarr".
-  -d, --concat-dim DIM_NAME  Dimension for concatenation. Defaults to "time".
-  -m, --multi-file           Open multiple input files as one block. Works for
-                             NetCDF files only. Use --concat-dim to specify
-                             the dimension for concatenation.
+  -c, --config CONFIG_FILE        Configuration file (YAML). Multiple may be
+                                  given.
 
-  -w, --overwrite            Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
-                             does not exist, the option has no effect. Cannot
-                             be used with --append.
+  -o, --output OUTPUT_PATH        Output name. Defaults to "out.zarr".
+  -d, --concat-dim DIM_NAME       Dimension for concatenation. Defaults to
+                                  "time".
 
-  -a, --append               Append inputs to existing OUTPUT_PATH. If
-                             OUTPUT_PATH does not exist, the option has no
-                             effect. Cannot be used with --overwrite.
+  -m, --multi-file                Open multiple input files as one block.
+                                  Works for NetCDF files only. Use --concat-
+                                  dim to specify the dimension for
+                                  concatenation.
 
-  --decode-cf                Decode variables according to CF conventions.
-                             Caution: array data may be converted to floating
-                             point type if a "_FillValue" attribute is
-                             present.
+  -w, --overwrite                 Overwrite existing OUTPUT_PATH. If
+                                  OUTPUT_PATH does not exist, the option has
+                                  no effect. Cannot be used with --append.
 
-  -d, --dry-run              Open and process inputs only, omit data writing.
-  -v, --verbose              Print more output.
-  --version                  Show version number and exit.
-  --help                     Show this message and exit.
+  -a, --append                    Append inputs to existing OUTPUT_PATH. If
+                                  OUTPUT_PATH does not exist, the option has
+                                  no effect. Cannot be used with --overwrite.
+
+  --decode-cf                     Decode variables according to CF
+                                  conventions. Caution: array data may be
+                                  converted to floating point type if a
+                                  "_FillValue" attribute is present.
+
+  -s, --input-sort-by [path|name]
+                                  Sort input files by specified property.
+  -d, --dry-run                   Open and process inputs only, omit data
+                                  writing.
+
+  -v, --verbose                   Print more output. Use twice for even more
+                                  output.
+
+  --version                       Show version number and exit.
+  --help                          Show this message and exit.
 ```
 
 ### Configuration file format
