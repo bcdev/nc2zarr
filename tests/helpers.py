@@ -60,7 +60,9 @@ class IOCollector(PathCollector):
         if not os.path.exists(input_dir_path):
             os.makedirs(input_dir_path)
         ds = new_test_dataset(w=36, h=18, day=day)
-        ds.to_netcdf(input_path)
+        encoding = {k: dict(**v.encoding, chunksizes=(1, 9, 9))
+                    for k, v in ds.data_vars.items()}
+        ds.to_netcdf(input_path, encoding=encoding)
 
     def add_output(self, output_path: str):
         self.add_path(output_path)
