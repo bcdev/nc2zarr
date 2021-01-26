@@ -45,6 +45,7 @@ class Converter:
     :param input_engine:
     :param input_decode_cf:
     :param input_datetime_format:
+    :param input_prefetch_chunks:
     :param process_rename:
     :param process_rechunk:
     :param output_path:
@@ -67,6 +68,7 @@ class Converter:
                  input_engine: str = None,
                  input_decode_cf: bool = False,
                  input_datetime_format: str = None,
+                 input_prefetch_chunks: bool = False,
                  process_rename: Dict[str, str] = None,
                  process_rechunk: Dict[str, Dict[str, int]] = None,
                  output_path: str = None,
@@ -101,6 +103,7 @@ class Converter:
         self.input_engine = input_engine
         self.input_decode_cf = input_decode_cf
         self.input_datetime_format = input_datetime_format
+        self.input_prefetch_chunks = input_prefetch_chunks
         self.process_rename = process_rename
         self.process_rechunk = process_rechunk
         self.output_path = output_path
@@ -128,7 +131,8 @@ class Converter:
                                input_sort_by=self.input_sort_by,
                                input_decode_cf=self.input_decode_cf,
                                input_concat_dim=self.input_concat_dim,
-                               input_engine=self.input_engine)
+                               input_engine=self.input_engine,
+                               input_prefetch_chunks=self.input_prefetch_chunks)
 
         pre_processor = DatasetPreProcessor(input_variables=self.input_variables,
                                             input_concat_dim=self.input_concat_dim,

@@ -71,6 +71,17 @@ class DatasetOpenerTest(unittest.TestCase):
             self.assertEqual(1, len(result[i].time))
             self.assertIn('marker', result[i].attrs)
 
+    def test_open_datasets_prefetch_chunks(self):
+
+        opener = DatasetOpener(input_paths='inputs/*.nc', input_prefetch_chunks=True)
+        result = list(opener.open_datasets(preprocess=self._preprocess_dataset))
+        self.assertEqual(3, len(result))
+        for i in range(3):
+            self.assertIsInstance(result[i], xr.Dataset)
+            self.assertIn('r_f32', result[i])
+            var = result[i]['r_f32']
+            self.assertEqual(((1,), (9, 9), (9, 9, 9, 9)), var.chunks)
+
     def test_open_datasets_mf(self):
         opener = DatasetOpener(input_paths='inputs/*.nc', input_multi_file=True)
 
@@ -87,6 +98,19 @@ class DatasetOpenerTest(unittest.TestCase):
         self.assertIn('time', result[0])
         self.assertEqual(3, len(result[0].time))
         self.assertIn('marker', result[0].attrs)
+
+    def test_open_datasets_mf_prefetch_chunks(self):
+        opener = DatasetOpener(input_paths='inputs/*.nc',
+                               input_multi_file=True,
+                               input_prefetch_chunks=True)
+
+        result = list(opener.open_datasets())
+        self.assertEqual(1, len(result))
+        self.assertIsInstance(result[0], xr.Dataset)
+
+        self.assertIn('r_f32', result[0])
+        var = result[0]['r_f32']
+        self.assertEqual(((1, 1, 1), (9, 9), (9, 9, 9, 9)), var.chunks)
 
 
 class ResolveInputPathsTest(unittest.TestCase):

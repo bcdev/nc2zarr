@@ -2,6 +2,7 @@
 
 ### Version 0.2.0 (in development)
 
+* Introduced new input parameter `prefetch_chunks`. (#10) 
 * Add an AppVeyor CI configuration file.
 * Add the `--sort-by` command-line option.
 

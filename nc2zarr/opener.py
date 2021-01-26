@@ -21,7 +21,7 @@
 
 import glob
 import os.path
-from typing import List, Optional, Iterator, Callable, Union
+from typing import List, Optional, Iterator, Callable, Union, Dict, Hashable
 
 import xarray as xr
 
@@ -37,35 +37,44 @@ class DatasetOpener:
                  input_sort_by: str = None,
                  input_decode_cf: bool = False,
                  input_concat_dim: str = None,
-                 input_engine: str = None):
+                 input_engine: str = None,
+                 input_prefetch_chunks: bool = False):
         self._input_paths = input_paths
         self._input_multi_file = input_multi_file
         self._input_sort_by = input_sort_by
         self._input_decode_cf = input_decode_cf
         self._input_concat_dim = input_concat_dim
         self._input_engine = input_engine
+        self._input_prefetch_chunks = input_prefetch_chunks
 
     def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
-        if self._input_multi_file:
-            return self._open_mfdataset(preprocess)
-        else:
-            return self._open_datasets(preprocess)
-
-    def _open_mfdataset(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
-            -> xr.Dataset:
         input_paths = self._resolve_input_paths()
+        chunks = self._prefetch_chunk_sizes(input_paths[0])
+        if self._input_multi_file:
+            return self._open_mfdataset(input_paths, chunks, preprocess)
+        else:
+            return self._open_datasets(input_paths, chunks, preprocess)
+
+    def _open_mfdataset(self,
+                        input_paths: List[str],
+                        chunks: Optional[Dict[Hashable, int]],
+                        preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+            -> xr.Dataset:
         with log_duration(f'Opening {len(input_paths)} file(s)'):
             ds = xr.open_mfdataset(input_paths,
                                    engine=self._input_engine,
                                    preprocess=preprocess,
                                    concat_dim=self._input_concat_dim,
-                                   decode_cf=self._input_decode_cf)
+                                   decode_cf=self._input_decode_cf,
+                                   chunks=chunks)
         yield ds
 
-    def _open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+    def _open_datasets(self,
+                       input_paths: List[str],
+                       chunks: Optional[Dict[Hashable, int]],
+                       preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
-        input_paths = self._resolve_input_paths()
         n = len(input_paths)
         for i in range(n):
             input_file = input_paths[i]
@@ -73,10 +82,26 @@ class DatasetOpener:
             with log_duration('Opening'):
                 ds = xr.open_dataset(input_file,
                                      engine=self._get_engine(input_file),
-                                     decode_cf=self._input_decode_cf)
+                                     decode_cf=self._input_decode_cf,
+                                     chunks=chunks)
                 if preprocess:
                     ds = preprocess(ds)
             yield ds
+
+    def _prefetch_chunk_sizes(self, input_file: str) -> Optional[Dict[Hashable, int]]:
+        if not self._input_prefetch_chunks:
+            return None
+        with log_duration('Pre-fetching chunks'):
+            with xr.open_dataset(input_file,
+                                 engine=self._get_engine(input_file),
+                                 decode_cf=self._input_decode_cf) as ds:
+                chunk_sizes = dict()
+                for var in ds.data_vars.values():
+                    sizes = var.encoding.get('chunksizes')
+                    if sizes and len(sizes) == len(var.dims):
+                        for dim, size in zip(var.dims, sizes):
+                            chunk_sizes[dim] = max(size, chunk_sizes.get(dim, 0))
+                return chunk_sizes
 
     def _get_engine(self, input_file: str) -> Optional[str]:
         engine = self._input_engine
