@@ -23,11 +23,13 @@ from typing import Any, Tuple, Dict
 
 import xarray as xr
 
+_UNDEFINED = object()
+
 
 class DatasetProcessor:
     def __init__(self,
                  process_rename: Dict[str, str] = None,
-                 process_rechunk: Dict[str, Dict[str, int]] = None,
+                 process_rechunk: Dict[str, Any] = None,
                  output_encoding: Dict[str, Dict[str, Any]] = None):
         self._process_rename = process_rename
         self._process_rechunk = process_rechunk
@@ -37,7 +39,7 @@ class DatasetProcessor:
         if self._process_rename:
             ds = ds.rename(self._process_rename)
         if self._process_rechunk:
-            chunk_encoding = self._get_chunk_encodings(ds, self._process_rechunk)
+            ds, chunk_encoding = self._rechunk_dataset(ds, self._process_rechunk)
         else:
             chunk_encoding = dict()
         return ds, self._merge_encodings(ds,
@@ -45,31 +47,44 @@ class DatasetProcessor:
                                          self._output_encoding or {})
 
     @classmethod
-    def _get_chunk_encodings(cls,
-                             ds: xr.Dataset,
-                             process_rechunk: Dict[str, Dict[str, int]]) \
-            -> Dict[str, Dict[str, Any]]:
+    def _rechunk_dataset(cls,
+                         ds: xr.Dataset,
+                         process_rechunk: Dict[str, Dict[str, int]]) \
+            -> Tuple[xr.Dataset, Dict[str, Dict[str, Any]]]:
+        ds_rechunked = ds.copy()
         output_encoding = dict()
-        all_chunk_sizes = process_rechunk.get('*', {})
+        all_dim_chunk_sizes = process_rechunk.get('*', {})
         for k, v in ds.variables.items():
             var_name = str(k)
-            var_chunk_sizes = dict(all_chunk_sizes)
-            var_chunk_sizes_delta = process_rechunk.get(var_name, {})
-            if var_chunk_sizes_delta is None:
-                var_chunk_sizes_delta = {dim_name: None for dim_name in v.dims}
-            elif isinstance(var_chunk_sizes_delta, int):
-                var_chunk_sizes_delta = {var_name: var_chunk_sizes_delta}
-            var_chunk_sizes.update(var_chunk_sizes_delta)
+            # Compute default chunk sizes for dims of v
+            dim_chunk_sizes = dict(all_dim_chunk_sizes)
+            dim_chunk_sizes_update = process_rechunk.get(var_name, _UNDEFINED)
+            if dim_chunk_sizes_update is not _UNDEFINED:
+                if dim_chunk_sizes_update is None \
+                        or isinstance(dim_chunk_sizes_update, int) \
+                        or dim_chunk_sizes_update == 'input':
+                    dim_chunk_sizes_update = {dim_name: dim_chunk_sizes_update for dim_name in v.dims}
+                elif isinstance(dim_chunk_sizes_update, dict):
+                    dim_chunk_sizes_update = {dim_name: dim_chunk_sizes_update.get(dim_name) for dim_name in v.dims}
+                # Update chunk sizes with defaults for v
+                dim_chunk_sizes.update(dim_chunk_sizes_update)
+            # Now loop through all dims of variable to
+            # resolve each dimension's integer chunk size
             chunks = []
             for dim_index in range(len(v.dims)):
                 dim_name = v.dims[dim_index]
-                if dim_name in var_chunk_sizes:
-                    chunks.append(var_chunk_sizes[dim_name] or v.sizes[dim_name])
-                else:
-                    chunks.append(v.chunks[dim_index]
-                                  if v.chunks is not None else v.sizes[dim_name])
-            output_encoding[var_name] = dict(chunks=tuple(chunks))
-        return output_encoding
+                dim_chunk_size = dim_chunk_sizes.get(dim_name, 'input')
+                if dim_chunk_size == 'input':
+                    dim_chunk_size = max(*v.chunks[dim_index]) if v.chunks is not None else v.sizes[dim_name]
+                elif dim_chunk_size is None:
+                    dim_chunk_size = v.sizes[dim_name]
+                elif not isinstance(dim_chunk_size, int):
+                    raise ValueError(f'invalid chunk size: {dim_chunk_size}')
+                chunks.append(dim_chunk_size)
+            chunks = tuple(chunks)
+            ds_rechunked[k] = v.chunk(chunks)
+            output_encoding[var_name] = dict(chunks=chunks)
+        return ds_rechunked, output_encoding
 
     @classmethod
     def _merge_encodings(cls,

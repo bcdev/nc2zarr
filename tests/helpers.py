@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import math
 import os
 import os.path
 import shutil
@@ -93,7 +94,8 @@ def delete_path(path, ignore_errors=False):
 
 def new_test_dataset(w: int = 36,
                      h: int = 18,
-                     day: int = None):
+                     day: int = None,
+                     chunked: bool = False):
     res = 180 / h
     lon = xr.DataArray(np.linspace(-180 + res, 180 - res, num=w), dims=('lon',))
     lat = xr.DataArray(np.linspace(-90 + res, 90 - res, num=h), dims=('lat',))
@@ -136,4 +138,10 @@ def new_test_dataset(w: int = 36,
 
     data_vars = dict(r_ui16=r_ui16, r_i32=r_i32, r_f32=r_f32)
 
-    return xr.Dataset(data_vars=data_vars, coords=coords)
+    dataset = xr.Dataset(data_vars=data_vars, coords=coords)
+    if chunked:
+        chunks = dict(lat=math.ceil(h / 2), lon=math.ceil(w / 2))
+        if day is not None:
+            chunks.update(time=1)
+        dataset = dataset.chunk(chunks)
+    return dataset

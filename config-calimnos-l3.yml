@@ -1,0 +1,30 @@
+# Run
+#
+# $ nc2zarr -c nc2zarr-example.yml
+#
+
+input:
+  paths:
+    - D:\BC\c_gls_LWQ300_201904210000_GLOBE_OLCI_V1.2.nc
+  sort_by: name
+  prefetch_chunks: true
+  variables:
+    - Rw400_rep
+
+process:
+  rechunk:
+    "*":
+      lon: 2880
+      lat: 1440
+      time: 1
+    lon: null
+    lat: null
+    time: 365
+    time_bnds:
+      time: 365
+      bnds: 2
+
+output:
+  path: D:\BC\c_gls_LWQ300_201904210000_GLOBE_OLCI_V1.2_1_1440_2880.zarr
+  overwrite: true
+  consolidated: true

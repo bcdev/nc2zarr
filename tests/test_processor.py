@@ -41,10 +41,9 @@ class DatasetProcessorTest(unittest.TestCase):
 
     def test_rechunk_default(self):
         ds = new_test_dataset(day=1)
-        self.assertIn('r_f32', ds)
         processor = DatasetProcessor(process_rechunk={'*': dict(lon=8, lat=4, time=1)})
         new_ds, new_encoding = processor.process_dataset(ds)
-        self.assertIs(ds, new_ds)
+        self.assertIsNot(ds, new_ds)
         self.assertEqual({
             'r_f32': {'chunks': (1, 4, 8)},
             'r_i32': {'chunks': (1, 4, 8)},
@@ -56,13 +55,12 @@ class DatasetProcessorTest(unittest.TestCase):
 
     def test_rechunk_with_lon_lat_time_unchunked(self):
         ds = new_test_dataset(day=1)
-        self.assertIn('r_f32', ds)
         processor = DatasetProcessor(process_rechunk={'*': dict(lon=8, lat=4, time=1),
                                                       'lon': None,
                                                       'lat': None,
                                                       'time': 100})
         new_ds, new_encoding = processor.process_dataset(ds)
-        self.assertIs(ds, new_ds)
+        self.assertIsNot(ds, new_ds)
         self.assertEqual({
             'r_f32': {'chunks': (1, 4, 8)},
             'r_i32': {'chunks': (1, 4, 8)},
@@ -74,9 +72,7 @@ class DatasetProcessorTest(unittest.TestCase):
 
     def test_rechunk_all_unchunked_except_time(self):
         ds = new_test_dataset(day=1)
-        self.assertIn('r_f32', ds)
-        processor = DatasetProcessor(process_rechunk=
-        {
+        processor = DatasetProcessor(process_rechunk={
             '*':
                 {
                     'lon': None,
@@ -88,7 +84,7 @@ class DatasetProcessorTest(unittest.TestCase):
             'time': 128
         })
         new_ds, new_encoding = processor.process_dataset(ds)
-        self.assertIs(ds, new_ds)
+        self.assertIsNot(ds, new_ds)
         self.assertEqual({'r_f32': {'chunks': (1, 18, 36)},
                           'r_i32': {'chunks': (1, 18, 36)},
                           'r_ui16': {'chunks': (1, 18, 36)},
@@ -97,15 +93,50 @@ class DatasetProcessorTest(unittest.TestCase):
                           'time': {'chunks': (128,)}},
                          new_encoding)
 
+    def test_rechunk_with_input(self):
+        ds = new_test_dataset(day=1, chunked=True)
+        processor = DatasetProcessor(process_rechunk={
+            '*':
+                {
+                    'lon': 'input',
+                    'lat': 'input',
+                    'time': 1
+                },
+            'lon': None,
+            'lat': None,
+            'time': 128
+        })
+        new_ds, new_encoding = processor.process_dataset(ds)
+        self.assertIsNot(ds, new_ds)
+        self.assertEqual({'r_f32': {'chunks': (1, 9, 18)},
+                          'r_i32': {'chunks': (1, 9, 18)},
+                          'r_ui16': {'chunks': (1, 9, 18)},
+                          'lon': {'chunks': (36,)},
+                          'lat': {'chunks': (18,)},
+                          'time': {'chunks': (128,)}},
+                         new_encoding)
+
+    def test_rechunk_with_invalid_size(self):
+        ds = new_test_dataset()
+        processor = DatasetProcessor(process_rechunk={
+            '*':
+                {
+                    'lon': [1, 2, 3],
+                    'lat': 'input',
+                },
+        })
+        with self.assertRaises(ValueError) as cm:
+            processor.process_dataset(ds)
+        self.assertEqual('invalid chunk size: [1, 2, 3]', f'{cm.exception}')
+
     def test_rechunk_and_encodings_merged(self):
         ds = new_test_dataset(day=1)
-        self.assertIn('r_f32', ds)
         processor = DatasetProcessor(process_rechunk={'r_i32': dict(lon=8, lat=8),
                                                       'lon': None,
                                                       'lat': None},
                                      output_encoding={'r_i32': dict(compressor=None, fill_value=None)})
         new_ds, new_encoding = processor.process_dataset(ds)
-        self.assertIs(ds, new_ds)
+        self.assertIsNot(ds, new_ds)
         self.assertEqual({
             'r_f32': {'chunks': (1, 18, 36)},
             'r_i32': {'chunks': (1, 8, 8), 'compressor': None, 'fill_value': None},
@@ -114,3 +145,11 @@ class DatasetProcessorTest(unittest.TestCase):
             'lat': {'chunks': (18,)},
             'time': {'chunks': (1,)},
         }, new_encoding)
+
+    def test_no_op(self):
+        ds = new_test_dataset(day=1)
+        processor = DatasetProcessor(process_rechunk={},
+                                     output_encoding={})
+        new_ds, new_encoding = processor.process_dataset(ds)
+        self.assertIs(ds, new_ds)
+        self.assertEqual({}, new_encoding)

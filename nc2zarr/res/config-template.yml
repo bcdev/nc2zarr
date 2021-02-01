@@ -87,18 +87,28 @@ process:
 
   # (Re)chunk variable dimensions
   rechunk:
-    # Set selected dimensions of all variables to chunk_size.
+    # For all variables:
     "*":
+      # Set chunk size for <dim_name> to <chunk_size>.
       <dim_name>: <chunk_size>
-      <dim_name>: <chunk_size>
-    # Set selected dimensions of individual variables to chunk_size.
+      # Set chunk size for <dim_name> to dimension size.
+      <dim_name>: null
+      # Make chunk size for <dim_name> same as input.
+      <dim_name>: "input"
+    # For variable <var_name>:
     <var_name>:
+      # Set chunk size for <dim_name> to <chunk_size>.
       <dim_name>: <chunk_size>
-      <dim_name>: <chunk_size>
-    # Set dimension dim_name=var_name of individual variable to chunk_size.
+      # Set chunk size for <dim_name> to dimension size.
+      <dim_name>: null
+      # Make chunk size for <dim_name> same as input.
+      <dim_name>: "input"
+    # Set chunk size for all dimensions of <var_name> to <chunk_size>.
     <var_name>: <chunk_size>
-    # Don't chunk individual variable at all.
+    # Set chunk size for all dimensions of <var_name> to dimension size.
     <var_name>: null
+    # Make chunk size for all dimensions of <var_name> same as input.
+    <var_name>: "input"
 
 # Configuration of output
 output:
