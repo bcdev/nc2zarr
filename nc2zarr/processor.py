@@ -58,8 +58,8 @@ class DatasetProcessor:
             var_name = str(k)
             # Compute default chunk sizes for dims of v
             dim_chunk_sizes = dict(all_dim_chunk_sizes)
-            dim_chunk_sizes_update = process_rechunk.get(var_name, _UNDEFINED)
-            if dim_chunk_sizes_update is not _UNDEFINED:
+            if var_name in process_rechunk:
+                dim_chunk_sizes_update = process_rechunk[var_name]
                 if dim_chunk_sizes_update is None \
                         or isinstance(dim_chunk_sizes_update, int) \
                         or dim_chunk_sizes_update == 'input':
