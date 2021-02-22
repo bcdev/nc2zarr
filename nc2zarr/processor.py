@@ -81,9 +81,10 @@ class DatasetProcessor:
                 elif not isinstance(dim_chunk_size, int):
                     raise ValueError(f'invalid chunk size: {dim_chunk_size}')
                 chunks.append(dim_chunk_size)
-            chunks = tuple(chunks)
-            ds_rechunked[k] = v.chunk(chunks)
-            output_encoding[var_name] = dict(chunks=chunks)
+            if chunks:
+                chunks = tuple(chunks)
+                ds_rechunked[k] = v.chunk(chunks)
+                output_encoding[var_name] = dict(chunks=chunks)
         return ds_rechunked, output_encoding
 
     @classmethod
