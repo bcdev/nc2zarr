@@ -1,6 +1,6 @@
 ## nc2zarr Change History
 
-### Version 0.2.0 (in development)
+### Version 1.0.0 (26.02.2021)
 
 * Fixed some issues with Zarr (re-)chunking given by process parameter
   `process/rechunk`: 
@@ -23,6 +23,15 @@
 * Add an AppVeyor CI configuration file.
 
 * Add the `--sort-by` command-line option.
+
+* Add example configuration files for the following datasets:
+  - `C_GLS_LWQ300_GLOBE_OLCI_V1`
+  - `OCEANCOLOUR_BAL_CHL_L3_NRT_OBSERVATIONS_009_049`
+  - `OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045`
+  - `OCEANCOLOUR_MED_CHL_L4_NRT_OBSERVATIONS_009_041`
+
+* Add demo Jupyter notebooks which open and plot converted data from object
+  storage.
 
 ### Version 0.1.0 (08.01.2021)
 
