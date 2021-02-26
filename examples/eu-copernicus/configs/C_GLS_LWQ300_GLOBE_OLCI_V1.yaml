@@ -1,0 +1,22 @@
+input:
+  paths:
+    - /eodata/CLMS/Global/Water/Lake_Water_Quality/c_gls_LWQ300_*_GLOBE_OLCI_V1/c_gls_LWQ300_*_GLOBE_OLCI_V*.nc
+  prefetch_chunks: true
+
+process:
+  rechunk:
+    "*":
+      lon: 2880
+      lat: 1440
+      time: 1
+    lon: null
+    lat: null
+    time: 365
+    time_bnds:
+      time: 365
+      bnds: 2
+
+output:
+  path: /home/eouser/data/C_GLS_LWQ300_GLOBE_OLCI_V1.zarr
+  overwrite: true
+  consolidated: true
