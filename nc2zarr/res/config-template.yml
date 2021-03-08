@@ -77,6 +77,9 @@ input:
   # This may slow down the process slightly, but may be
   # required to avoid memory problems for very large inputs.
   prefetch_chunks: false
+  # A custom preprocessor.
+  # Called after variable selection.
+  custom_preprocessor: "my.package:my_preprocessor_func"
 
 # Configuration of input to output processing
 process:
@@ -109,6 +112,10 @@ process:
     <var_name>: null
     # Make chunk size for all dimensions of <var_name> same as input.
     <var_name>: "input"
+
+  # A custom processor.
+  # Called after variable renaming and before rechunking.
+  custom_processor: "my.package:my_processor_func"
 
 # Configuration of output
 output:

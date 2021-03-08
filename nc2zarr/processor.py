@@ -23,21 +23,26 @@ from typing import Any, Tuple, Dict
 
 import xarray as xr
 
-_UNDEFINED = object()
+from .custom import load_custom_func
 
 
 class DatasetProcessor:
     def __init__(self,
                  process_rename: Dict[str, str] = None,
                  process_rechunk: Dict[str, Any] = None,
+                 process_custom_processor: str = None,
                  output_encoding: Dict[str, Dict[str, Any]] = None):
         self._process_rename = process_rename
         self._process_rechunk = process_rechunk
+        self._process_custom_processor = load_custom_func(process_custom_processor) \
+            if process_custom_processor else None
         self._output_encoding = output_encoding
 
     def process_dataset(self, ds: xr.Dataset) -> Tuple[xr.Dataset, Dict[str, Dict[str, Any]]]:
         if self._process_rename:
             ds = ds.rename(self._process_rename)
+        if self._process_custom_processor is not None:
+            ds = self._process_custom_processor(ds)
         if self._process_rechunk:
             ds, chunk_encoding = self._rechunk_dataset(ds, self._process_rechunk)
         else:
