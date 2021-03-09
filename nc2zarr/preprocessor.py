@@ -34,25 +34,25 @@ from .log import LOGGER
 class DatasetPreProcessor:
     def __init__(self,
                  input_variables: List[str] = None,
+                 input_custom_preprocessor: str = None,
                  input_concat_dim: str = None,
-                 input_datetime_format: str = None,
-                 input_custom_preprocessor: str = None):
+                 input_datetime_format: str = None):
         self._input_variables = input_variables
-        self._input_concat_dim = input_concat_dim
-        self._input_datetime_format = input_datetime_format
         self._input_custom_preprocessor = load_custom_func(input_custom_preprocessor) \
             if input_custom_preprocessor else None
+        self._input_concat_dim = input_concat_dim
+        self._input_datetime_format = input_datetime_format
         self._first_dataset_shown = False
 
     def preprocess_dataset(self, ds: xr.Dataset) -> xr.Dataset:
         if self._input_variables:
             drop_variables = set(ds.variables).difference(self._input_variables)
             ds = ds.drop_vars(drop_variables)
+        if self._input_custom_preprocessor is not None:
+            ds = self._input_custom_preprocessor(ds)
         if self._input_concat_dim:
             ds = ensure_dataset_has_concat_dim(ds, self._input_concat_dim,
                                                datetime_format=self._input_datetime_format)
-        if self._input_custom_preprocessor is not None:
-            ds = self._input_custom_preprocessor(ds)
         if not self._first_dataset_shown:
             LOGGER.debug(f'First input dataset:\n{ds}')
             self._first_dataset_shown = True

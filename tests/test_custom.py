@@ -21,25 +21,35 @@
 
 import unittest
 
+import xarray as xr
+
 from nc2zarr.custom import load_custom_func
 
 my_custom_var = 14
 
 
-def my_custom_func(*args, **kwargs):
-    return 14
+def my_custom_func(dataset: xr.Dataset) -> xr.Dataset:
+    return dataset
 
 
 class LoadCustomFunctionTest(unittest.TestCase):
+    @classmethod
+    def my_custom_func(cls, dataset: xr.Dataset) -> xr.Dataset:
+        return dataset
 
     def test_ok(self):
         func = load_custom_func("tests.test_custom:my_custom_func")
-        self.assertEqual(14, func())
+        self.assertIsInstance(func(xr.Dataset()), xr.Dataset)
+
+    def test_ok_class_method(self):
+        func = load_custom_func("tests.test_custom:LoadCustomFunctionTest.my_custom_func")
+        self.assertIsInstance(func(xr.Dataset()), xr.Dataset)
 
     def test_invalid(self):
         with self.assertRaises(ValueError) as cm:
             load_custom_func("tests.test_custom.my_custom_func")
-        self.assertEqual('func_ref "tests.test_custom.my_custom_func" is invalid',
+        self.assertEqual('func_ref "tests.test_custom.my_custom_func" is invalid,'
+                         ' format must be <module>:<function>',
                          f"{cm.exception}")
 
     def test_module_not_found(self):
@@ -51,7 +61,8 @@ class LoadCustomFunctionTest(unittest.TestCase):
     def test_function_not_found(self):
         with self.assertRaises(ValueError) as cm:
             load_custom_func("tests.test_custom:my_custom_fun")
-        self.assertEqual('function "tests.test_custom:my_custom_fun" not found',
+        self.assertEqual('function "tests.test_custom:my_custom_fun" not found,'
+                         ' unknown attribute "my_custom_fun"',
                          f"{cm.exception}")
 
     def test_not_a_function(self):
