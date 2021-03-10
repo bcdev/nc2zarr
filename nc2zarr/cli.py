@@ -53,6 +53,10 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 @click.option('--sort-by', '-s', 'sort_by', default=None,
               type=click.Choice(['path', 'name'], case_sensitive=True),
               help='Sort input files by specified property.')
+@click.option('--verify', 'verify', type=click.Choice(["on", 'off', 'auto']),
+              default='auto',
+              help='Switch verification either on, or off,'
+                   ' or leave it up to CONFIG_FILE (=auto, the default).')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
 @click.option('--verbose', '-v', 'verbose', is_flag=True, multiple=True,
@@ -68,6 +72,7 @@ def nc2zarr(input_paths: Tuple[str],
             append: bool,
             decode_cf: bool,
             sort_by: str,
+            verify: str,
             dry_run: bool,
             verbose: Tuple[bool],
             version: bool):
@@ -129,6 +134,7 @@ def nc2zarr(input_paths: Tuple[str],
                                     output_path=output_path,
                                     output_overwrite=overwrite,
                                     output_append=append,
+                                    verify_enabled=True if verify == 'on' else False if verify == 'off' else None,
                                     verbosity=sum(verbose) if verbose else None,
                                     dry_run=dry_run)
         Converter(**config_kwargs).run()

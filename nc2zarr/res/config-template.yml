@@ -163,3 +163,11 @@ output:
     delay: 0.1
     # multiplier applied to delay between attempts. 1.0 means no backoff.
     backoff: 1.1
+
+
+verify:
+  enabled: true
+
+  open_params:
+    consolidated: false
+    decode_cf: false

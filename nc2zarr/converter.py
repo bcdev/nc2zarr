@@ -31,6 +31,7 @@ from .opener import DatasetOpener
 from .preprocessor import DatasetPreProcessor
 from .processor import DatasetProcessor
 from .writer import DatasetWriter
+from .verifier import DatasetVerifier
 
 
 class Converter:
@@ -55,6 +56,8 @@ class Converter:
     :param output_append:
     :param output_append_dim:
     :param output_s3:
+    :param verify_enabled:
+    :param verify_open_params:
     :param dry_run:
     :param verbosity:
     """
@@ -79,6 +82,8 @@ class Converter:
                  output_append_dim: str = None,
                  output_s3: Dict[str, Any] = None,
                  output_retry: Dict[str, Any] = None,
+                 verify_enabled: bool = None,
+                 verify_open_params: Dict[str, Any] = None,
                  dry_run: bool = False,
                  verbosity: int = None):
 
@@ -114,6 +119,8 @@ class Converter:
         self.output_append_dim = output_append_dim
         self.output_s3 = output_s3
         self.output_retry = output_retry
+        self.verify_enabled = verify_enabled
+        self.verify_open_params = verify_open_params
         self.dry_run = dry_run
         self.verbosity = verbosity
 
@@ -153,9 +160,16 @@ class Converter:
                                dry_run=self.dry_run,
                                reset_attrs=not self.input_decode_cf)
 
+        dataset_verifier = DatasetVerifier(output_path=self.output_path,
+                                           output_s3_kwargs=self.output_s3,
+                                           verify_enabled=self.verify_enabled,
+                                           verify_open_params=self.verify_open_params)
+
         append = None
         for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
             output_dataset, output_encoding = processor.process_dataset(input_dataset)
             writer.write_dataset(output_dataset, encoding=output_encoding, append=append)
             input_dataset.close()
             append = True
+
+        dataset_verifier.verify_dataset()
