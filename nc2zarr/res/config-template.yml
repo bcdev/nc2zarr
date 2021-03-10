@@ -41,52 +41,67 @@ verbosity: 0
 
 # Configuration of inputs
 input:
+
   # Input paths. May be passed as globs,
   # i.e. a path may contain '**', '*', and '?' wildcards.
   paths:
     - <input_path_or_glob_1>
     - <input_path_or_glob_2>
+
   # Sort resolved paths list.
   # - "name": sorts by file name
   # - "path": sorts by whole path
   # - null: no sorting, order as provided; globbed paths in arbitrary order
   sort_by: null
+
   # Select given variables only. Comment out or set to null for all variables.
   variables:
     - <var_name_1>
     - <var_name_2>
+
+  # A custom preprocessor.
+  # Called after variable selection.
+  custom_preprocessor: "module:function"
+
   # Read all input files as one block?
   # - true: Uses xarray.open_mfdataset(paths, ...)
   # - false: Uses xarray.open_dataset(paths[i], ...)
   multi_file: false
+
   # Name of dimension to be used for concatenation if multi_file is true.
   concat_dim: "time"
+
   # xarray engine used for opening the dataset
   engine: "netcdf4"
+
   # Whether to decode inputs according to CF conventions.
   # This is off by default, because we don't want any data interpretation.
   decode_cf: false
+
   # Optional date-time format when parsing time information from
   # a dataset's attributes such as "time_coverage_start", "time_coverage_end".
   # Most formats should be automatically detected, e.g. "20150101T103018Z"
   # or "2015-01-01 10:30:18".
   datetime_format: null
+
   # Open one input to fetch internal chunking, if any.
   # Then use this chunking to open all input files (and
   # foce using Dask arrays).
   # This may slow down the process slightly, but may be
   # required to avoid memory problems for very large inputs.
   prefetch_chunks: false
-  # A custom preprocessor.
-  # Called after variable selection.
-  custom_preprocessor: "my.package:my_preprocessor_func"
 
 # Configuration of input to output processing
 process:
+
   # Rename variables
   rename:
     <var_name>: <new_var_name>
     <var_name>: <new_var_name>
+
+  # A custom processor.
+  # Called after variable renaming and before rechunking.
+  custom_processor: "module:function"
 
   # (Re)chunk variable dimensions
   rechunk:
@@ -113,9 +128,6 @@ process:
     # Make chunk size for all dimensions of <var_name> same as input.
     <var_name>: "input"
 
-  # A custom processor.
-  # Called after variable renaming and before rechunking.
-  custom_processor: "my.package:my_processor_func"
 
 # Configuration of output
 output:
@@ -123,17 +135,22 @@ output:
   # "<bucket_name>/path/to/my.zarr" or "s3://<bucket_name>/path/to/my.zarr".
   # Otherwise it may be any local FS directory path.
   path: <output_path>
+
   # The "consolidated" keyword argument passed to xarray.Dataset.to_zarr().
   # Experimental Zarr feature. Improves access performance
   # for targets in object storage.
   consolidated: false
+
   # The "encoding" keyword argument passed to xarray.Dataset.to_zarr()
   # This is a mapping of variable names to variable encoding info.
   encoding: null
+
   # Overwrite existing dataset?
   overwrite: false
+
   # Append to existing dataset?
   append: false
+
   # Append dimension. Defaults to input/concat_dim or "time"
   append_dim: false
 
