@@ -40,6 +40,7 @@ class Converter:
     :param input_paths:
     :param input_sort_by:
     :param input_variables:
+    :param input_custom_preprocessor:
     :param input_multi_file:
     :param input_concat_dim:
     :param input_engine:
@@ -47,6 +48,7 @@ class Converter:
     :param input_datetime_format:
     :param input_prefetch_chunks:
     :param process_rename:
+    :param process_custom_processor:
     :param process_rechunk:
     :param output_path:
     :param output_encoding:
@@ -63,6 +65,7 @@ class Converter:
                  input_paths: Union[str, Sequence[str]] = None,
                  input_sort_by: str = None,
                  input_variables: List[str] = None,
+                 input_custom_preprocessor: str = None,
                  input_multi_file: bool = False,
                  input_concat_dim: str = None,
                  input_engine: str = None,
@@ -70,6 +73,7 @@ class Converter:
                  input_datetime_format: str = None,
                  input_prefetch_chunks: bool = False,
                  process_rename: Dict[str, str] = None,
+                 process_custom_processor: str = None,
                  process_rechunk: Dict[str, Dict[str, int]] = None,
                  output_path: str = None,
                  output_encoding: Dict[str, Dict[str, Any]] = None,
@@ -98,6 +102,7 @@ class Converter:
         self.input_paths = input_paths
         self.input_sort_by = input_sort_by
         self.input_variables = input_variables
+        self.input_custom_preprocessor = input_custom_preprocessor
         self.input_multi_file = input_multi_file
         self.input_concat_dim = input_concat_dim
         self.input_engine = input_engine
@@ -105,6 +110,7 @@ class Converter:
         self.input_datetime_format = input_datetime_format
         self.input_prefetch_chunks = input_prefetch_chunks
         self.process_rename = process_rename
+        self.process_custom_processor = process_custom_processor
         self.process_rechunk = process_rechunk
         self.output_path = output_path
         self.output_encoding = output_encoding
@@ -135,10 +141,12 @@ class Converter:
                                input_prefetch_chunks=self.input_prefetch_chunks)
 
         pre_processor = DatasetPreProcessor(input_variables=self.input_variables,
+                                            input_custom_preprocessor=self.input_custom_preprocessor,
                                             input_concat_dim=self.input_concat_dim,
                                             input_datetime_format=self.input_datetime_format)
 
         processor = DatasetProcessor(process_rechunk=self.process_rechunk,
+                                     process_custom_processor=self.process_custom_processor,
                                      process_rename=self.process_rename,
                                      output_encoding=self.output_encoding)
 
