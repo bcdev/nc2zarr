@@ -27,65 +27,87 @@ from abc import ABC, abstractmethod
 from io import StringIO
 from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
-
-def execute_config_files(config_template_path: str,
-                         config_path_template: str,
-                         variables: Sequence[Dict[str, Any]],
-                         create_parents: bool = True,
-                         job_type: str = 'local',
-                         exports: Dict[str, str] = None,
-                         directory: str = None,
-                         job_kwargs: Dict = None):
-    config_paths = write_config_files(config_template_path,
-                                      config_path_template,
-                                      variables,
-                                      create_parents=create_parents)
-    job_cls_registry = {
-        'local': LocalJob,
-        'slurm': SlurmJob,
-    }
-    if job_type not in job_cls_registry:
-        raise ValueError(f'illegal job_type "{job_type}"')
-
-    job_cls: Type[BatchJob] = job_cls_registry[job_type]
-
-    for config_path, out_path, err_path in config_paths:
-        job_cls.submit_job(['nc2zarr'] + (args or []) + ['-c', config_path],
-                           out_path,
-                           err_path,
-                           exports=exports,
-                           directory=directory,
-                           **(job_kwargs or {}))
+from .log import LOGGER
 
 
-def write_config_files(config_template_path: str,
-                       config_path_template: str,
-                       variables: Sequence[Dict[str, Any]],
-                       create_parents: bool = True) -> List[Tuple[str, str, str]]:
-    with open(config_template_path, 'r') as fp:
-        config_template = fp.read()
+class TemplateBatch:
 
-    paths = []
-    for mapping in variables:
-        config = config_template
-        config_path = config_path_template
-        for k, v in mapping.items():
-            k = '${' + k + '}'
-            v = repr(v)
-            config = config.replace(k, v)
-            config_path = config_path.replace(k, v)
-        if create_parents:
-            config_dir = os.path.dirname(config_path)
-            if not os.path.exists(config_dir):
-                os.makedirs(config_dir)
-        with open(config_path, 'w') as fp:
-            fp.write(config)
-        config_path_base, _ = os.path.splitext(config_path)
-        paths.append((config_path,
-                      config_path_base + '.out',
-                      config_path_base + '.err'))
+    def __init__(self,
+                 config_template_path: str,
+                 config_path_template: str,
+                 variables: Sequence[Dict[str, Any]],
+                 create_parents: bool = True,
+                 dry_run: bool = False):
+        self._config_template_path = config_template_path
+        self._config_path_template = config_path_template
+        self._variables = variables
+        self._create_parents = create_parents
+        self._dry_run = dry_run
 
-    return paths
+    def execute(self,
+                nc2zarr_args: List[str] = None,
+                job_type: str = 'local',
+                exports: Dict[str, str] = None,
+                directory: str = None,
+                job_kwargs: Dict = None) -> List['BatchJob']:
+
+        job_class = self._get_job_class(job_type)
+
+        config_paths = self.write_config_files()
+
+        jobs = []
+        for config_path, out_path, err_path in config_paths:
+            command = ['nc2zarr'] + (nc2zarr_args or []) + ['-c', config_path]
+            job = job_class.submit_job(command,
+                                       out_path,
+                                       err_path,
+                                       exports=exports,
+                                       directory=directory,
+                                       **(job_kwargs or {}))
+            jobs.append(job)
+        return jobs
+
+    def write_config_files(self) -> List[Tuple[str, str, str]]:
+        with open(self._config_template_path, 'r') as fp:
+            config_template = fp.read()
+        paths = []
+        for mapping in self._variables:
+            config = config_template
+            config_path = self._config_path_template
+            for k, v in mapping.items():
+                k = '${' + k + '}'
+                v = f'{v}'
+                config = config.replace(k, v)
+                config_path = config_path.replace(k, v)
+            if self._create_parents:
+                config_dir = os.path.dirname(config_path)
+                if not os.path.exists(config_dir):
+                    if not self._dry_run:
+                        os.makedirs(config_dir)
+                    else:
+                        LOGGER.warning(f'Dry run: skipped creating parent {config_dir}')
+            if not self._dry_run:
+                with open(config_path, 'w') as fp:
+                    fp.write(config)
+            else:
+                LOGGER.warning(f'Dry run: skipped writing {config_path}')
+            config_path_base, _ = os.path.splitext(config_path)
+            paths.append((config_path,
+                          config_path_base + '.out',
+                          config_path_base + '.err'))
+        return paths
+
+    def _get_job_class(self, job_type) -> Type['BatchJob']:
+        job_class_registry: Dict[str, Type[BatchJob]] = {
+            'local': LocalJob,
+            'slurm': SlurmJob,
+            'dry_run': DryRunJob,
+        }
+        if job_type not in job_class_registry:
+            raise ValueError(f'illegal job_type "{job_type}"')
+        if self._dry_run:
+            job_type = 'dry_run'
+        return job_class_registry[job_type]
 
 
 class BatchJob(ABC):
@@ -106,6 +128,19 @@ class BatchJob(ABC):
         """Check whether job is still running."""
 
 
+class DryRunJob(BatchJob):
+
+    @classmethod
+    def submit_job(cls, command: List[str], *args, **kwargs) -> 'DryRunJob':
+        LOGGER.warning(f'Dry run: job not submitted for'
+                       f' command={command!r}, args={args!r}, kwargs={kwargs!r}')
+        return DryRunJob()
+
+    @property
+    def is_running(self) -> bool:
+        return False
+
+
 class LocalJob(BatchJob):
 
     def __init__(self, process: subprocess.Popen, stdout: TextIO, stderr: TextIO):
@@ -124,18 +159,18 @@ class LocalJob(BatchJob):
                    err_path: str,
                    exports: Dict[str, str] = None,
                    directory: str = None,
-                   **popen_kwargs) -> 'LocalJob':
+                   **subprocess_kwargs) -> 'LocalJob':
         if exports is not None:
-            popen_kwargs.update(env=exports)
+            subprocess_kwargs.update(env=exports)
         if directory is not None:
-            popen_kwargs.update(cwd=directory)
+            subprocess_kwargs.update(cwd=directory)
         stdout = open(out_path, 'w')
         stderr = open(err_path, 'w')
-        popen_kwargs.update(stdout=stdout, stderr=stderr)
+        subprocess_kwargs.update(stdout=stdout, stderr=stderr)
         # noinspection PyBroadException
         try:
-            process = subprocess.Popen(command, **popen_kwargs)
-        except Exception:
+            process = subprocess.Popen(command, **subprocess_kwargs)
+        except BaseException:
             stdout.close()
             stderr.close()
             raise

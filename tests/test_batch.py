@@ -20,37 +20,18 @@
 # SOFTWARE.
 
 import os.path
-import unittest
 import time
+import unittest
+
+from nc2zarr.batch import DryRunJob
 from nc2zarr.batch import LocalJob
-from nc2zarr.batch import write_config_files
+from nc2zarr.batch import TemplateBatch
 from tests.helpers import IOCollector
 
 TEST_DIR = os.path.dirname(__file__)
 
 
-class LocalJobTest(unittest.TestCase):
-    OUT_PATH = os.path.join(TEST_DIR, "local.out")
-    ERR_PATH = os.path.join(TEST_DIR, "local.err")
-
-    io_collector = IOCollector()
-
-    def setUp(self) -> None:
-        self.io_collector.reset_paths()
-        self.io_collector.add_path(self.OUT_PATH)
-        self.io_collector.add_path(self.ERR_PATH)
-
-    def tearDown(self) -> None:
-        self.io_collector.delete_paths()
-
-    def test_local_job_ok(self):
-        job = LocalJob.submit_job(['nc2zarr', '--help'], self.OUT_PATH, self.ERR_PATH)
-        while job.is_running():
-            time.sleep(0.1)
-        self.assertIsInstance(job, LocalJob)
-
-
-class WriteConfigFilesTest(unittest.TestCase):
+class TemplateBatchTest(unittest.TestCase):
     CONFIG_TEMPLATE_PATH = os.path.join(TEST_DIR, 'ghg-template.yml')
 
     CONFIG_DIR = os.path.join(TEST_DIR, '_ghg')
@@ -66,24 +47,51 @@ class WriteConfigFilesTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.io_collector.delete_paths()
 
-    def test_write_config_files(self):
+    def test_execute(self):
         ghg_config_template = (
-            'input:'
-            '  paths:'
-            '    - "/neodc/esacci/ghg/data/crdp_4/SCIAMACHY/CO2_SCI_WFMD/v4.0/${year}/ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-*-fv1.nc"'
-            '  sort_by: "name"'
-            'output:'
-            '  path: "./data/${year}-ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-fv1.zarr/"'
+            'input:\n'
+            '  paths:\n'
+            '    - "${input_dir}/${year}/ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-*-fv1.nc"\n'
+            '  sort_by: "name"\n'
+            'output:\n'
+            '  path: "${output_dir}/${year}-ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-fv1.zarr/"\n'
         )
 
         with open(self.CONFIG_TEMPLATE_PATH, 'w') as fp:
             fp.write(ghg_config_template)
 
-        self.assertFalse(os.path.exists(self.CONFIG_DIR))
+        batch = TemplateBatch(self.CONFIG_TEMPLATE_PATH,
+                              self.CONFIG_PATH_TEMPLATE,
+                              [dict(year=year,
+                                    input_dir='/neodc/esacci/ghg/data/crdp_4/SCIAMACHY/CO2_SCI_WFMD/v4.0',
+                                    output_dir='./data') for year in range(2008, 2012 + 1)],
+                              dry_run=True)
+        jobs = batch.execute()
+        self.assertIsInstance(jobs, list)
+        self.assertEqual(5, len(jobs))
+        for job in jobs:
+            self.assertIsInstance(job, DryRunJob)
+            self.assertFalse(job.is_running)
 
-        paths = write_config_files(self.CONFIG_TEMPLATE_PATH,
-                                   self.CONFIG_PATH_TEMPLATE,
-                                   [dict(year=year) for year in range(2008, 2012 + 1)])
+    def test_write_config_files(self):
+        ghg_config_template = (
+            'input:\n'
+            '  paths:\n'
+            '    - "${input_dir}/${year}/ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-*-fv1.nc"\n'
+            '  sort_by: "name"\n'
+            'output:\n'
+            '  path: "${output_dir}/${year}-ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-fv1.zarr/"\n'
+        )
+
+        with open(self.CONFIG_TEMPLATE_PATH, 'w') as fp:
+            fp.write(ghg_config_template)
+
+        batch = TemplateBatch(self.CONFIG_TEMPLATE_PATH,
+                              self.CONFIG_PATH_TEMPLATE,
+                              [dict(year=year,
+                                    input_dir='/neodc/esacci/ghg/data/crdp_4/SCIAMACHY/CO2_SCI_WFMD/v4.0',
+                                    output_dir='./data') for year in range(2008, 2012 + 1)])
+        paths = batch.write_config_files()
 
         expected_files = [('ghg-2008.yml', 'ghg-2008.out', 'ghg-2008.err'),
                           ('ghg-2009.yml', 'ghg-2009.out', 'ghg-2009.err'),
@@ -102,10 +110,32 @@ class WriteConfigFilesTest(unittest.TestCase):
             ghg_config_2012 = fp.read()
 
         self.assertEqual((
-            'input:'
-            '  paths:'
-            '    - "/neodc/esacci/ghg/data/crdp_4/SCIAMACHY/CO2_SCI_WFMD/v4.0/2012/ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-*-fv1.nc"'
-            '  sort_by: "name"'
-            'output:'
-            '  path: "./data/2012-ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-fv1.zarr/"'
+            'input:\n'
+            '  paths:\n'
+            '    - "/neodc/esacci/ghg/data/crdp_4/SCIAMACHY/CO2_SCI_WFMD/v4.0/'
+            '2012/ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-*-fv1.nc"\n'
+            '  sort_by: "name"\n'
+            'output:\n'
+            '  path: "./data/2012-ESACCI-GHG-L2-CO2-SCIAMACHY-WFMD-fv1.zarr/"\n'
         ), ghg_config_2012)
+
+
+class LocalJobTest(unittest.TestCase):
+    OUT_PATH = os.path.join(TEST_DIR, "local.out")
+    ERR_PATH = os.path.join(TEST_DIR, "local.err")
+
+    io_collector = IOCollector()
+
+    def setUp(self) -> None:
+        self.io_collector.reset_paths()
+        self.io_collector.add_path(self.OUT_PATH)
+        self.io_collector.add_path(self.ERR_PATH)
+
+    def tearDown(self) -> None:
+        self.io_collector.delete_paths()
+
+    def test_local_job_ok(self):
+        job = LocalJob.submit_job(['nc2zarr', '--help'], self.OUT_PATH, self.ERR_PATH)
+        while job.is_running:
+            time.sleep(0.1)
+        self.assertIsInstance(job, LocalJob)
