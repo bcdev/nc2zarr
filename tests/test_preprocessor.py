@@ -35,8 +35,7 @@ class DatasetPreProcessorTest(unittest.TestCase):
     def test_select_variables(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
-        pre_processor = DatasetPreProcessor(input_variables=['r_i32', 'lon', 'lat', 'time'],
-                                            input_concat_dim='time')
+        pre_processor = DatasetPreProcessor(input_variables=['r_i32', 'lon', 'lat', 'time'], input_concat_dim='time')
         new_ds = pre_processor.preprocess_dataset(ds)
         self.assertIsInstance(new_ds, xr.Dataset)
         self.assertAllInDataset(['r_i32', 'lon', 'lat', 'time'], new_ds)
@@ -45,8 +44,7 @@ class DatasetPreProcessorTest(unittest.TestCase):
     def test_leaves_time_coord_untouched(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
-        pre_processor = DatasetPreProcessor(input_variables=None,
-                                            input_concat_dim='time')
+        pre_processor = DatasetPreProcessor(input_variables=None, input_concat_dim='time')
         new_ds = pre_processor.preprocess_dataset(ds)
         self.assertIsInstance(new_ds, xr.Dataset)
         self.assertAllInDataset(['r_ui16', 'r_ui16', 'r_i32', 'lon', 'lat', 'time'], new_ds)
@@ -120,3 +118,31 @@ class DatasetPreProcessorTest(unittest.TestCase):
     def assertNoneInDataset(self, var_names: List[str], ds: xr.Dataset):
         for var_name in var_names:
             self.assertNotIn(var_name, ds)
+
+
+class CustomPreprocessorTest(unittest.TestCase):
+    @classmethod
+    def my_preprocessor(cls, ds: xr.Dataset) -> xr.Dataset:
+        return ds.swap_dims({"sounder_dim": "time"})
+
+    @classmethod
+    def new_input_dataset(cls, /, offset, size):
+        return xr.Dataset(dict(time=xr.DataArray(np.arange(offset, offset + size),
+                                                 dims='sounder_dim'),
+                               pressure=xr.DataArray(np.random.random(size * 20).reshape((size, 20)),
+                                                     dims=['sounder_dim', 'levels_dim'])))
+
+    def test_swap_dims(self):
+        pre_processor = DatasetPreProcessor(input_variables=None,
+                                            input_custom_preprocessor="tests.test_preprocessor:"
+                                                                      "CustomPreprocessorTest.my_preprocessor",
+                                            input_concat_dim='time')
+        ds = self.new_input_dataset(0, size=100)
+        self.assertEqual({'sounder_dim': 100, 'levels_dim': 20}, ds.dims)
+        self.assertEqual(('sounder_dim',), ds.time.dims)
+        self.assertEqual(('sounder_dim', 'levels_dim'), ds.pressure.dims)
+
+        ds = pre_processor.preprocess_dataset(ds)
+        self.assertEqual({'time': 100, 'levels_dim': 20}, ds.dims)
+        self.assertEqual(('time',), ds.time.dims)
+        self.assertEqual(('time', 'levels_dim'), ds.pressure.dims)

@@ -25,6 +25,7 @@ import xarray as xr
 
 from nc2zarr.processor import DatasetProcessor
 from tests.helpers import new_test_dataset
+from tests.test_preprocessor import CustomPreprocessorTest
 
 
 class DatasetProcessorTest(unittest.TestCase):
@@ -153,3 +154,30 @@ class DatasetProcessorTest(unittest.TestCase):
         new_ds, new_encoding = processor.process_dataset(ds)
         self.assertIs(ds, new_ds)
         self.assertEqual({}, new_encoding)
+
+
+class CustomProcessorTest(unittest.TestCase):
+    @classmethod
+    def my_processor(cls, ds: xr.Dataset) -> xr.Dataset:
+        return ds
+
+    def test_swap_dims(self):
+        processor = DatasetProcessor(process_rename={"pressure": "surface_pressure"},
+                                     process_custom_processor="tests.test_processor:"
+                                                              "CustomProcessorTest.my_processor",
+                                     process_rechunk={"surface_pressure": {
+                                         "time": 20,
+                                         "levels_dim": 10,
+                                     }})
+        ds = CustomPreprocessorTest.new_input_dataset(0, size=100)
+        ds = CustomPreprocessorTest.my_preprocessor(ds)
+        self.assertEqual({'time': 100, 'levels_dim': 20}, ds.dims)
+        self.assertEqual(('time',), ds.time.dims)
+        self.assertEqual(('time', 'levels_dim'), ds.pressure.dims)
+
+        ds, encoding = processor.process_dataset(ds)
+        self.assertEqual({'time': 100, 'levels_dim': 20}, ds.dims)
+        self.assertEqual(('time',), ds.time.dims)
+        self.assertEqual(None, ds.time.chunks)
+        self.assertEqual(('time', 'levels_dim'), ds.surface_pressure.dims)
+        self.assertEqual(((20, 20, 20, 20, 20), (10, 10)), ds.surface_pressure.chunks)
