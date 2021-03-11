@@ -1,26 +1,20 @@
 input:
-  paths: /eodata/CMEMS/NRT/BLA/CHL/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045/*/*/*/*_d-*.nc
+  paths:
+    - /eodata/CMEMS/NRT/BLA/CHL/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045/*/*/*/*_d-OC_CNR-L4-CHL-INTERP_MULTI_1KM-BS-DT-v02.nc
   sort_by: path
   prefetch_chunks: true
 
 process:
   rechunk:
     "*":
-      lon: null
-      lat: null
-      time: 1
+      lon: 221
+      lat: 158
+      time: 25
     time: 365
     lat: null
     lon: null
   
 output:
-  path: s3://cop-services/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045.zarr/
+  path: /home/eouser/data/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045.zarr/
   overwrite: true
   consolidated: true
-
-  s3:
-    anon: false
-    # key and secret supplied in separate configuration file
-    client_kwargs:
-      endpoint_url: https://s3.amazonaws.com
-      region_name: eu-central-1
