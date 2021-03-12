@@ -8,8 +8,10 @@
     each input after optional variable selection.
   - `process/custom_processor: "module:function"` is called after 
     optional renaming and before optional rechunking.
+  - `output/custom_postprocessor: "module:function"` is called before 
+    the final dataset is written. (#21)
 
-  Both `"function"`s are expected to receive an `xarray.Dataset` object
+  All three `"function"`s are expected to receive an `xarray.Dataset` object
   as only argument and return the same or modified `xarray.Dataset` object.
   Note: to let Python import `"module"` that is not a user package,
   you can extend the `PYTHONPATH` environment variable before

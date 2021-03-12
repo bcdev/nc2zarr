@@ -27,7 +27,7 @@ from .custom import load_custom_func
 
 
 class DatasetProcessor:
-    def __init__(self,
+    def __init__(self, *,
                  process_rename: Dict[str, str] = None,
                  process_rechunk: Dict[str, Any] = None,
                  process_custom_processor: str = None,

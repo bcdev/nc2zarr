@@ -23,11 +23,16 @@ import os.path
 import unittest
 import uuid
 
+import xarray as xr
 import zarr.errors
 
 from nc2zarr.writer import DatasetWriter
 from tests.helpers import IOCollector
 from tests.helpers import new_test_dataset
+
+
+def my_postprocessor(ds: xr.Dataset) -> xr.Dataset:
+    return ds.assign(crs=xr.DataArray(42))
 
 
 class DatasetWriterTest(unittest.TestCase, IOCollector):
@@ -40,7 +45,16 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_no_output_path(self):
         with self.assertRaises(ValueError) as cm:
             DatasetWriter('')
-        self.assertEqual('output_path must be given', f'{cm.exception}')
+        self.assertEqual('output_path must be given',
+                         f'{cm.exception}')
+
+    def test_append_and_postprocessor(self):
+        with self.assertRaises(ValueError) as cm:
+            DatasetWriter('my.zarr',
+                          output_append=True,
+                          output_custom_postprocessor='tests.test_writer:my_postprocessor')
+        self.assertEqual('output_append and output_custom_postprocessor cannot be given both',
+                         f'{cm.exception}')
 
     def test_local_dry_run(self):
         self.add_path('my.zarr')
@@ -61,7 +75,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_local(self):
         self.add_path('my.zarr')
-        writer = DatasetWriter('my.zarr', output_overwrite=False, dry_run=False)
+        writer = DatasetWriter('my.zarr', output_overwrite=False)
         ds = new_test_dataset(day=1)
         writer.write_dataset(ds)
         self.assertTrue(os.path.isdir('my.zarr'))
@@ -72,16 +86,30 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_local_overwrite(self):
         self.add_path('my.zarr')
-        writer = DatasetWriter('my.zarr', output_overwrite=True, dry_run=False)
+        writer = DatasetWriter('my.zarr', output_overwrite=False)
         ds = new_test_dataset(day=1)
         writer.write_dataset(ds)
         self.assertTrue(os.path.isdir('my.zarr'))
 
-        writer = DatasetWriter('my.zarr', output_overwrite=True, dry_run=False)
+        writer = DatasetWriter('my.zarr', output_overwrite=True)
         ds = new_test_dataset(day=2)
         writer.write_dataset(ds)
         self.assertTrue(os.path.isdir('my.zarr'))
 
+    def test_local_postprocessor(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               output_overwrite=False,
+                               output_custom_postprocessor='tests.test_writer:my_postprocessor')
+        ds = new_test_dataset(day=1)
+        self.assertNotIn('crs', ds)
+
+        writer.write_dataset(ds)
+        self.assertTrue(os.path.isdir('my.zarr'))
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('crs', ds)
+
+    # noinspection PyMethodMayBeStatic
     def test_object_storage_params(self):
         # Not a real test but test coverage will increase a bit.
         DatasetWriter('mybucket/my.zarr',
