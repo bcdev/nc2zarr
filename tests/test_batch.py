@@ -219,14 +219,14 @@ class SlurmJobFailureTest(unittest.TestCase):
                                 partition='short-serial',
                                 duration='02:00:00',
                                 sbatch_program=self.sbatch_program)
-
-        self.assertEquals("Slurm job submission failed for ["
-                          "'sbatch-mock.bat', "
-                          "'-o', 'sbatch-mock.out', "
-                          "'-e', 'sbatch-mock.err', "
-                          "'--partition=short-serial', "
-                          "'--time=02:00:00', "
-                          "'--chdir=.', "
-                          "'--export=TEST=123', "
-                          "'nc2zarr', '--help']",
-                          f'{cm.exception}')
+        print(f'{cm.exception}')
+        self.assertEqual(f"Slurm job submission failed for command line:"
+                         f" {self.sbatch_program}"
+                         f" -o sbatch-mock.out"
+                         f" -e sbatch-mock.err"
+                         f" --partition=short-serial"
+                         f" --time=02:00:00"
+                         f" --chdir=."
+                         f" --export=TEST=123"
+                         f" nc2zarr --help",
+                         f'{cm.exception}')

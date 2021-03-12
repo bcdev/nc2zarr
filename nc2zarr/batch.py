@@ -247,13 +247,16 @@ class SlurmJob(BatchJob):
             sbatch_command += [f'--export={export}']
         sbatch_command += command
 
+        sbatch_cmd_line = subprocess.list2cmdline(sbatch_command)
+
         result = subprocess.run(sbatch_command, capture_output=True)
         if result.returncode != 0:
             with open(out_path, 'wb') as out:
                 out.write(result.stdout)
             with open(err_path, 'wb') as err:
                 err.write(result.stderr)
-            raise EnvironmentError(f'Slurm job submission failed for {sbatch_command}')
+            raise EnvironmentError(f'Slurm job submission failed for'
+                                   f' command line: {sbatch_cmd_line}')
 
         prefix = b'Submitted batch job '
         output = result.stdout
@@ -261,7 +264,8 @@ class SlurmJob(BatchJob):
             if line.startswith(prefix):
                 job_id = line[len(prefix):].decode('utf-8')
                 return SlurmJob(job_id)
-        raise EnvironmentError(f'Cannot obtain Slurm job ID from output "{output}"')
+        raise EnvironmentError(f'Cannot obtain Slurm job ID from command line:'
+                               f' {sbatch_cmd_line}: output was: "{output}"')
 
     @property
     def job_id(self) -> str:
