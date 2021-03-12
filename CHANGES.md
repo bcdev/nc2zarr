@@ -11,7 +11,7 @@
   - `output/custom_postprocessor: "module:function"` is called before 
     the final dataset is written. (#21)
 
-  All three `"function"`s are expected to receive an `xarray.Dataset` object
+  All three functions are expected to receive an `xarray.Dataset` object
   as only argument and return the same or modified `xarray.Dataset` object.
   Note: to let Python import `"module"` that is not a user package,
   you can extend the `PYTHONPATH` environment variable before
