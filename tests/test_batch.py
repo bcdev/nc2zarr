@@ -19,7 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import os.path
+import stat
 import sys
 import time
 import unittest
@@ -163,6 +165,8 @@ class SlurmJobTest(unittest.TestCase):
             self.sbatch_program = 'sbatch-mock.sh'
             with open(self.sbatch_program, 'w') as fp:
                 fp.write('echo Submitted batch job 137')
+        st = os.stat(self.sbatch_program)
+        os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
         self.io_collector.add_path(self.sbatch_program, ensure_deleted=False)
 
     def tearDown(self) -> None:
@@ -181,3 +185,48 @@ class SlurmJobTest(unittest.TestCase):
         self.assertIsInstance(job, SlurmJob)
         while job.is_running:
             time.sleep(0.1)
+
+
+class SlurmJobFailureTest(unittest.TestCase):
+    io_collector = IOCollector()
+
+    def setUp(self) -> None:
+        self.io_collector.reset_paths()
+        if sys.platform == 'win32':
+            self.sbatch_program = 'sbatch-mock.bat'
+            with open(self.sbatch_program, 'w') as fp:
+                fp.write('@exit /B 2')
+        else:
+            self.sbatch_program = 'sbatch-mock.sh'
+            with open(self.sbatch_program, 'w') as fp:
+                fp.write('exit 2')
+        st = os.stat(self.sbatch_program)
+        os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
+        self.io_collector.add_path(self.sbatch_program, ensure_deleted=False)
+        self.io_collector.add_path('sbatch-mock.out')
+        self.io_collector.add_path('sbatch-mock.err')
+
+    def tearDown(self) -> None:
+        self.io_collector.delete_paths()
+
+    def test_job_fails(self):
+        with self.assertRaises(EnvironmentError) as cm:
+            SlurmJob.submit_job(['nc2zarr', '--help'],
+                                'sbatch-mock.out',
+                                'sbatch-mock.err',
+                                exports=dict(TEST=123),
+                                directory='.',
+                                partition='short-serial',
+                                duration='02:00:00',
+                                sbatch_program=self.sbatch_program)
+
+        self.assertEquals("Slurm job submission failed for ["
+                          "'sbatch-mock.bat', "
+                          "'-o', 'sbatch-mock.out', "
+                          "'-e', 'sbatch-mock.err', "
+                          "'--partition=short-serial', "
+                          "'--time=02:00:00', "
+                          "'--chdir=.', "
+                          "'--export=TEST=123', "
+                          "'nc2zarr', '--help']",
+                          f'{cm.exception}')
