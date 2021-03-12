@@ -66,12 +66,21 @@ class TemplateBatch:
 
     def execute(self,
                 nc2zarr_args: List[str] = None,
-                job_type: str = 'local',
+                job_type: str = None,
                 exports: Dict[str, str] = None,
                 directory: str = None,
                 job_kwargs: Dict = None) -> List['BatchJob']:
+        """
 
-        job_class = self._get_job_class(job_type)
+        :param nc2zarr_args: nc2zarr extra arguments
+        :param job_type: job type, "local" or "slurm", defaults to "local"
+        :param exports: exported environment for the jobs
+        :param directory: working directory for the jobs
+        :param job_kwargs: special job arguments depending on *job_type*
+        :return: list of jobs created
+        """
+
+        job_class = self._get_job_class(job_type or 'local')
 
         config_paths = self.write_config_files()
 
@@ -189,6 +198,7 @@ class LocalJob(BatchJob):
         stdout = open(out_path, 'w')
         stderr = open(err_path, 'w')
         subprocess_kwargs.update(stdout=stdout, stderr=stderr)
+        LOGGER.info(f'Executing command: {subprocess.list2cmdline(command)}')
         # noinspection PyBroadException
         try:
             process = subprocess.Popen(command, **subprocess_kwargs)
@@ -247,8 +257,9 @@ class SlurmJob(BatchJob):
             sbatch_command += [f'--export={export}']
         sbatch_command += command
 
-        sbatch_cmd_line = subprocess.list2cmdline(sbatch_command)
+        command_line = subprocess.list2cmdline(sbatch_command)
 
+        LOGGER.warning(f'Executing command: {command_line}')
         result = subprocess.run(sbatch_command, capture_output=True)
         if result.returncode != 0:
             with open(out_path, 'wb') as out:
@@ -256,7 +267,7 @@ class SlurmJob(BatchJob):
             with open(err_path, 'wb') as err:
                 err.write(result.stderr)
             raise EnvironmentError(f'Slurm job submission failed for'
-                                   f' command line: {sbatch_cmd_line}')
+                                   f' command line: {command_line}')
 
         prefix = b'Submitted batch job '
         output = result.stdout
@@ -265,7 +276,7 @@ class SlurmJob(BatchJob):
                 job_id = line[len(prefix):].decode('utf-8')
                 return SlurmJob(job_id)
         raise EnvironmentError(f'Cannot obtain Slurm job ID from command line:'
-                               f' {sbatch_cmd_line}: output was: "{output}"')
+                               f' {command_line}: output was: "{output}"')
 
     @property
     def job_id(self) -> str:
