@@ -33,6 +33,7 @@ from .log import log_duration
 class DatasetOpener:
     def __init__(self,
                  input_paths: Union[str, List[str]],
+                 *,
                  input_multi_file: bool = False,
                  input_sort_by: str = None,
                  input_decode_cf: bool = False,
