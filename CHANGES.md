@@ -5,6 +5,24 @@
 * Added some basic batch utilities that help spawning multiple concurrent
   nc2zarr jobs, see new module `nc2zarr.natch`. (#19)    
 
+* You can now provide your Python code for customization 
+  of the datasets read and written. (#16)
+  - `input/custom_preprocessor: "module:function"` is called on 
+    each input after optional variable selection.
+  - `process/custom_processor: "module:function"` is called after 
+    optional renaming and before optional rechunking.
+
+  Both `"function"`s are expected to receive an `xarray.Dataset` object
+  as only argument and return the same or modified `xarray.Dataset` object.
+  Note: to let Python import `"module"` that is not a user package,
+  you can extend the `PYTHONPATH` environment variable before
+  calling `nc2zarr`:
+    ```
+    export PYTHONPATH=${PYTHONPATH}:path/to/my/modules
+    nc2zarr ...
+    ``` 
+
+
 ### Version 1.0.0 (26.02.2021)
 
 * Fixed some issues with Zarr (re-)chunking given by process parameter

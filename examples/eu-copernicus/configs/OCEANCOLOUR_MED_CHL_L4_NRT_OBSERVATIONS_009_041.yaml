@@ -1,26 +1,19 @@
 input:
-  paths: /eodata/CMEMS/NRT/MED/CHL/OCEANCOLOUR_MED_CHL_L4_NRT_OBSERVATIONS_009_041/*/*/*/*_d-*.nc
+  paths: /eodata/CMEMS/NRT/MED/CHL/OCEANCOLOUR_MED_CHL_L4_NRT_OBSERVATIONS_009_041/*/*/*/*_d-*-DT-*.nc
   sort_by: path
   prefetch_chunks: true
 
 process:
   rechunk:
     "*":
-      lon: null
-      lat: null
-      time: 1
+      lon: 662
+      lat: 320
+      time: 5
     time: 365
     lat: null
     lon: null
   
 output:
-  path: s3://cop-services/OCEANCOLOUR_MED_CHL_L4_NRT_OBSERVATIONS_009_041-rechunked.zarr/
+  path: /home/eouser/data/OCEANCOLOUR_MED_CHL_L4_NRT_OBSERVATIONS_009_041.zarr/
   overwrite: true
   consolidated: true
-
-  s3:
-    anon: false
-    # key and secret supplied in separate configuration file
-    client_kwargs:
-      endpoint_url: https://s3.amazonaws.com
-      region_name: eu-central-1

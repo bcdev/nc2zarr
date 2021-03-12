@@ -1,0 +1,26 @@
+input:
+  paths: /eodata/CMEMS/NRT/MED/OPT/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038/*/*/*/*_d-OC_CNR-L3-KD490-MedOC4AD4_MULTI_1KM-MED-DT-v02.nc
+  variables:
+    - time
+    - lon
+    - lat
+    - KD490
+  sort_by: path
+  prefetch_chunks: true
+  multi_file: false
+  
+process:
+  rechunk:
+    '*':
+      lon: 827
+      lat: 395
+      time: 5
+    lon: null
+    lat: null
+    time: 10000
+
+output:
+  path: /home/eouser/data/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038.zarr
+  overwrite: true
+  consolidated: true
+  append_dim: time

@@ -1,0 +1,19 @@
+input:
+  paths: /eodata/CMEMS/NRT/ATL/CHL/OCEANCOLOUR_ATL_CHL_L4_NRT_OBSERVATIONS_009_037/*/*/*/*_d-*-DT*.nc
+  sort_by: path
+  prefetch_chunks: true
+
+process:
+  rechunk:
+    '*':
+      lon: 276
+      lat: 354
+      time: 5
+    lon: null
+    lat: null
+    time: 10000
+
+output:
+  path: /home/eouser/data/OCEANCOLOUR_ATL_CHL_L4_NRT_OBSERVATIONS_009_037.zarr
+  overwrite: true
+  consolidated: true
