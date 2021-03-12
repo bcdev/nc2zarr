@@ -31,16 +31,37 @@ from .log import LOGGER
 
 
 class TemplateBatch:
+    """
+    Create and optionally execute a series of nc2zarr jobs where each job's
+    configuration is generated from the sequence *config_template_variables*
+    and the given templates.
+
+    :param config_template_variables: A sequence of dictionaries comprising template
+        variables for the configuration templates. Each dictionary
+        is used to creates a new nc2zarr configuration.
+    :param config_template_path: Path to configuration file that serves as template
+        for multiple configuration files to be generated. The configuration
+        may contain placeholders of the form "${variable_name}" that will be
+        interpolated by every dictionary in *config_template_variables*.
+    :param config_path_template: Path template for the configuration files
+        to be generated. The path
+        may contain placeholders of the form "${variable_name}" that will be
+        interpolated by every dictionary in *config_template_variables*.
+    :param create_parents: Whether to create the parent directories given
+        by *config_path_template* when they do not exist.
+    :param dry_run: If true, any actions that would have been performed are
+        logged. No files are generated and no actual processes are spawned.
+    """
 
     def __init__(self,
                  config_template_path: str,
                  config_path_template: str,
-                 variables: Sequence[Dict[str, Any]],
+                 config_template_variables: Sequence[Dict[str, Any]],
                  create_parents: bool = True,
                  dry_run: bool = False):
         self._config_template_path = config_template_path
         self._config_path_template = config_path_template
-        self._variables = variables
+        self._variables = config_template_variables
         self._create_parents = create_parents
         self._dry_run = dry_run
 
@@ -129,6 +150,7 @@ class BatchJob(ABC):
 
 
 class DryRunJob(BatchJob):
+    """Does nothing but logging job information."""
 
     @classmethod
     def submit_job(cls, command: List[str], *args, **kwargs) -> 'DryRunJob':
@@ -142,6 +164,7 @@ class DryRunJob(BatchJob):
 
 
 class LocalJob(BatchJob):
+    """A job performed as a local OS process."""
 
     def __init__(self, process: subprocess.Popen, stdout: TextIO, stderr: TextIO):
         self._process: subprocess.Popen = process
@@ -197,6 +220,8 @@ class LocalJob(BatchJob):
 
 
 class SlurmJob(BatchJob):
+    """A job performed by the SLURM client 'sbatch'."""
+
     def __init__(self, job_id):
         self.job_id = job_id
 

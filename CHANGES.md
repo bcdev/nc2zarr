@@ -1,5 +1,10 @@
 ## nc2zarr Change History
 
+### Version 1.1.0 (in development)
+
+* Added some basic batch utilities that help spawning multiple concurrent
+  nc2zarr jobs, see new module `nc2zarr.natch`. (#19)    
+
 ### Version 1.0.0 (26.02.2021)
 
 * Fixed some issues with Zarr (re-)chunking given by process parameter
