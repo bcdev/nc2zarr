@@ -162,7 +162,7 @@ class SlurmJobTest(unittest.TestCase):
             with open(self.sbatch_program, 'w') as fp:
                 fp.write('@echo Submitted batch job 137')
         else:
-            self.sbatch_program = './sbatch-mock.sh'
+            self.sbatch_program = 'sbatch-mock.sh'
             with open(self.sbatch_program, 'w') as fp:
                 fp.write('echo Submitted batch job 137')
         st = os.stat(self.sbatch_program)
