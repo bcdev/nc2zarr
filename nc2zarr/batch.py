@@ -24,7 +24,6 @@ import subprocess
 import threading
 import time
 from abc import ABC, abstractmethod
-from io import StringIO
 from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
 from .log import LOGGER
@@ -54,9 +53,9 @@ class TemplateBatch:
     """
 
     def __init__(self,
+                 config_template_variables: Sequence[Dict[str, Any]],
                  config_template_path: str,
                  config_path_template: str,
-                 config_template_variables: Sequence[Dict[str, Any]],
                  create_parents: bool = True,
                  dry_run: bool = False):
         self._config_template_path = config_template_path
@@ -223,19 +222,20 @@ class SlurmJob(BatchJob):
     """A job performed by the SLURM client 'sbatch'."""
 
     def __init__(self, job_id):
-        self.job_id = job_id
+        self._job_id = job_id
 
     @classmethod
     def submit_job(cls,
                    command: List[str],
                    out_path: str,
                    err_path: str,
-                   exports: Dict[str, str] = None,
+                   exports: Dict[str, Any] = None,
                    directory: str = None,
                    partition: str = None,
-                   duration: str = None) -> 'SlurmJob':
+                   duration: str = None,
+                   sbatch_program: str = None) -> 'SlurmJob':
 
-        sbatch_command = ['sbatch', '-o', out_path, '-e', err_path]
+        sbatch_command = [sbatch_program or 'sbatch', '-o', out_path, '-e', err_path]
         if partition:
             sbatch_command += [f'--partition={partition}']
         if duration:
@@ -243,27 +243,31 @@ class SlurmJob(BatchJob):
         if directory:
             sbatch_command += [f'--chdir={directory}']
         if exports:
-            sbatch_command += [f'--export={",".join(f"{k}={repr(v)}" for k, v in exports.items())}']
+            export = ",".join(f"{k}={repr(v)}" for k, v in exports.items())
+            sbatch_command += [f'--export={export}']
         sbatch_command += command
 
-        stdout = StringIO()
-        stderr = StringIO()
-        exit_code = subprocess.call(sbatch_command, stdout=stdout, stderr=stderr)
-        if exit_code != 0:
-            with open(out_path, 'w') as out:
-                out.write('')
-            with open(err_path, 'w') as err:
-                err.write(stderr.read())
+        result = subprocess.run(sbatch_command, capture_output=True)
+        if result.returncode != 0:
+            with open(out_path, 'wb') as out:
+                out.write(result.stdout)
+            with open(err_path, 'wb') as err:
+                err.write(result.stderr)
             raise EnvironmentError(f'Slurm job submission failed for {sbatch_command}')
-        output = str(stdout.read())
-        print(f'output = [{output}]')
-        prefix = 'Submitted batch job '
-        if not output.startswith(prefix):
-            raise EnvironmentError(f'Cannot obtain Slurm job ID from output "{output}"')
-        job_id = output[len(prefix):]
-        return SlurmJob(job_id)
+
+        prefix = b'Submitted batch job '
+        output = result.stdout
+        for line in [l.strip() for l in output.split(b'\n')]:
+            if line.startswith(prefix):
+                job_id = line[len(prefix):].decode('utf-8')
+                return SlurmJob(job_id)
+        raise EnvironmentError(f'Cannot obtain Slurm job ID from output "{output}"')
+
+    @property
+    def job_id(self) -> str:
+        return self._job_id
 
     @property
     def is_running(self) -> bool:
         # TODO
-        return True
+        return False
