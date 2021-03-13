@@ -305,8 +305,9 @@ class SlurmJob(BatchJob):
 
         command_line = subprocess.list2cmdline(sbatch_command)
 
-        LOGGER.warning(f'Executing command: {command_line}')
-        result = subprocess.run(sbatch_command, capture_output=True)
+        with log_duration(f'Running command [{command_line}]'):
+            result = subprocess.run(sbatch_command, capture_output=True)
+
         if result.returncode != 0:
             with open(out_path, 'wb') as out:
                 out.write(result.stdout)
