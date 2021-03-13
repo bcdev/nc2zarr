@@ -68,7 +68,6 @@ class TemplateBatch:
 
     def execute(self,
                 nc2zarr_args: List[str] = None,
-                *,
                 job_type: str = None,
                 job_cwd_path: str = None,
                 job_env_vars: Dict[str, str] = None,
@@ -299,8 +298,8 @@ class SlurmJob(BatchJob):
         if cwd_path:
             sbatch_command += [f'--chdir={cwd_path}']
         if env_vars:
-            export = ",".join(f"{k}={repr(v)}" for k, v in env_vars.items())
-            sbatch_command += [f'--export={export}']
+            export = ",".join(f"{k}={v}" for k, v in env_vars.items())
+            sbatch_command += [f'--export=ALL,{export}']
         sbatch_command += command
 
         command_line = subprocess.list2cmdline(sbatch_command)

@@ -215,8 +215,13 @@ class SlurmJobFailureTest(SlurmJobTest):
 
     def test_job_fails(self):
         with self.assertRaises(EnvironmentError) as cm:
-            SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
-                                env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
+            SlurmJob.submit_job(['nc2zarr', '--help'],
+                                JOB_OUT_PATH,
+                                JOB_ERR_PATH,
+                                cwd_path='.',
+                                env_vars=dict(TEST1=123, TEST2='ABC'),
+                                partition='short-serial',
+                                duration='02:00:00',
                                 sbatch_program=self.sbatch_program)
         print(f'{cm.exception}')
         self.assertEqual(f"Slurm job submission failed for command line:"
@@ -226,6 +231,6 @@ class SlurmJobFailureTest(SlurmJobTest):
                          f" --partition=short-serial"
                          f" --time=02:00:00"
                          f" --chdir=."
-                         f" --export=TEST=123"
+                         f" --export=ALL,TEST1=123,TEST2=ABC"
                          f" nc2zarr --help",
                          f'{cm.exception}')
