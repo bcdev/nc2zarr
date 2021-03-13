@@ -2,6 +2,9 @@
 
 ### Version 1.1.0 (in development)
 
+* Local input and output paths may now include tilde '~' which will expand 
+  to the current user's home. (#26)
+
 * Added some basic batch utilities that help spawning multiple concurrent
   nc2zarr jobs, see new module `nc2zarr.natch`. (#19)    
   
