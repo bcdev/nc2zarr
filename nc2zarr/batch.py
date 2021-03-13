@@ -206,10 +206,11 @@ class DryRunJob(BatchJob):
 class LocalJob(BatchJob):
     """A job performed as a local OS process."""
 
-    def __init__(self, process: subprocess.Popen, stdout: TextIO, stderr: TextIO):
+    def __init__(self, process: subprocess.Popen, stdout: TextIO, stderr: TextIO, command_line: str):
         self._process: subprocess.Popen = process
         self._stdout: Optional[TextIO] = stdout
         self._stderr: Optional[TextIO] = stderr
+        self._command_line = command_line
         self._exit_code = None
         # TODO: use a single observer thread for all jobs
         self._observer = threading.Thread(target=self._observe)
@@ -241,7 +242,7 @@ class LocalJob(BatchJob):
             # noinspection PyBroadException
             try:
                 process = subprocess.Popen(command, **subprocess_kwargs)
-                return LocalJob(process, stdout, stderr)
+                return LocalJob(process, stdout, stderr, command_line)
             except BaseException:
                 stdout.close()
                 stderr.close()
@@ -259,10 +260,12 @@ class LocalJob(BatchJob):
         while True:
             exit_code = self._process.poll()
             if exit_code is not None:
+                LOGGER.info(f'Received exit code {exit_code}'
+                            f' for command: {self._command_line}')
+                self._exit_code = exit_code
                 self._observer = None
                 self._stdout.close()
                 self._stderr.close()
-                self._exit_code = exit_code
                 break
             time.sleep(0.5)
 
