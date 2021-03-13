@@ -99,7 +99,7 @@ process:
     <var_name>: <new_var_name>
     <var_name>: <new_var_name>
 
-  # An optional, custom processor.
+  # An optional custom processor.
   # Called after variable renaming and before rechunking.
   custom_processor: <module>:<function>
 
