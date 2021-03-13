@@ -204,7 +204,9 @@ class LocalJob(BatchJob):
                    env_vars: Dict[str, str] = None,
                    **subprocess_kwargs) -> 'LocalJob':
         if env_vars is not None:
-            subprocess_kwargs.update(env=env_vars)
+            env = dict(os.environ)
+            env.update(**env_vars)
+            subprocess_kwargs.update(env=env)
         if cwd_path is not None:
             subprocess_kwargs.update(cwd=cwd_path)
         stdout = open(out_path, 'w')

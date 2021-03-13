@@ -151,7 +151,11 @@ class DryRunJobTest(BatchJobTest):
 class LocalJobTest(BatchJobTest):
 
     def test_job_ok(self):
-        job = LocalJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH)
+        job = LocalJob.submit_job(['nc2zarr', '--help'],
+                                  JOB_OUT_PATH,
+                                  JOB_ERR_PATH,
+                                  env_vars=dict(TEST='42'),
+                                  cwd_path='.')
         self.assertIsInstance(job, LocalJob)
         while job.is_running:
             time.sleep(0.1)
