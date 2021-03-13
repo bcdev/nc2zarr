@@ -59,7 +59,7 @@ input:
     - <var_name_1>
     - <var_name_2>
 
-  # An optional, custom preprocessor.
+  # An optional custom preprocessor.
   # Called after variable selection.
   custom_preprocessor: <module>:<function>
 
