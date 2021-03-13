@@ -73,7 +73,8 @@ class TemplateBatchTest(unittest.TestCase):
     def test_execute_dry_run(self):
         batch = TemplateBatch(self.CONFIG_VARIABLES,
                               self.CONFIG_TEMPLATE_PATH,
-                              self.CONFIG_PATH_TEMPLATE, dry_run=True)
+                              self.CONFIG_PATH_TEMPLATE,
+                              dry_run=True)
         jobs = batch.execute()
         self.assertIsInstance(jobs, list)
         self.assertEqual(5, len(jobs))

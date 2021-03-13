@@ -26,7 +26,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
-from .log import LOGGER
+from .log import LOGGER, log_duration, use_verbosity
 
 
 class TemplateBatch:
@@ -57,15 +57,18 @@ class TemplateBatch:
                  config_template_path: str,
                  config_path_template: str,
                  create_parents: bool = True,
-                 dry_run: bool = False):
+                 dry_run: bool = False,
+                 verbosity: int = 0):
         self._config_template_path = config_template_path
         self._config_path_template = config_path_template
         self._variables = config_template_variables
         self._create_parents = create_parents
         self._dry_run = dry_run
+        self._verbosity = verbosity
 
     def execute(self,
                 nc2zarr_args: List[str] = None,
+                *,
                 job_type: str = None,
                 job_cwd_path: str = None,
                 job_env_vars: Dict[str, str] = None,
@@ -83,7 +86,20 @@ class TemplateBatch:
         :param job_params: special job arguments depending on *job_type*.
         :return: list of jobs created.
         """
+        with use_verbosity(self._verbosity or 0):
+            with log_duration('Executing jobs'):
+                return self._execute(nc2zarr_args,
+                                     job_type=job_type,
+                                     job_cwd_path=job_cwd_path,
+                                     job_env_vars=job_env_vars,
+                                     **job_params)
 
+    def _execute(self,
+                 nc2zarr_args: List[str] = None,
+                 job_type: str = None,
+                 job_cwd_path: str = None,
+                 job_env_vars: Dict[str, str] = None,
+                 **job_params) -> List['BatchJob']:
         job_class = self._get_job_class(job_type or 'local')
 
         config_paths = self.write_config_files()
@@ -101,6 +117,11 @@ class TemplateBatch:
         return jobs
 
     def write_config_files(self) -> List[Tuple[str, str, str]]:
+        with use_verbosity(self._verbosity or 0):
+            with log_duration('Writing job config files'):
+                return self._write_config_files()
+
+    def _write_config_files(self) -> List[Tuple[str, str, str]]:
         with open(self._config_template_path, 'r') as fp:
             config_template = fp.read()
         paths = []
@@ -203,6 +224,7 @@ class LocalJob(BatchJob):
                    cwd_path: str = None,
                    env_vars: Dict[str, str] = None,
                    **subprocess_kwargs) -> 'LocalJob':
+
         if env_vars is not None:
             env = dict(os.environ)
             env.update(**env_vars)
@@ -212,15 +234,18 @@ class LocalJob(BatchJob):
         stdout = open(out_path, 'w')
         stderr = open(err_path, 'w')
         subprocess_kwargs.update(stdout=stdout, stderr=stderr)
-        LOGGER.info(f'Executing command: {subprocess.list2cmdline(command)}')
-        # noinspection PyBroadException
-        try:
-            process = subprocess.Popen(command, **subprocess_kwargs)
-        except BaseException:
-            stdout.close()
-            stderr.close()
-            raise
-        return LocalJob(process, stdout, stderr)
+
+        command_line = subprocess.list2cmdline(command)
+
+        with log_duration(f'Executing command {command_line}'):
+            # noinspection PyBroadException
+            try:
+                process = subprocess.Popen(command, **subprocess_kwargs)
+                return LocalJob(process, stdout, stderr)
+            except BaseException:
+                stdout.close()
+                stderr.close()
+                raise
 
     @property
     def exit_code(self) -> Optional[int]:
