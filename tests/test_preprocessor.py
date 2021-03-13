@@ -123,14 +123,14 @@ class DatasetPreProcessorTest(unittest.TestCase):
 class CustomPreprocessorTest(unittest.TestCase):
     @classmethod
     def my_preprocessor(cls, ds: xr.Dataset) -> xr.Dataset:
-        return ds.swap_dims({"sounder_dim": "time"})
+        return ds.swap_dims({"sounding_dim": "time"})
 
     @classmethod
     def new_input_dataset(cls, /, offset, size):
         return xr.Dataset(dict(time=xr.DataArray(np.arange(offset, offset + size),
-                                                 dims='sounder_dim'),
+                                                 dims='sounding_dim'),
                                pressure=xr.DataArray(np.random.random(size * 20).reshape((size, 20)),
-                                                     dims=['sounder_dim', 'levels_dim'])))
+                                                     dims=['sounding_dim', 'levels_dim'])))
 
     def test_swap_dims(self):
         pre_processor = DatasetPreProcessor(input_variables=None,
@@ -138,9 +138,9 @@ class CustomPreprocessorTest(unittest.TestCase):
                                                                       "CustomPreprocessorTest.my_preprocessor",
                                             input_concat_dim='time')
         ds = self.new_input_dataset(0, size=100)
-        self.assertEqual({'sounder_dim': 100, 'levels_dim': 20}, ds.dims)
-        self.assertEqual(('sounder_dim',), ds.time.dims)
-        self.assertEqual(('sounder_dim', 'levels_dim'), ds.pressure.dims)
+        self.assertEqual({'sounding_dim': 100, 'levels_dim': 20}, ds.dims)
+        self.assertEqual(('sounding_dim',), ds.time.dims)
+        self.assertEqual(('sounding_dim', 'levels_dim'), ds.pressure.dims)
 
         ds = pre_processor.preprocess_dataset(ds)
         self.assertEqual({'time': 100, 'levels_dim': 20}, ds.dims)

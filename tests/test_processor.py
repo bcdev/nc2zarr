@@ -117,6 +117,24 @@ class DatasetProcessorTest(unittest.TestCase):
                           'time': {'chunks': (128,)}},
                          new_encoding)
 
+    def test_rechunk_with_input_and_single_chunks(self):
+        # See https://github.com/bcdev/nc2zarr/issues/23
+        ds = new_test_dataset(day=1, chunked=True)
+        ds = ds.chunk(dict(lat=1000, lon=1000, time=1000))
+        processor = DatasetProcessor(process_rechunk={
+            'lon': None,
+            'lat': None,
+        })
+        new_ds, new_encoding = processor.process_dataset(ds)
+        self.assertIsNot(ds, new_ds)
+        self.assertEqual({'r_f32': {'chunks': (1, 18, 36)},
+                          'r_i32': {'chunks': (1, 18, 36)},
+                          'r_ui16': {'chunks': (1, 18, 36)},
+                          'lon': {'chunks': (36,)},
+                          'lat': {'chunks': (18,)},
+                          'time': {'chunks': (1,)}},
+                         new_encoding)
+
     def test_rechunk_with_invalid_size(self):
         ds = new_test_dataset()
         processor = DatasetProcessor(process_rechunk={
