@@ -95,19 +95,19 @@ def nc2zarr(input_paths: Tuple[str],
     nc2zarr out-01.zarr out-02.zarr -o final.zarr
 
     Command line arguments and options have precedence over other
-    configurations and thus overwrite settings in any CONFIG_FILE:
+    configurations and thus override settings in any CONFIG_FILE:
 
     \b
-    [--dry-run] overwrites /dry_run
-    [--verbose] overwrites /verbosity
-    [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
-    [--multi-file] overwrites /input/multi_file
-    [--concat-dim] overwrites /input/concat_dim
-    [--decode-cf] overwrites /input/decode_cf
-    [--sort-by] overwrites /input/sort_by
-    [--output OUTPUT_FILE] overwrites /output/path
-    [--overwrite] overwrites /output/overwrite
-    [--append] overwrites /output/append
+    [--dry-run] overrides /dry_run
+    [--verbose] overrides /verbosity
+    [INPUT_FILE ...] overrides /input/paths in CONFIG_FILE
+    [--multi-file] overrides /input/multi_file
+    [--concat-dim] overrides /input/concat_dim
+    [--decode-cf] overrides /input/decode_cf
+    [--sort-by] overrides /input/sort_by
+    [--output OUTPUT_FILE] overrides /output/path
+    [--overwrite] overrides /output/overwrite
+    [--append] overrides /output/append
     """
 
     if version:
