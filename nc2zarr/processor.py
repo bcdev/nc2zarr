@@ -80,7 +80,14 @@ class DatasetProcessor:
                 dim_name = v.dims[dim_index]
                 dim_chunk_size = dim_chunk_sizes.get(dim_name, 'input')
                 if dim_chunk_size == 'input':
-                    dim_chunk_size = max(*v.chunks[dim_index]) if v.chunks is not None else v.sizes[dim_name]
+                    dim_chunk_size = v.sizes[dim_name]
+                    if v.chunks is not None:
+                        dim_chunks = v.chunks[dim_index]
+                        num_dim_chunks = len(dim_chunks)
+                        if num_dim_chunks > 1:
+                            dim_chunk_size = max(*dim_chunks)
+                        elif num_dim_chunks == 1:
+                            dim_chunk_size = dim_chunks[0]
                 elif dim_chunk_size is None:
                     dim_chunk_size = v.sizes[dim_name]
                 elif not isinstance(dim_chunk_size, int):

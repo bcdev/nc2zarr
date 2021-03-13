@@ -2,6 +2,9 @@
 
 ### Version 1.1.0 (in development)
 
+* Fixed exception `TypeError: 'int' object is not iterable`
+  raised with some `process/rechunk` configurations. (#23)
+
 * Added some basic batch utilities that help spawning multiple concurrent
   nc2zarr jobs, see new module `nc2zarr.natch`. (#19)    
 
