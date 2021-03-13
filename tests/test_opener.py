@@ -46,11 +46,19 @@ class DatasetOpenerTest(unittest.TestCase):
     def _preprocess_dataset(cls, ds: xr.Dataset) -> xr.Dataset:
         return ds.assign_attrs(marker=True)
 
-    def test_open_datasets_no_inputs(self):
+    def test_open_datasets_wildcard_does_not_resolve(self):
         opener = DatasetOpener(input_paths='imports/*.nc')
         with self.assertRaises(ConverterError) as cm:
             list(opener.open_datasets())
-        self.assertEqual('No inputs found.', f'{cm.exception}')
+        self.assertEqual('No inputs found for wildcard: "imports/*.nc"',
+                         f'{cm.exception}')
+
+    def test_open_datasets_not_found(self):
+        opener = DatasetOpener(input_paths='imports/pippo.nc')
+        with self.assertRaises(ConverterError) as cm:
+            list(opener.open_datasets())
+        self.assertEqual('Input not found: "imports/pippo.nc"',
+                         f'{cm.exception}')
 
     def test_open_datasets(self):
         opener = DatasetOpener(input_paths='inputs/*.nc')
@@ -130,11 +138,14 @@ class ResolveInputPathsTest(unittest.TestCase):
     def test_illegal_sort_by(self):
         with self.assertRaises(ConverterError) as cm:
             DatasetOpener.resolve_input_paths('inputs/**/*.nc', sort_by='date')
-        self.assertEqual('Can sort by "path" or "name" only, got "date".', f'{cm.exception}')
+        self.assertEqual('Can sort by "path" or "name" only, got "date".',
+                         f'{cm.exception}')
 
     def test_nothing_found(self):
-        resolved_paths = DatasetOpener.resolve_input_paths('outputs/**/*.nc')
-        self.assertEqual([], resolved_paths)
+        with self.assertRaises(ConverterError) as cm:
+            DatasetOpener.resolve_input_paths('outputs/**/*.nc')
+        self.assertEqual('No inputs found for wildcard: "outputs/**/*.nc"',
+                         f'{cm.exception}')
 
     def test_no_inputs(self):
         resolved_paths = DatasetOpener.resolve_input_paths([])

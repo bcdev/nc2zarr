@@ -2,6 +2,9 @@
 
 ### Version 1.1.0 (in development)
 
+* Input path that were no wildcards have been ignored if the input path did 
+  not exist. Now an error is raised in such cases. (#25)
+  
 * Fixed exception `TypeError: 'int' object is not iterable`
   raised with some `process/rechunk` configurations. (#23)
 

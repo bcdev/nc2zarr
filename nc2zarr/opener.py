@@ -122,13 +122,23 @@ class DatasetOpener:
     def resolve_input_paths(cls,
                             input_paths: Union[str, List[str]],
                             sort_by: str = None) -> List[str]:
+        if not input_paths:
+            return []
+
+        if isinstance(input_paths, str):
+            input_paths = [input_paths]
 
         resolved_input_files = []
-        if isinstance(input_paths, str):
-            resolved_input_files.extend(glob.glob(input_paths, recursive=True))
-        elif input_paths is not None and len(input_paths):
-            for input_path in input_paths:
-                resolved_input_files.extend(glob.glob(input_path, recursive=True))
+        for input_path in input_paths:
+            if '*' in input_path or '?' in input_path:
+                gob_result = glob.glob(input_path, recursive=True)
+                if not gob_result:
+                    raise ConverterError(f'No inputs found for wildcard: "{input_path}"')
+                resolved_input_files.extend(gob_result)
+            else:
+                if not os.path.exists(input_path):
+                    raise ConverterError(f'Input not found: "{input_path}"')
+                resolved_input_files.append(input_path)
 
         if sort_by:
             # Get rid of doubles and sort
