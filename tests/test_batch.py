@@ -186,7 +186,8 @@ class SlurmJobSuccessTest(SlurmJobTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self._write_sbatch_exe('echo Submitted batch job 137',
+        self._write_sbatch_exe('#!/bin/sh\n'
+                               'echo Submitted batch job 137',
                                '@echo Submitted batch job 137')
 
     def test_job_ok(self):
@@ -203,7 +204,8 @@ class SlurmJobFailureTest(SlurmJobTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self._write_sbatch_exe('exit 2',
+        self._write_sbatch_exe('#!/bin/sh\n'
+                               'exit 2',
                                '@exit /B 2')
 
     def test_job_fails(self):
