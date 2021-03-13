@@ -122,64 +122,76 @@ class TemplateBatchTest(unittest.TestCase):
         ), ghg_config_2012)
 
 
-class DryRunJobTest(unittest.TestCase):
+JOB_OUT_PATH = "_job_test.out"
+JOB_ERR_PATH = "_job_test.err"
+
+
+# noinspection PyPep8Naming
+class BatchJobTest(unittest.TestCase):
+    io_collector = IOCollector()
+
+    def setUp(self) -> None:
+        self.io_collector.reset_paths()
+        self.io_collector.add_path(JOB_OUT_PATH)
+        self.io_collector.add_path(JOB_ERR_PATH)
+
+    def tearDown(self) -> None:
+        self.io_collector.delete_paths()
+
+
+class DryRunJobTest(BatchJobTest):
 
     def test_job_ok(self):
-        job = DryRunJob.submit_job(['nc2zarr', '--help'])
+        job = DryRunJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH)
         self.assertIsInstance(job, DryRunJob)
         while job.is_running:
             time.sleep(0.1)
 
 
-class LocalJobTest(unittest.TestCase):
-    OUT_PATH = os.path.join(TEST_DIR, "local.out")
-    ERR_PATH = os.path.join(TEST_DIR, "local.err")
-
-    io_collector = IOCollector()
-
-    def setUp(self) -> None:
-        self.io_collector.reset_paths()
-        self.io_collector.add_path(self.OUT_PATH)
-        self.io_collector.add_path(self.ERR_PATH)
-
-    def tearDown(self) -> None:
-        self.io_collector.delete_paths()
+class LocalJobTest(BatchJobTest):
 
     def test_job_ok(self):
-        job = LocalJob.submit_job(['nc2zarr', '--help'], self.OUT_PATH, self.ERR_PATH)
+        job = LocalJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH)
         self.assertIsInstance(job, LocalJob)
         while job.is_running:
             time.sleep(0.1)
 
 
-class SlurmJobTest(unittest.TestCase):
-    io_collector = IOCollector()
+SBATCH_MOCK_WIN32 = 'sbatch-mock.bat'
+SBATCH_MOCK_UNIX = './sbatch-mock.sh'
+
+
+class SlurmJobTest(BatchJobTest):
 
     def setUp(self) -> None:
-        self.io_collector.reset_paths()
+        super().setUp()
         if sys.platform == 'win32':
-            self.sbatch_program = 'sbatch-mock.bat'
-            with open(self.sbatch_program, 'w') as fp:
-                fp.write('@echo Submitted batch job 137')
+            self.sbatch_program = SBATCH_MOCK_WIN32
         else:
-            self.sbatch_program = 'sbatch-mock.sh'
-            with open(self.sbatch_program, 'w') as fp:
-                fp.write('echo Submitted batch job 137')
-        st = os.stat(self.sbatch_program)
-        os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
-        self.io_collector.add_path(self.sbatch_program, ensure_deleted=False)
+            self.sbatch_program = SBATCH_MOCK_UNIX
+        self.io_collector.add_path(self.sbatch_program)
 
-    def tearDown(self) -> None:
-        self.io_collector.delete_paths()
+    def _write_sbatch_exe(self, unix_content: str, win32_content: str):
+        if sys.platform == 'win32':
+            with open(self.sbatch_program, 'w') as fp:
+                fp.write(win32_content)
+        else:
+            with open(self.sbatch_program, 'w') as fp:
+                fp.write(unix_content)
+            st = os.stat(self.sbatch_program)
+            os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
+
+
+class SlurmJobSuccessTest(SlurmJobTest):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._write_sbatch_exe('echo Submitted batch job 137',
+                               '@echo Submitted batch job 137')
 
     def test_job_ok(self):
-        job = SlurmJob.submit_job(['nc2zarr', '--help'],
-                                  'sbatch-mock.out',
-                                  'sbatch-mock.err',
-                                  exports=dict(TEST=123),
-                                  directory='.',
-                                  partition='short-serial',
-                                  duration='02:00:00',
+        job = SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
+                                  env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
                                   sbatch_program=self.sbatch_program)
         self.assertEquals('137', job.job_id)
         self.assertIsInstance(job, SlurmJob)
@@ -187,43 +199,23 @@ class SlurmJobTest(unittest.TestCase):
             time.sleep(0.1)
 
 
-class SlurmJobFailureTest(unittest.TestCase):
-    io_collector = IOCollector()
+class SlurmJobFailureTest(SlurmJobTest):
 
     def setUp(self) -> None:
-        self.io_collector.reset_paths()
-        if sys.platform == 'win32':
-            self.sbatch_program = 'sbatch-mock.bat'
-            with open(self.sbatch_program, 'w') as fp:
-                fp.write('@exit /B 2')
-        else:
-            self.sbatch_program = 'sbatch-mock.sh'
-            with open(self.sbatch_program, 'w') as fp:
-                fp.write('exit 2')
-        st = os.stat(self.sbatch_program)
-        os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
-        self.io_collector.add_path(self.sbatch_program, ensure_deleted=False)
-        self.io_collector.add_path('sbatch-mock.out')
-        self.io_collector.add_path('sbatch-mock.err')
-
-    def tearDown(self) -> None:
-        self.io_collector.delete_paths()
+        super().setUp()
+        self._write_sbatch_exe('exit 2',
+                               '@exit /B 2')
 
     def test_job_fails(self):
         with self.assertRaises(EnvironmentError) as cm:
-            SlurmJob.submit_job(['nc2zarr', '--help'],
-                                'sbatch-mock.out',
-                                'sbatch-mock.err',
-                                exports=dict(TEST=123),
-                                directory='.',
-                                partition='short-serial',
-                                duration='02:00:00',
+            SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
+                                env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
                                 sbatch_program=self.sbatch_program)
         print(f'{cm.exception}')
         self.assertEqual(f"Slurm job submission failed for command line:"
                          f" {self.sbatch_program}"
-                         f" -o sbatch-mock.out"
-                         f" -e sbatch-mock.err"
+                         f" -o _job_test.out"
+                         f" -e _job_test.err"
                          f" --partition=short-serial"
                          f" --time=02:00:00"
                          f" --chdir=."

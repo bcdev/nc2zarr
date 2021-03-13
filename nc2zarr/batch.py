@@ -67,17 +67,21 @@ class TemplateBatch:
     def execute(self,
                 nc2zarr_args: List[str] = None,
                 job_type: str = None,
-                exports: Dict[str, str] = None,
-                directory: str = None,
-                job_kwargs: Dict = None) -> List['BatchJob']:
+                job_cwd_path: str = None,
+                job_env_vars: Dict[str, str] = None,
+                **job_params) -> List['BatchJob']:
         """
+        Generate configurations and execute them.
+        Return each execution as job of type :class:BatchJob.
+
+        The method does not block.
 
         :param nc2zarr_args: nc2zarr extra arguments
-        :param job_type: job type, "local" or "slurm", defaults to "local"
-        :param exports: exported environment for the jobs
-        :param directory: working directory for the jobs
-        :param job_kwargs: special job arguments depending on *job_type*
-        :return: list of jobs created
+        :param job_type: job type, "local" or "slurm", defaults to "local".
+        :param job_env_vars: exported environment for the jobs.
+        :param job_cwd_path: working directory for the jobs.
+        :param job_params: special job arguments depending on *job_type*.
+        :return: list of jobs created.
         """
 
         job_class = self._get_job_class(job_type or 'local')
@@ -90,9 +94,9 @@ class TemplateBatch:
             job = job_class.submit_job(command,
                                        out_path,
                                        err_path,
-                                       exports=exports,
-                                       directory=directory,
-                                       **(job_kwargs or {}))
+                                       cwd_path=job_cwd_path,
+                                       env_vars=job_env_vars,
+                                       **job_params)
             jobs.append(job)
         return jobs
 
@@ -146,9 +150,9 @@ class BatchJob(ABC):
                    command: List[str],
                    out_path: str,
                    err_path: str,
-                   exports: Dict[str, str] = None,
-                   directory: str = None,
-                   **kwargs) -> 'BatchJob':
+                   *,
+                   cwd_path: str = None,
+                   env_vars: Dict[str, str] = None, **kwargs) -> 'BatchJob':
         """Create a new batch job."""
 
     @property
@@ -161,9 +165,16 @@ class DryRunJob(BatchJob):
     """Does nothing but logging job information."""
 
     @classmethod
-    def submit_job(cls, command: List[str], *args, **kwargs) -> 'DryRunJob':
+    def submit_job(cls,
+                   command: List[str],
+                   out_path: str,
+                   err_path: str,
+                   **job_params: str) -> 'DryRunJob':
         LOGGER.warning(f'Dry run: job not submitted for'
-                       f' command={command!r}, args={args!r}, kwargs={kwargs!r}')
+                       f' command={command!r},'
+                       f' out_path={out_path!r},'
+                       f' err_path={err_path!r},'
+                       f' job_params={job_params!r}')
         return DryRunJob()
 
     @property
@@ -188,13 +199,14 @@ class LocalJob(BatchJob):
                    command: List[str],
                    out_path: str,
                    err_path: str,
-                   exports: Dict[str, str] = None,
-                   directory: str = None,
+                   *,
+                   cwd_path: str = None,
+                   env_vars: Dict[str, str] = None,
                    **subprocess_kwargs) -> 'LocalJob':
-        if exports is not None:
-            subprocess_kwargs.update(env=exports)
-        if directory is not None:
-            subprocess_kwargs.update(cwd=directory)
+        if env_vars is not None:
+            subprocess_kwargs.update(env=env_vars)
+        if cwd_path is not None:
+            subprocess_kwargs.update(cwd=cwd_path)
         stdout = open(out_path, 'w')
         stderr = open(err_path, 'w')
         subprocess_kwargs.update(stdout=stdout, stderr=stderr)
@@ -239,21 +251,23 @@ class SlurmJob(BatchJob):
                    command: List[str],
                    out_path: str,
                    err_path: str,
-                   exports: Dict[str, Any] = None,
-                   directory: str = None,
+                   *,
+                   cwd_path: str = None,
+                   env_vars: Dict[str, Any] = None,
                    partition: str = None,
                    duration: str = None,
-                   sbatch_program: str = None) -> 'SlurmJob':
+                   sbatch_program: str = None,
+                   **kwargs: str) -> 'SlurmJob':
 
         sbatch_command = [sbatch_program or 'sbatch', '-o', out_path, '-e', err_path]
         if partition:
             sbatch_command += [f'--partition={partition}']
         if duration:
             sbatch_command += [f'--time={duration}']
-        if directory:
-            sbatch_command += [f'--chdir={directory}']
-        if exports:
-            export = ",".join(f"{k}={repr(v)}" for k, v in exports.items())
+        if cwd_path:
+            sbatch_command += [f'--chdir={cwd_path}']
+        if env_vars:
+            export = ",".join(f"{k}={repr(v)}" for k, v in env_vars.items())
             sbatch_command += [f'--export={export}']
         sbatch_command += command
 
