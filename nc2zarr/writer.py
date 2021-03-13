@@ -26,8 +26,9 @@ import fsspec.implementations.local
 import retry.api
 import xarray as xr
 
-from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
+from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
+from .custom import load_custom_func
 from .log import LOGGER
 from .log import log_duration
 
@@ -35,18 +36,25 @@ from .log import log_duration
 class DatasetWriter:
     def __init__(self,
                  output_path: str,
-                 output_append_dim: str = None,
+                 *,
+                 output_custom_postprocessor: str = None,
                  output_consolidated: bool = False,
                  output_encoding: Dict[str, Dict[str, Any]] = None,
                  output_overwrite: bool = False,
                  output_append: bool = False,
+                 output_append_dim: str = None,
                  output_s3_kwargs: Dict[str, Any] = None,
                  output_retry_kwargs: Dict[str, Any] = None,
                  reset_attrs: bool = False,
                  dry_run: bool = False):
         if not output_path:
             raise ValueError('output_path must be given')
+        if output_append and output_custom_postprocessor:
+            raise ValueError('output_append and output_custom_postprocessor'
+                             ' cannot be given both')
         self._output_path = output_path
+        self._output_custom_postprocessor = load_custom_func(output_custom_postprocessor) \
+            if output_custom_postprocessor else None
         self._output_consolidated = output_consolidated
         self._output_encoding = output_encoding
         self._output_overwrite = output_overwrite
@@ -67,6 +75,8 @@ class DatasetWriter:
                       ds: xr.Dataset,
                       encoding: Dict[str, Any] = None,
                       append: bool = None):
+        if self._output_custom_postprocessor is not None:
+            ds = self._output_custom_postprocessor(ds)
         retry.api.retry_call(self._write_dataset,
                              fargs=[ds],
                              fkwargs=dict(encoding=encoding, append=append),
@@ -96,7 +106,7 @@ class DatasetWriter:
             self._output_path_exists = self._fs.isdir(self._output_path)
             if self._output_overwrite and self._output_path_exists:
                 self._remove_dataset()
-            self._output_store = self._fs.get_mapper(self._output_path, check=False, create=False)
+            self._output_store = self._fs.get_mapper(self._output_path)
 
     def _create_dataset(self, ds, encoding):
         with log_duration(f'Writing dataset'):

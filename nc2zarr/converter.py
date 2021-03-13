@@ -57,11 +57,12 @@ class Converter:
     :param output_append:
     :param output_append_dim:
     :param output_s3:
+    :param output_custom_postprocessor:
     :param dry_run:
     :param verbosity:
     """
 
-    def __init__(self,
+    def __init__(self, *,
                  input_paths: Union[str, Sequence[str]] = None,
                  input_sort_by: str = None,
                  input_variables: List[str] = None,
@@ -83,6 +84,7 @@ class Converter:
                  output_append_dim: str = None,
                  output_s3: Dict[str, Any] = None,
                  output_retry: Dict[str, Any] = None,
+                 output_custom_postprocessor: str = False,
                  dry_run: bool = False,
                  verbosity: int = None):
 
@@ -113,6 +115,7 @@ class Converter:
         self.process_custom_processor = process_custom_processor
         self.process_rechunk = process_rechunk
         self.output_path = output_path
+        self.output_custom_postprocessor = output_custom_postprocessor
         self.output_encoding = output_encoding
         self.output_consolidated = output_consolidated
         self.output_overwrite = output_overwrite
@@ -151,6 +154,7 @@ class Converter:
                                      output_encoding=self.output_encoding)
 
         writer = DatasetWriter(output_path=self.output_path,
+                               output_custom_postprocessor=self.output_custom_postprocessor,
                                output_consolidated=self.output_consolidated,
                                output_encoding=self.output_encoding,
                                output_overwrite=self.output_overwrite,

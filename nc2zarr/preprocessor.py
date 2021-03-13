@@ -32,7 +32,7 @@ from .log import LOGGER
 
 
 class DatasetPreProcessor:
-    def __init__(self,
+    def __init__(self, *,
                  input_variables: List[str] = None,
                  input_custom_preprocessor: str = None,
                  input_concat_dim: str = None,
