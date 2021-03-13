@@ -238,7 +238,7 @@ class LocalJob(BatchJob):
 
         command_line = subprocess.list2cmdline(command)
 
-        with log_duration(f'Executing command {command_line}'):
+        with log_duration(f'Spawning process for command [{command_line}]'):
             # noinspection PyBroadException
             try:
                 process = subprocess.Popen(command, **subprocess_kwargs)
@@ -257,11 +257,13 @@ class LocalJob(BatchJob):
         return self._exit_code is None
 
     def _observe(self):
+        LOGGER.debug(f'Started observing process'
+                     f' for command [{self._command_line}]')
         while True:
             exit_code = self._process.poll()
             if exit_code is not None:
                 LOGGER.info(f'Received exit code {exit_code}'
-                            f' for command: {self._command_line}')
+                            f' for command [{self._command_line}]')
                 self._exit_code = exit_code
                 self._observer = None
                 self._stdout.close()
