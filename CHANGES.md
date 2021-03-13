@@ -2,6 +2,9 @@
 
 ### Version 1.1.0 (in development)
 
+* Fixed exception `TypeError: 'int' object is not iterable`
+  raised with some `process/rechunk` configurations. (#23)
+
 * You can now provide your Python code for customization 
   of the datasets read and written. (#16)
   - `input/custom_preprocessor: "module:function"` is called on 
