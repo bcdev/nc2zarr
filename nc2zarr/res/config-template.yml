@@ -136,7 +136,7 @@ output:
   # Otherwise it may be any local FS directory path.
   path: <output_path>
 
-  # An optional, custom post-processor.
+  # An optional custom post-processor.
   # Called before the data is written.
   custom_postprocessor: <module>:<function>
 
