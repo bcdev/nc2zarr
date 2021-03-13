@@ -147,6 +147,10 @@ class ResolveInputPathsTest(unittest.TestCase):
         self.assertEqual('No inputs found for wildcard: "outputs/**/*.nc"',
                          f'{cm.exception}')
 
+    def test_expands_user(self):
+        resolved_paths = DatasetOpener.resolve_input_paths(['~'])
+        self.assertEqual([os.path.expanduser('~')], resolved_paths)
+
     def test_no_inputs(self):
         resolved_paths = DatasetOpener.resolve_input_paths([])
         self.assertEqual([], resolved_paths)
