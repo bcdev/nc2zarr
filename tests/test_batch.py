@@ -248,9 +248,9 @@ class SlurmJobSuccessTest(SlurmJobTest):
                 'USER': 'forman'
             },
             job.state)
-        self.assertTrue(job.is_observing)
+        self.assertTrue(job.observing)
         job.end_observation()
-        self.assertFalse(job.is_observing)
+        self.assertFalse(job.observing)
 
 
 SQUEUE_OUT_ERR = 'slurm_load_jobs error: Invalid job id specified'
@@ -282,9 +282,9 @@ class SlurmJobSuccessButPollFailsTest(SlurmJobTest):
         time.sleep(0.2)
         self.assertIsNone(job.state)
         self.assertIs(job.status, JobStatus.UNKNOWN)
-        self.assertTrue(job.is_observing)
+        self.assertTrue(job.observing)
         time.sleep(0.4)
-        self.assertFalse(job.is_observing)
+        self.assertFalse(job.observing)
 
 
 class SlurmJobFailureTest(SlurmJobTest):

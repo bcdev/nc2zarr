@@ -274,18 +274,18 @@ class ObservedBatchJob(BatchJob, ABC):
         self._command_line = command_line
         self._poll_period: float = poll_period or 1.0
         self._state: Optional[Dict[str, Any]] = None
-        self._is_observing: bool = False
+        self._observing: bool = False
         # TODO: use a single observer thread for all ObservedBatchJob instances
         self._observer = threading.Thread(target=self._observe)
 
     def start_observation(self):
-        self._is_observing = True
+        self._observing = True
         self._observer.start()
         LOGGER.debug(f'Started observation for command: {self.command_line}')
 
     def end_observation(self):
         LOGGER.debug(f'Ending observation for command: {self.command_line}')
-        self._is_observing = False
+        self._observing = False
 
     @property
     def command_line(self) -> str:
@@ -296,8 +296,8 @@ class ObservedBatchJob(BatchJob, ABC):
         return self._poll_period
 
     @property
-    def is_observing(self) -> bool:
-        return self._is_observing
+    def observing(self) -> bool:
+        return self._observing
 
     @property
     def state(self) -> Optional[Dict[str, Any]]:
@@ -316,7 +316,7 @@ class ObservedBatchJob(BatchJob, ABC):
 
     def _observe(self):
         num_null_polls = 0
-        while self._is_observing:
+        while self._observing:
             state = self._poll()
             if state is None:
                 if num_null_polls == 3:
