@@ -27,6 +27,7 @@ import time
 import unittest
 
 from nc2zarr.batch import DryRunJob
+from nc2zarr.batch import JobStatus
 from nc2zarr.batch import LocalJob
 from nc2zarr.batch import SlurmJob
 from nc2zarr.batch import TemplateBatch
@@ -80,7 +81,7 @@ class TemplateBatchTest(unittest.TestCase):
         self.assertEqual(5, len(jobs))
         for job in jobs:
             self.assertIsInstance(job, DryRunJob)
-            self.assertFalse(job.is_running)
+            self.assertIs(job.status, JobStatus.COMPLETED)
 
     def test_execute_dry_run_illegal_job_type(self):
         batch = TemplateBatch(self.CONFIG_VARIABLES,
@@ -145,8 +146,7 @@ class DryRunJobTest(BatchJobTest):
     def test_job_ok(self):
         job = DryRunJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH)
         self.assertIsInstance(job, DryRunJob)
-        while job.is_running:
-            time.sleep(0.1)
+        self.assertIs(job.status, JobStatus.COMPLETED)
 
 
 class LocalJobTest(BatchJobTest):
@@ -156,14 +156,23 @@ class LocalJobTest(BatchJobTest):
                                   JOB_OUT_PATH,
                                   JOB_ERR_PATH,
                                   env_vars=dict(TEST='42'),
-                                  cwd_path='.')
+                                  cwd_path='.',
+                                  poll_period=0.1)
         self.assertIsInstance(job, LocalJob)
-        while job.is_running:
+        while job.status is JobStatus.RUNNING:
             time.sleep(0.1)
+        self.assertIs(job.status, JobStatus.COMPLETED)
+        state = job.state
+        self.assertIsInstance(state, dict)
+        self.assertIn('exit_code', state)
+        self.assertIn('pid', state)
 
 
 SBATCH_MOCK_WIN32 = 'sbatch-mock.bat'
 SBATCH_MOCK_UNIX = './sbatch-mock.sh'
+
+SQUEUE_MOCK_WIN32 = 'squeue-mock.bat'
+SQUEUE_MOCK_UNIX = './squeue-mock.sh'
 
 
 class SlurmJobTest(BatchJobTest):
@@ -172,37 +181,110 @@ class SlurmJobTest(BatchJobTest):
         super().setUp()
         if sys.platform == 'win32':
             self.sbatch_program = SBATCH_MOCK_WIN32
+            self.squeue_program = SQUEUE_MOCK_WIN32
         else:
             self.sbatch_program = SBATCH_MOCK_UNIX
+            self.squeue_program = SQUEUE_MOCK_UNIX
         self.io_collector.add_path(self.sbatch_program)
+        self.io_collector.add_path(self.squeue_program)
 
     def _write_sbatch_exe(self, unix_content: str, win32_content: str):
+        self._write_exe(self.sbatch_program, unix_content, win32_content)
+
+    def _write_squeue_exe(self, unix_content: str, win32_content: str):
+        self._write_exe(self.squeue_program, unix_content, win32_content)
+
+    @classmethod
+    def _write_exe(cls, path: str, unix_content: str, win32_content: str):
         if sys.platform == 'win32':
-            with open(self.sbatch_program, 'w') as fp:
+            with open(path, 'w') as fp:
                 fp.write(win32_content)
         else:
-            with open(self.sbatch_program, 'w') as fp:
+            with open(path, 'w') as fp:
                 fp.write(unix_content)
-            st = os.stat(self.sbatch_program)
-            os.chmod(self.sbatch_program, st.st_mode | stat.S_IEXEC)
+            st = os.stat(path)
+            os.chmod(path, st.st_mode | stat.S_IEXEC)
+
+
+SBATCH_OUT = 'Submitted batch job 43862490'
+
+SQUEUE_OUT_OK_1 = '             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)'
+SQUEUE_OUT_OK_2 = '          43862490 short-ser ghg/ch4/   forman  R       0:03      1 host495'
 
 
 class SlurmJobSuccessTest(SlurmJobTest):
 
     def setUp(self) -> None:
         super().setUp()
-        self._write_sbatch_exe('#!/bin/sh\n'
-                               'echo Submitted batch job 137',
-                               '@echo Submitted batch job 137')
+        self._write_sbatch_exe(f'#!/bin/sh\n'
+                               f'echo {SBATCH_OUT}\n',
+                               f'@echo {SBATCH_OUT}\n')
+        self._write_squeue_exe(
+            f'#!/bin/sh\n'
+            f'echo {SQUEUE_OUT_OK_1}\n'
+            f'echo {SQUEUE_OUT_OK_2}\n',
+            f'@echo {SQUEUE_OUT_OK_1}\n'
+            f'@echo {SQUEUE_OUT_OK_2}\n'
+        )
 
     def test_job_ok(self):
         job = SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
                                   env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
-                                  sbatch_program=self.sbatch_program)
-        self.assertEquals('137', job.job_id)
+                                  poll_period=0.1,
+                                  sbatch_program=self.sbatch_program,
+                                  squeue_program=self.squeue_program)
+        self.assertEqual('43862490', job.job_id)
         self.assertIsInstance(job, SlurmJob)
-        while job.is_running:
-            time.sleep(0.1)
+        time.sleep(0.2)
+        self.assertEqual(
+            {
+                'JOBID': '43862490',
+                'NAME': 'ghg/ch4/',
+                'NODELIST(REASON)': 'host495',
+                'NODES': '1',
+                'PARTITION': 'short-ser',
+                'ST': 'R',
+                'TIME': '0:03',
+                'USER': 'forman'
+            },
+            job.state)
+        self.assertTrue(job.is_observing)
+        job.end_observation()
+        self.assertFalse(job.is_observing)
+
+
+SQUEUE_OUT_ERR = 'slurm_load_jobs error: Invalid job id specified'
+
+
+class SlurmJobSuccessButPollFailsTest(SlurmJobTest):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._write_sbatch_exe(f'#!/bin/sh\n'
+                               f'echo {SBATCH_OUT}\n',
+                               f'@echo {SBATCH_OUT}\n')
+        self._write_squeue_exe(
+            f'#!/bin/sh\n'
+            f'echo {SQUEUE_OUT_ERR}\n'
+            f'exit 1',
+            f'@echo {SQUEUE_OUT_ERR}\n'
+            f'@exit /B 2\n'
+        )
+
+    def test_job_ok_but_poll_fails(self):
+        job = SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
+                                  env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
+                                  poll_period=0.1,
+                                  sbatch_program=self.sbatch_program,
+                                  squeue_program=self.squeue_program)
+        self.assertEqual('43862490', job.job_id)
+        self.assertIsInstance(job, SlurmJob)
+        time.sleep(0.2)
+        self.assertIsNone(job.state)
+        self.assertIs(job.status, JobStatus.UNKNOWN)
+        self.assertTrue(job.is_observing)
+        time.sleep(0.4)
+        self.assertFalse(job.is_observing)
 
 
 class SlurmJobFailureTest(SlurmJobTest):
@@ -210,8 +292,8 @@ class SlurmJobFailureTest(SlurmJobTest):
     def setUp(self) -> None:
         super().setUp()
         self._write_sbatch_exe('#!/bin/sh\n'
-                               'exit 2',
-                               '@exit /B 2')
+                               'exit 2\n',
+                               '@exit /B 2\n')
 
     def test_job_fails(self):
         with self.assertRaises(EnvironmentError) as cm:
@@ -234,3 +316,34 @@ class SlurmJobFailureTest(SlurmJobTest):
                          f" --export=ALL,TEST1=123,TEST2=ABC"
                          f" nc2zarr --help",
                          f'{cm.exception}')
+
+
+class JobStatusTest(unittest.TestCase):
+    def test_init(self):
+        with self.assertRaises(ValueError) as cm:
+            JobStatus('Pippo')
+        self.assertEqual("invalid status_id: 'Pippo'", f'{cm.exception}')
+        with self.assertRaises(TypeError) as cm:
+            # noinspection PyTypeChecker
+            JobStatus(137)
+        self.assertEqual("invalid status_id: 137", f'{cm.exception}')
+
+    def test_is(self):
+        self.assertIs(JobStatus('Running'), JobStatus.RUNNING)
+        self.assertIs(JobStatus('Running'), JobStatus('Running'))
+
+    def test_eq(self):
+        self.assertEqual(JobStatus('Running'), JobStatus.RUNNING)
+        self.assertEqual(JobStatus('Running'), JobStatus('Running'))
+        self.assertEqual(JobStatus('Running'), 'Running')
+        self.assertEqual('Running', JobStatus.RUNNING)
+
+    def test_hash(self):
+        self.assertEqual(hash(JobStatus('Running')), hash(JobStatus.RUNNING))
+        self.assertEqual(hash(JobStatus('Running')), hash('Running'))
+
+    def test_str(self):
+        self.assertEqual('Running', f'{JobStatus.RUNNING}')
+
+    def test_repr(self):
+        self.assertEqual("JobStatus('Running')", f'{JobStatus.RUNNING!r}')

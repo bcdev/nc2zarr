@@ -163,7 +163,71 @@ class TemplateBatch:
         return job_class_registry[job_type]
 
 
+class JobStatus:
+    """
+    A job's status.
+    """
+
+    # The job is waiting in a queue for allocation of resources
+    PENDING = None
+    # The job currently is allocated to a node and is running
+    RUNNING = None
+    # The job is finishing but some processes are still active
+    COMPLETING = None
+    # The job has completed successfully
+    COMPLETED = None
+    # Failed with non-zero exit value
+    FAILED = None
+    # Job terminated by the scheduler after reaching its runtime limit
+    TERMINATED = None
+    # A running job has been stopped with its resources released to other jobs
+    SUSPENDED = None
+    # A running job has been stopped with its resources retained
+    STOPPED = None
+    # The job status can not be determined
+    UNKNOWN = None
+
+    def __new__(cls, status_id: str):
+        if not isinstance(status_id, str):
+            raise TypeError(f'invalid status_id: {status_id!r}')
+        try:
+            status = getattr(cls, status_id.upper())
+            if status is not None:
+                return status
+        except AttributeError:
+            raise ValueError(f'invalid status_id: {status_id!r}')
+        return super(JobStatus, cls).__new__(cls)
+
+    def __init__(self, status_id: str):
+        self._status_id = status_id
+
+    def __str__(self):
+        return self._status_id
+
+    def __repr__(self):
+        return f'JobStatus({self._status_id!r})'
+
+    def __hash__(self):
+        return hash(self._status_id)
+
+    def __eq__(self, other):
+        return self is other or self._status_id == other
+
+
+JobStatus.PENDING = JobStatus("Pending")
+JobStatus.RUNNING = JobStatus("Running")
+JobStatus.COMPLETING = JobStatus("Completing")
+JobStatus.COMPLETED = JobStatus("Completed")
+JobStatus.FAILED = JobStatus("Failed")
+JobStatus.TERMINATED = JobStatus("Terminated")
+JobStatus.SUSPENDED = JobStatus("Suspended")
+JobStatus.STOPPED = JobStatus("Stopped")
+JobStatus.UNKNOWN = JobStatus("Unknown")
+
+
 class BatchJob(ABC):
+    """Abstract base class for batch jobs."""
+
     @classmethod
     @abstractmethod
     def submit_job(cls,
@@ -177,8 +241,8 @@ class BatchJob(ABC):
 
     @property
     @abstractmethod
-    def is_running(self) -> bool:
-        """Check whether job is still running."""
+    def status(self) -> JobStatus:
+        """Return the job's current status."""
 
 
 class DryRunJob(BatchJob):
@@ -189,6 +253,7 @@ class DryRunJob(BatchJob):
                    command: List[str],
                    out_path: str,
                    err_path: str,
+                   poll_period: float = None,
                    **job_params: str) -> 'DryRunJob':
         LOGGER.warning(f'Dry run: job not submitted for'
                        f' command={command!r},'
@@ -198,22 +263,89 @@ class DryRunJob(BatchJob):
         return DryRunJob()
 
     @property
-    def is_running(self) -> bool:
-        return False
+    def status(self) -> JobStatus:
+        return JobStatus.COMPLETED
 
 
-class LocalJob(BatchJob):
+class ObservedBatchJob(BatchJob, ABC):
+    """An abstract base class for jobs that are observed by polling."""
+
+    def __init__(self, command_line: str, poll_period: float = None):
+        self._command_line = command_line
+        self._poll_period: float = poll_period or 1.0
+        self._state: Optional[Dict[str, Any]] = None
+        self._is_observing: bool = False
+        # TODO: use a single observer thread for all ObservedBatchJob instances
+        self._observer = threading.Thread(target=self._observe)
+
+    def start_observation(self):
+        self._is_observing = True
+        self._observer.start()
+        LOGGER.debug(f'Started observation for command: {self.command_line}')
+
+    def end_observation(self):
+        LOGGER.debug(f'Ending observation for command: {self.command_line}')
+        self._is_observing = False
+
+    @property
+    def command_line(self) -> str:
+        return self._command_line
+
+    @property
+    def poll_period(self) -> float:
+        return self._poll_period
+
+    @property
+    def is_observing(self) -> bool:
+        return self._is_observing
+
+    @property
+    def state(self) -> Optional[Dict[str, Any]]:
+        return self._state
+
+    @abstractmethod
+    def _should_observation_end(self) -> bool:
+        """Determine whether job observation should end."""
+
+    @abstractmethod
+    def _poll(self) -> Optional[Dict[str, Any]]:
+        """
+        Poll job state and return it as a dictionary.
+        If the state cannot be determined return None.
+        """
+
+    def _observe(self):
+        num_null_polls = 0
+        while self._is_observing:
+            state = self._poll()
+            if state is None:
+                if num_null_polls == 3:
+                    self.end_observation()
+                    break
+                num_null_polls += 1
+            else:
+                self._state = state
+                if self._should_observation_end():
+                    self.end_observation()
+                    break
+                num_null_polls = 0
+            time.sleep(self._poll_period)
+
+
+class LocalJob(ObservedBatchJob):
     """A job performed as a local OS process."""
 
-    def __init__(self, process: subprocess.Popen, stdout: TextIO, stderr: TextIO, command_line: str):
+    def __init__(self,
+                 process: subprocess.Popen,
+                 stdout: TextIO,
+                 stderr: TextIO,
+                 command_line: str,
+                 poll_period: float = None):
+        super().__init__(command_line, poll_period=poll_period)
         self._process: subprocess.Popen = process
         self._stdout: Optional[TextIO] = stdout
         self._stderr: Optional[TextIO] = stderr
-        self._command_line = command_line
-        self._exit_code = None
-        # TODO: use a single observer thread for all jobs
-        self._observer = threading.Thread(target=self._observe)
-        self._observer.start()
+        self.start_observation()
 
     @classmethod
     def submit_job(cls,
@@ -221,6 +353,7 @@ class LocalJob(BatchJob):
                    out_path: str,
                    err_path: str,
                    *,
+                   poll_period: float = None,
                    cwd_path: str = None,
                    env_vars: Dict[str, str] = None,
                    **subprocess_kwargs) -> 'LocalJob':
@@ -237,45 +370,71 @@ class LocalJob(BatchJob):
 
         command_line = subprocess.list2cmdline(command)
 
-        with log_duration(f'Spawning process for command [{command_line}]'):
+        with log_duration(f'Spawning process for command: {command_line}'):
             # noinspection PyBroadException
             try:
                 process = subprocess.Popen(command, **subprocess_kwargs)
-                return LocalJob(process, stdout, stderr, command_line)
+                return LocalJob(process, stdout, stderr, command_line, poll_period=poll_period)
             except BaseException:
                 stdout.close()
                 stderr.close()
                 raise
 
     @property
-    def exit_code(self) -> Optional[int]:
-        return self._exit_code
+    def status(self) -> JobStatus:
+        exit_code = self.exit_code
+        if exit_code is None:
+            return JobStatus.RUNNING
+        elif exit_code == 0:
+            return JobStatus.COMPLETED
+        else:
+            return JobStatus.FAILED
 
     @property
-    def is_running(self) -> bool:
-        return self._exit_code is None
+    def exit_code(self) -> Optional[int]:
+        return self.state.get('exit_code')
 
-    def _observe(self):
-        LOGGER.debug(f'Started observing process'
-                     f' for command [{self._command_line}]')
-        while True:
-            exit_code = self._process.poll()
-            if exit_code is not None:
-                LOGGER.info(f'Received exit code {exit_code}'
-                            f' for command [{self._command_line}]')
-                self._exit_code = exit_code
-                self._observer = None
-                self._stdout.close()
-                self._stderr.close()
-                break
-            time.sleep(0.5)
+    @property
+    def pid(self) -> int:
+        return self.state['pid']
+
+    def _should_observation_end(self) -> bool:
+        return self.status is not JobStatus.RUNNING
+
+    def _poll(self) -> Dict[str, Any]:
+        exit_code = self._process.poll()
+        state = dict(pid=self._process.pid)
+        if exit_code is not None:
+            state.update(exit_code=exit_code)
+        return state
+
+    def end_observation(self):
+        super().end_observation()
+        self._stdout.close()
+        self._stderr.close()
 
 
-class SlurmJob(BatchJob):
+class SlurmJob(ObservedBatchJob):
     """A job performed by the SLURM client 'sbatch'."""
 
-    def __init__(self, job_id):
-        self._job_id = job_id
+    _STATUS_MAPPING = {
+        "PD": JobStatus.PENDING,
+        "R": JobStatus.RUNNING,
+        "CG": JobStatus.COMPLETING,
+        "CD": JobStatus.COMPLETED,
+        "F": JobStatus.FAILED,
+        "TO": JobStatus.TERMINATED,
+        "S": JobStatus.SUSPENDED,
+        "ST": JobStatus.STOPPED,
+        None: JobStatus.UNKNOWN,
+    }
+
+    def __init__(self, job_id: str, command_line: str, poll_period: float = None, squeue_program: str = None):
+        super().__init__(command_line, poll_period=poll_period)
+        self._job_id: str = job_id
+        self._state_base: Dict[str, Any] = dict(job_id=job_id)
+        self._squeue_program = squeue_program
+        self.start_observation()
 
     @classmethod
     def submit_job(cls,
@@ -283,11 +442,13 @@ class SlurmJob(BatchJob):
                    out_path: str,
                    err_path: str,
                    *,
+                   poll_period: float = None,
                    cwd_path: str = None,
                    env_vars: Dict[str, Any] = None,
                    partition: str = None,
                    duration: str = None,
                    sbatch_program: str = None,
+                   squeue_program: str = None,
                    **kwargs: str) -> 'SlurmJob':
 
         sbatch_command = [sbatch_program or 'sbatch', '-o', out_path, '-e', err_path]
@@ -304,7 +465,7 @@ class SlurmJob(BatchJob):
 
         command_line = subprocess.list2cmdline(sbatch_command)
 
-        with log_duration(f'Running command [{command_line}]'):
+        with log_duration(f'Running command: {command_line}'):
             result = subprocess.run(sbatch_command, capture_output=True)
 
         if result.returncode != 0:
@@ -320,7 +481,10 @@ class SlurmJob(BatchJob):
         for line in [l.strip() for l in output.split(b'\n')]:
             if line.startswith(prefix):
                 job_id = line[len(prefix):].decode('utf-8')
-                return SlurmJob(job_id)
+                return SlurmJob(job_id,
+                                command_line,
+                                poll_period=poll_period,
+                                squeue_program=squeue_program)
         raise EnvironmentError(f'Cannot obtain Slurm job ID from command line:'
                                f' {command_line}: output was: "{output}"')
 
@@ -329,6 +493,33 @@ class SlurmJob(BatchJob):
         return self._job_id
 
     @property
-    def is_running(self) -> bool:
-        # TODO
-        return False
+    def status(self) -> JobStatus:
+        state = self.state
+        if state is None:
+            return JobStatus.UNKNOWN
+        status_id = state.get('ST')
+        return self._STATUS_MAPPING.get(status_id, JobStatus.UNKNOWN)
+
+    def _should_observation_end(self) -> bool:
+        return self.status in {
+            JobStatus.COMPLETED,
+            JobStatus.FAILED,
+            JobStatus.TERMINATED,
+            JobStatus.STOPPED,
+        }
+
+    def _poll(self) -> Optional[Dict[str, Any]]:
+        squeue_program = self._squeue_program or 'squeue --job=${job_id}'
+        squeue_command = squeue_program.replace('${job_id}', self._job_id)
+        result = subprocess.run(squeue_command,
+                                capture_output=True,
+                                timeout=0.9 * self.poll_period)
+        if result.returncode == 0:
+            lines = result.stdout.split(b'\n')
+            if len(lines) >= 2:
+                keys = lines[0].split()
+                values = lines[1].split()
+                if len(keys) == len(values):
+                    return {k.decode(): v.decode()
+                            for k, v in zip(keys, values)}
+        return None
