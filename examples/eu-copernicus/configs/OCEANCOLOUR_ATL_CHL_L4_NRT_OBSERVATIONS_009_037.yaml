@@ -6,8 +6,8 @@ input:
 process:
   rechunk:
     '*':
-      lon: 276
-      lat: 354
+      lon: 354
+      lat: 276
       time: 5
     lon: null
     lat: null
