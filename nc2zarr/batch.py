@@ -244,6 +244,12 @@ class BatchJob(ABC):
     def status(self) -> JobStatus:
         """Return the job's current status."""
 
+    @property
+    def done(self) -> Optional[bool]:
+        if self.status is JobStatus.UNKNOWN:
+            return None
+        return self.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.TERMINATED)
+
 
 class DryRunJob(BatchJob):
     """Does nothing but logging job information."""

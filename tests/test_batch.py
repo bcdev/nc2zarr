@@ -147,6 +147,7 @@ class DryRunJobTest(BatchJobTest):
         job = DryRunJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH)
         self.assertIsInstance(job, DryRunJob)
         self.assertIs(job.status, JobStatus.COMPLETED)
+        self.assertTrue(job.done)
 
 
 class LocalJobTest(BatchJobTest):
@@ -159,9 +160,11 @@ class LocalJobTest(BatchJobTest):
                                   cwd_path='.',
                                   poll_period=0.1)
         self.assertIsInstance(job, LocalJob)
+        self.assertFalse(job.done)
         while job.status is JobStatus.RUNNING:
             time.sleep(0.1)
         self.assertIs(job.status, JobStatus.COMPLETED)
+        self.assertTrue(job.done)
         state = job.state
         self.assertIsInstance(state, dict)
         self.assertIn('exit_code', state)
@@ -235,6 +238,7 @@ class SlurmJobSuccessTest(SlurmJobTest):
                                   squeue_program=self.squeue_program)
         self.assertEqual('43862490', job.job_id)
         self.assertIsInstance(job, SlurmJob)
+        self.assertIsNone(job.done)
         time.sleep(0.2)
         self.assertEqual(
             {
@@ -249,8 +253,10 @@ class SlurmJobSuccessTest(SlurmJobTest):
             },
             job.state)
         self.assertTrue(job.observing)
+        self.assertFalse(job.done)
         job.end_observation()
         self.assertFalse(job.observing)
+        self.assertFalse(job.done)
 
 
 SQUEUE_OUT_ERR = 'slurm_load_jobs error: Invalid job id specified'
@@ -279,12 +285,15 @@ class SlurmJobSuccessButPollFailsTest(SlurmJobTest):
                                   squeue_program=self.squeue_program)
         self.assertEqual('43862490', job.job_id)
         self.assertIsInstance(job, SlurmJob)
+        self.assertIsNone(job.done)
         time.sleep(0.2)
         self.assertIsNone(job.state)
         self.assertIs(job.status, JobStatus.UNKNOWN)
         self.assertTrue(job.observing)
+        self.assertIsNone(job.done)
         time.sleep(0.4)
         self.assertFalse(job.observing)
+        self.assertIsNone(job.done)
 
 
 class SlurmJobFailureTest(SlurmJobTest):
