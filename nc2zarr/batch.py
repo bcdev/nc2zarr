@@ -351,6 +351,7 @@ class LocalJob(ObservedBatchJob):
         self._process: subprocess.Popen = process
         self._stdout: Optional[TextIO] = stdout
         self._stderr: Optional[TextIO] = stderr
+        self._state: Dict[str, Any] = self._poll()
         self.start_observation()
 
     @classmethod
@@ -484,7 +485,7 @@ class SlurmJob(ObservedBatchJob):
 
         prefix = b'Submitted batch job '
         output = result.stdout
-        for line in [l.strip() for l in output.split(b'\n')]:
+        for line in [_line.strip() for _line in output.split(b'\n')]:
             if line.startswith(prefix):
                 job_id = line[len(prefix):].decode('utf-8')
                 return SlurmJob(job_id,

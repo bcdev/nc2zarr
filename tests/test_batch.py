@@ -231,14 +231,18 @@ class SlurmJobSuccessTest(SlurmJobTest):
         )
 
     def test_job_ok(self):
-        job = SlurmJob.submit_job(['nc2zarr', '--help'], JOB_OUT_PATH, JOB_ERR_PATH, cwd_path='.',
-                                  env_vars=dict(TEST=123), partition='short-serial', duration='02:00:00',
+        job = SlurmJob.submit_job(['nc2zarr', '--help'],
+                                  JOB_OUT_PATH,
+                                  JOB_ERR_PATH,
+                                  cwd_path='.',
+                                  env_vars=dict(TEST=123),
+                                  partition='short-serial',
+                                  duration='02:00:00',
                                   poll_period=0.1,
                                   sbatch_program=self.sbatch_program,
                                   squeue_program=self.squeue_program)
         self.assertEqual('43862490', job.job_id)
         self.assertIsInstance(job, SlurmJob)
-        self.assertIsNone(job.done)
         time.sleep(0.2)
         self.assertEqual(
             {
