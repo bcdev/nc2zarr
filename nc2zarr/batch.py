@@ -452,6 +452,7 @@ class SlurmJob(ObservedBatchJob):
                    poll_period: float = None,
                    cwd_path: str = None,
                    env_vars: Dict[str, Any] = None,
+                   account: str = None,
                    partition: str = None,
                    duration: str = None,
                    sbatch_program: str = None,
@@ -461,6 +462,8 @@ class SlurmJob(ObservedBatchJob):
         sbatch_command = [sbatch_program or 'sbatch', '-o', out_path, '-e', err_path]
         if partition:
             sbatch_command += [f'--partition={partition}']
+        if account:
+            sbatch_command += [f'--account={account}']
         if duration:
             sbatch_command += [f'--time={duration}']
         if cwd_path:
