@@ -344,12 +344,14 @@ class JobStatusTest(unittest.TestCase):
     def test_is(self):
         self.assertIs(JobStatus('Running'), JobStatus.RUNNING)
         self.assertIs(JobStatus('Running'), JobStatus('Running'))
+        self.assertIsNot(JobStatus.RUNNING, JobStatus.PENDING)
 
     def test_eq(self):
         self.assertEqual(JobStatus('Running'), JobStatus.RUNNING)
         self.assertEqual(JobStatus('Running'), JobStatus('Running'))
         self.assertEqual(JobStatus('Running'), 'Running')
         self.assertEqual('Running', JobStatus.RUNNING)
+        self.assertNotEqual(JobStatus.RUNNING, JobStatus.PENDING)
 
     def test_hash(self):
         self.assertEqual(hash(JobStatus('Running')), hash(JobStatus.RUNNING))
