@@ -521,9 +521,16 @@ class SlurmJob(ObservedBatchJob):
     def _poll(self) -> Optional[Dict[str, Any]]:
         squeue_program = [self._squeue_program] if self._squeue_program else ['squeue', '--job=${job_id}']
         squeue_command = [arg.replace('${job_id}', self._job_id) for arg in squeue_program]
-        result = subprocess.run(squeue_command,
-                                capture_output=True,
-                                timeout=0.9 * self.poll_period)
+        try:
+            result = subprocess.run(squeue_command,
+                                    capture_output=True,
+                                    timeout=0.9 * self.poll_period)
+        except subprocess.TimeoutExpired:
+            LOGGER.warning('Failed to poll job status: timeout')
+            return None
+        except subprocess.SubprocessError as e:
+            LOGGER.warning(f'Failed to poll job status: {e}')
+            return None
         if result.returncode == 0:
             lines = result.stdout.split(b'\n')
             if len(lines) >= 2:
