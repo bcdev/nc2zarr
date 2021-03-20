@@ -93,10 +93,16 @@ class Converter:
             raise ConverterError('At least one input must be given.')
 
         output_path = output_path or DEFAULT_OUTPUT_PATH
-        if input_concat_dim is None and output_append_dim is None:
-            input_concat_dim = output_append_dim = DEFAULT_OUTPUT_APPEND_DIM_NAME
-        elif input_concat_dim is None or output_append_dim is None:
-            input_concat_dim = output_append_dim = input_concat_dim or output_append_dim
+
+        if input_multi_file and input_concat_dim is None:
+            input_concat_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+        elif not input_multi_file and input_concat_dim is not None:
+            input_concat_dim = None
+
+        if output_append and output_append_dim is None:
+            output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+        elif not output_append and output_append_dim is not None:
+            output_append_dim = None
 
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags cannot be given both.')
