@@ -2,6 +2,15 @@
 
 ### Version 1.1.0 (in development)
 
+* Fixed problem where appending unnecessarily required a coordinate 
+  variable (#27)
+
+* Local input and output paths may now include tilde '~' which will expand 
+  to the current user's home. (#26)
+
+* Added some basic batch utilities that help spawning multiple concurrent
+  nc2zarr jobs, see new module `nc2zarr.natch`. (#19)    
+  
 * Input path that were no wildcards have been ignored if the input path did 
   not exist. Now an error is raised in such cases. (#25)
   
