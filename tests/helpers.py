@@ -49,21 +49,29 @@ class PathCollector:
 
 class IOCollector(PathCollector):
 
-    def add_inputs(self, input_dir_path, day_offset=1, num_days=5, prefix='input'):
-        self.add_path(input_dir_path)
+    # noinspection PyShadowingBuiltins
+    def add_inputs(self, input_dir_path, day_offset=1, num_days=5, prefix='input', format='nc'):
+        self.add_path(input_dir_path, ensure_deleted=False)
         for day in range(day_offset, day_offset + num_days):
-            self.add_input(input_dir_path, day, prefix=prefix, add=False)
+            self.add_input(input_dir_path, day, prefix=prefix, add=False, format=format)
 
-    def add_input(self, input_dir_path, day, prefix='input', add=True):
-        input_path = os.path.join(input_dir_path, '{}-{:02d}.nc'.format(prefix, day))
+    # noinspection PyShadowingBuiltins
+    def add_input(self, input_dir_path, day, prefix='input', add=True, format='nc'):
+        if format not in ('nc', 'zarr'):
+            raise ValueError('invalid format')
+        input_path = os.path.join(input_dir_path, '{}-{:02d}.{}'.format(prefix, day, format))
         if add:
             self.add_path(input_path)
         if not os.path.exists(input_dir_path):
             os.makedirs(input_dir_path)
         ds = new_test_dataset(w=36, h=18, day=day)
-        encoding = {k: dict(**v.encoding, chunksizes=(1, 9, 9))
+        chunks_name = 'chunksizes' if format == 'nc' else 'chunks'
+        encoding = {k: dict(**v.encoding, **{chunks_name: (1, 9, 9)})
                     for k, v in ds.data_vars.items()}
-        ds.to_netcdf(input_path, encoding=encoding)
+        if format == 'nc':
+            ds.to_netcdf(input_path, encoding=encoding)
+        else:
+            ds.to_zarr(input_path, encoding=encoding)
 
     def add_output(self, output_path: str):
         self.add_path(output_path)

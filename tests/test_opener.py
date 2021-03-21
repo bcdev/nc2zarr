@@ -127,9 +127,14 @@ class ResolveInputPathsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.io_collector.reset_paths()
-        cls.io_collector.add_inputs('inputs/set1', day_offset=1, num_days=3)
-        cls.io_collector.add_inputs('inputs/set2', day_offset=1, num_days=3)
-        cls.io_collector.add_inputs('inputs/set3', day_offset=1, num_days=3)
+
+        cls.io_collector.add_inputs('inputs/set1', day_offset=1, num_days=3, format='nc')
+        cls.io_collector.add_inputs('inputs/set2', day_offset=1, num_days=3, format='nc')
+        cls.io_collector.add_inputs('inputs/set3', day_offset=1, num_days=3, format='nc')
+
+        cls.io_collector.add_inputs('inputs/set1', day_offset=1, num_days=3, format='zarr')
+        cls.io_collector.add_inputs('inputs/set2', day_offset=1, num_days=3, format='zarr')
+        cls.io_collector.add_inputs('inputs/set3', day_offset=1, num_days=3, format='zarr')
 
     @classmethod
     def tearDownClass(cls):
@@ -151,7 +156,7 @@ class ResolveInputPathsTest(unittest.TestCase):
         resolved_paths = DatasetOpener.resolve_input_paths([])
         self.assertEqual([], resolved_paths)
 
-    def test_unsorted(self):
+    def test_unsorted_nc(self):
         resolved_paths = DatasetOpener.resolve_input_paths('inputs/**/*.nc')
         self._assert_unsorted(resolved_paths)
 
@@ -166,17 +171,32 @@ class ResolveInputPathsTest(unittest.TestCase):
         )
         self._assert_unsorted(resolved_paths)
 
-    def _assert_unsorted(self, actual_paths):
+    def test_unsorted_zarr(self):
+        resolved_paths = DatasetOpener.resolve_input_paths('inputs/**/*.zarr')
+        self._assert_unsorted(resolved_paths, ext='zarr')
+
+        resolved_paths = DatasetOpener.resolve_input_paths(
+            [
+                'inputs/set2/*.zarr',
+                'inputs/set3/*.zarr',
+                'inputs/set1/*.zarr',
+                'inputs/set3/*.zarr',  # Doubled
+            ],
+            sort_by='name'
+        )
+        self._assert_unsorted(resolved_paths, ext='zarr')
+
+    def _assert_unsorted(self, actual_paths, ext='nc'):
         self.assertEqual(
-            norm_paths(['inputs/set1/input-01.nc',
-                        'inputs/set1/input-02.nc',
-                        'inputs/set1/input-03.nc',
-                        'inputs/set2/input-01.nc',
-                        'inputs/set2/input-02.nc',
-                        'inputs/set2/input-03.nc',
-                        'inputs/set3/input-01.nc',
-                        'inputs/set3/input-02.nc',
-                        'inputs/set3/input-03.nc'], c=set),
+            norm_paths([f'inputs/set1/input-01.{ext}',
+                        f'inputs/set1/input-02.{ext}',
+                        f'inputs/set1/input-03.{ext}',
+                        f'inputs/set2/input-01.{ext}',
+                        f'inputs/set2/input-02.{ext}',
+                        f'inputs/set2/input-03.{ext}',
+                        f'inputs/set3/input-01.{ext}',
+                        f'inputs/set3/input-02.{ext}',
+                        f'inputs/set3/input-03.{ext}'], c=set),
             norm_paths(actual_paths, c=set))
 
     def test_sort_by_name(self):
@@ -194,16 +214,37 @@ class ResolveInputPathsTest(unittest.TestCase):
         )
         self._assert_sort_by_name(resolved_paths)
 
-    def _assert_sort_by_name(self, actual_paths):
+    def test_sort_by_name_which_is_dir(self):
+        resolved_paths = DatasetOpener.resolve_input_paths('inputs/**/*.zarr/', sort_by='name')
+        self._assert_sort_by_name(resolved_paths, ext='zarr/')
+
+        resolved_paths = DatasetOpener.resolve_input_paths(
+            [
+                'inputs/set2/*.nc',
+                'inputs/set3/*.nc',
+                'inputs/set1/*.nc',
+                'inputs/set3/*.nc',  # Doubled
+            ],
+            sort_by='name'
+        )
+        self._assert_sort_by_name(resolved_paths)
+
+    def _assert_sort_by_name(self, actual_paths, ext='nc'):
         self.assertEqual(9, len(actual_paths))
         self.assertEqual(
-            norm_paths(['inputs/set1/input-01.nc', 'inputs/set2/input-01.nc', 'inputs/set3/input-01.nc'], c=set),
+            norm_paths([f'inputs/set1/input-01.{ext}',
+                        f'inputs/set2/input-01.{ext}',
+                        f'inputs/set3/input-01.{ext}'], c=set),
             norm_paths(actual_paths[0:3], c=set))
         self.assertEqual(
-            norm_paths(['inputs/set1/input-02.nc', 'inputs/set2/input-02.nc', 'inputs/set3/input-02.nc'], c=set),
+            norm_paths([f'inputs/set1/input-02.{ext}',
+                        f'inputs/set2/input-02.{ext}',
+                        f'inputs/set3/input-02.{ext}'], c=set),
             norm_paths(actual_paths[3:6], c=set))
         self.assertEqual(
-            norm_paths(['inputs/set1/input-03.nc', 'inputs/set2/input-03.nc', 'inputs/set3/input-03.nc'], c=set),
+            norm_paths([f'inputs/set1/input-03.{ext}',
+                        f'inputs/set2/input-03.{ext}',
+                        f'inputs/set3/input-03.{ext}'], c=set),
             norm_paths(actual_paths[6:9], c=set))
 
     def test_sort_by_path(self):
