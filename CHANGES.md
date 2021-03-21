@@ -14,9 +14,6 @@
 * Fixed problem where appending unnecessarily required a coordinate 
   variable (#27)
 
-* Fixed problem where appending unnecessarily required a coordinate 
-  variable (#27)
-
 * Input path that were no wildcards have been ignored if the input path did 
   not exist. Now an error is raised in such cases. (#25)
   
