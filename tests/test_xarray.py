@@ -87,7 +87,7 @@ class XarrayTest(unittest.TestCase):
         try:
             ds1.to_zarr('append_test.zarr', mode='w')
             ds2.to_zarr('append_test.zarr', append_dim='sounding_dim')
-            ds_actual = xr.open_zarr('ds.zarr', decode_cf=False).compute()
+            ds_actual = xr.open_zarr('append_test.zarr', decode_cf=False).compute()
             xr.testing.assert_equal(ds_expected, ds_actual)
         finally:
             shutil.rmtree('append_test.zarr', ignore_errors=True)
