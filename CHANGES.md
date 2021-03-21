@@ -2,6 +2,12 @@
 
 ### Version 1.1.0 (in development)
 
+* Fixed a problem when `input/sort_by` was `"name"` and one of `input/paths` 
+  ended with "/". In these cases sorting did not work. (#29)
+
+* Fixed problem where appending unnecessarily required a coordinate 
+  variable (#27)
+
 * Added some basic batch utilities that help spawning multiple concurrent
   nc2zarr jobs, see new module `nc2zarr.batch`. (#19)    
   

@@ -133,10 +133,10 @@ class DatasetOpener:
         for input_path in input_paths:
             input_path = os.path.expanduser(input_path)
             if '*' in input_path or '?' in input_path:
-                gob_result = glob.glob(input_path, recursive=True)
-                if not gob_result:
+                glob_result = glob.glob(input_path, recursive=True)
+                if not glob_result:
                     raise ConverterError(f'No inputs found for wildcard: "{input_path}"')
-                resolved_input_files.extend(gob_result)
+                resolved_input_files.extend(glob_result)
             else:
                 if not os.path.exists(input_path):
                     raise ConverterError(f'Input not found: "{input_path}"')
@@ -148,7 +148,7 @@ class DatasetOpener:
             if sort_by == 'path' or sort_by is True:
                 return sorted(resolved_input_files)
             if sort_by == 'name':
-                return sorted(resolved_input_files, key=os.path.basename)
+                return sorted(resolved_input_files, key=_sort_by_name_key)
             raise ConverterError(f'Can sort by "path" or "name" only, got "{sort_by}".')
         else:
             # Get rid of doubles, but preserve order
@@ -159,3 +159,9 @@ class DatasetOpener:
                     unique_input_files.append(input_file)
                     seen_input_files.add(input_file)
             return unique_input_files
+
+
+def _sort_by_name_key(path: str) -> str:
+    while path.endswith('/') or path.endswith(os.path.sep):
+        path = path[0:-1]
+    return os.path.basename(path)
