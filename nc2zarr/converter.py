@@ -101,8 +101,6 @@ class Converter:
 
         if output_append and output_append_dim is None:
             output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
-        elif not output_append and output_append_dim is not None:
-            output_append_dim = None
 
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags cannot be given both.')
