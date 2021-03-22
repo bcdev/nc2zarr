@@ -30,7 +30,8 @@ def load_custom_func(func_ref: str) -> Callable:
         if len(func_ref_parts) == 2:
             module_name, func_name = func_ref_parts
     if not module_name or not func_name:
-        raise ValueError(f'func_ref "{func_ref}" is invalid, format must be <module>:<function>')
+        raise ValueError(f'func_ref "{func_ref}" is invalid,'
+                         f' format must be <module>:<function>')
     try:
         module = importlib.import_module(module_name)
     except ImportError:
@@ -38,11 +39,13 @@ def load_custom_func(func_ref: str) -> Callable:
     obj = module
     for attr_name in func_name.split('.'):
         if not attr_name.isidentifier():
-            raise ValueError(f'func_ref "{func_ref}" is invalid, format must be <module>:<function>')
+            raise ValueError(f'func_ref "{func_ref}" is invalid,'
+                             f' "{attr_name}" is not a valid identifier')
         try:
             obj = getattr(obj, attr_name)
         except AttributeError:
-            raise ValueError(f'function "{func_ref}" not found, unknown attribute "{attr_name}"')
+            raise ValueError(f'function "{func_ref}" not found,'
+                             f' unknown attribute "{attr_name}"')
     if not callable(obj):
         raise ValueError(f'"{func_ref}" is not callable')
     return obj

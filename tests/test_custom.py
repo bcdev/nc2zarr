@@ -45,11 +45,18 @@ class LoadCustomFunctionTest(unittest.TestCase):
         func = load_custom_func("tests.test_custom:LoadCustomFunctionTest.my_custom_func")
         self.assertIsInstance(func(xr.Dataset()), xr.Dataset)
 
-    def test_invalid(self):
+    def test_invalid_ref(self):
         with self.assertRaises(ValueError) as cm:
             load_custom_func("tests.test_custom.my_custom_func")
         self.assertEqual('func_ref "tests.test_custom.my_custom_func" is invalid,'
                          ' format must be <module>:<function>',
+                         f"{cm.exception}")
+
+    def test_invalid_id(self):
+        with self.assertRaises(ValueError) as cm:
+            load_custom_func("tests.test_custom:my-custom-func")
+        self.assertEqual('func_ref "tests.test_custom:my-custom-func" is invalid,'
+                         ' "my-custom-func" is not a valid identifier',
                          f"{cm.exception}")
 
     def test_module_not_found(self):

@@ -113,7 +113,7 @@ class DatasetOpener:
     def _resolve_input_paths(self) -> List[str]:
         input_files = self.resolve_input_paths(self._input_paths, self._input_sort_by)
         if not input_files:
-            raise ConverterError('No inputs found.')
+            raise ConverterError('No inputs given.')
         LOGGER.info(f'{len(input_files)} input(s) found:\n'
                     + ('\n'.join(map(lambda f: f'  {f[0]}: ' + f[1],
                                      zip(range(len(input_files)), input_files)))))
