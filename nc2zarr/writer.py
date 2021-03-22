@@ -111,10 +111,14 @@ class DatasetWriter:
     def _create_dataset(self, ds, encoding):
         with log_duration(f'Writing dataset'):
             if not self._dry_run:
-                ds.to_zarr(self._output_store,
-                           mode='w' if self._output_overwrite else 'w-',
-                           encoding=encoding,
-                           consolidated=self._output_consolidated)
+                # Note: Ag found out, that for some reason, compute=False
+                # helps preventing OOM errors
+                delayed = ds.to_zarr(self._output_store,
+                                     mode='w' if self._output_overwrite else 'w-',
+                                     encoding=encoding,
+                                     compute=False,
+                                     consolidated=self._output_consolidated)
+                delayed.compute()
             else:
                 LOGGER.warning('Writing disabled, dry run!')
             self._output_path_exists = True
@@ -127,9 +131,13 @@ class DatasetWriter:
                 ds = self._remove_variable_attrs(ds)
 
             if not self._dry_run:
-                ds.to_zarr(self._output_store,
-                           append_dim=self._output_append_dim,
-                           consolidated=self._output_consolidated)
+                # Note: Ag found out, that for some reason, compute=False
+                # helps preventing OOM errors
+                delayed = ds.to_zarr(self._output_store,
+                                     append_dim=self._output_append_dim,
+                                     compute=False,
+                                     consolidated=self._output_consolidated)
+                delayed.compute()
             else:
                 LOGGER.warning('Appending disabled, dry run!')
 

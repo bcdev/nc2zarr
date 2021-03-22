@@ -2,10 +2,14 @@
 
 ### Version 1.1.0 (in development)
 
+* Trying to avoid out-of-memory errors by now using  
+  `xr.to_zarr(..., compute=False).compute()` for writing and appending to 
+  Zarr datasets. @agstephens, thanks for the tip! (#31)
+
 * Fixed a problem when `input/sort_by` was `"name"` and one of `input/paths` 
   ended with "/". In these cases sorting did not work. (#29)
 
-* Fixed problem where appending unnecessarily required a coordinate 
+* Fixed a problem where appending unnecessarily required a coordinate 
   variable (#27)
 
 * Input path that were no wildcards have been ignored if the input path did 
