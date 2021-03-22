@@ -53,6 +53,13 @@ class DatasetOpenerTest(unittest.TestCase):
         self.assertEqual('No inputs found for wildcard: "imports/*.nc"',
                          f'{cm.exception}')
 
+    def test_open_datasets_not_given(self):
+        opener = DatasetOpener(input_paths=[])
+        with self.assertRaises(ConverterError) as cm:
+            list(opener.open_datasets())
+        self.assertEqual('No inputs given.',
+                         f'{cm.exception}')
+
     def test_open_datasets_not_found(self):
         opener = DatasetOpener(input_paths='imports/pippo.nc')
         with self.assertRaises(ConverterError) as cm:
@@ -152,7 +159,7 @@ class ResolveInputPathsTest(unittest.TestCase):
         self.assertEqual('No inputs found for wildcard: "outputs/**/*.nc"',
                          f'{cm.exception}')
 
-    def test_no_inputs(self):
+    def test_nothing_given(self):
         resolved_paths = DatasetOpener.resolve_input_paths([])
         self.assertEqual([], resolved_paths)
 

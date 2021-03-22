@@ -45,6 +45,17 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
                                                 '2020-12-02T10:00:00',
                                                 '2020-12-03T10:00:00'])
 
+    def test_implicit_append_dim(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_output('out.zarr')
+        Converter(input_paths='inputs/*.nc', input_sort_by="path",
+                  input_concat_dim='time').run()
+        self.assertZarrOutputOk('out.zarr',
+                                expected_vars={'lon', 'lat', 'time', 'r_ui16', 'r_i32', 'r_f32'},
+                                expected_times=['2020-12-01T10:00:00',
+                                                '2020-12-02T10:00:00',
+                                                '2020-12-03T10:00:00'])
+
     def test_explicit_append_dim(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')

@@ -92,17 +92,23 @@ class Converter:
         if not input_paths:
             raise ConverterError('At least one input must be given.')
 
+        # Maybe raise warning here saying that "out.zarr" is used by default.
         output_path = output_path or DEFAULT_OUTPUT_PATH
 
         if input_multi_file and input_concat_dim is None:
+            # If input_multi_file is True, we need a input_concat_dim.
+            # Maybe raise warning here saying that "time" is used by default.
             input_concat_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
-        elif not input_multi_file and input_concat_dim is not None:
-            input_concat_dim = None
 
-        if output_append and output_append_dim is None:
-            output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
-        elif not output_append and output_append_dim is not None:
-            output_append_dim = None
+        # output_append_dim is used independently of output_append, namely
+        # whenever there is more than one input file.
+        output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+
+        if not input_multi_file and input_concat_dim is not None:
+            # input_concat_dim may be specified but will not be used if
+            # input_multi_file is False. We may raise a warning here saying that
+            # we will ignore input_concat_dim.
+            input_concat_dim = None
 
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags cannot be given both.')
