@@ -159,7 +159,9 @@ output:
   append_dim: false
 
   # Object storage file system configuration.
-  # If given, content are the keyword arguments passed to s3fs.S3FileSystem()
+  # If given, content are the keyword arguments passed to s3fs.S3FileSystem().
+  # See https://s3fs.readthedocs.io/en/latest/api.html#s3fs.core.S3FileSystem
+  # for documentation of available arguments.
   s3:
     # Anonymous access.
     # - false: Access with credentials (default). Either key/secret must
@@ -174,12 +176,22 @@ output:
     # Secret access key
     secret: null
     # Optionally specify the object storage service in use.
+    # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client
     client_kwargs:
       # URL of the object storage endpoint.
       # Must be set if object storage other than AWS S3 is used.
       endpoint_url: null
       # Optional name of the region where data is stored.
       region_name: null
+    # Optionally specify additional arguments to be passed when calling the S3
+    # API. See request syntax descriptions at
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#client
+    # for details of valid arguments.
+    s3_additional_kwargs:
+      # This ACL argument sets the access control list for the uploaded data.
+      # Setting to "public-read" makes the data publicly readable (provided
+      # that the bucket permissions allow this).
+      ACL: public-read
 
   # Re-execute writing on errors
   # Content are the keyword arguments for retry.api.retry_call(..., **retry).
