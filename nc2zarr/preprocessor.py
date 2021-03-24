@@ -79,9 +79,10 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
             # If the concat_dim_var does not yet has a dimension, add it.
             # This is typically the case if time value is a scalar rather
             # than an 1-element array.
-            ds = ds.assign_coords({
-                concat_dim_name: xr.DataArray(concat_dim_var, dims=(concat_dim_name,))
-            })
+            concat_dim_var = xr.DataArray([concat_dim_var.values],
+                                          dims=(concat_dim_name,),
+                                          attrs=concat_dim_var.attrs)
+            ds = ds.assign_coords({concat_dim_name: concat_dim_var})
     elif concat_dim_name == 'time':
         time_coverage_start, time_coverage_end = \
             get_time_coverage_from_ds(ds, datetime_format=datetime_format)

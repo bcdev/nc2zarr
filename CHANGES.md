@@ -2,6 +2,9 @@
 
 ### Version 1.1.0 (in development)
 
+* Ensure attributes are maintained when missing dimensions are added to 
+  concatenation dimension variable . (#32) 
+
 * Added some basic batch utilities that help spawning multiple concurrent
   nc2zarr jobs, see new module `nc2zarr.batch`. (#19)    
   
