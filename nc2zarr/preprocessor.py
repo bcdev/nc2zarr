@@ -76,7 +76,9 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
 
     if concat_dim_var is not None:
         if not concat_dim_var.dims:
-            # if the concat_dim_var does not yet have a dimension, add it
+            # If the concat_dim_var does not yet has a dimension, add it.
+            # This is typically the case if time value is a scalar rather
+            # than an 1-element array.
             ds = ds.assign_coords({
                 concat_dim_name: xr.DataArray(concat_dim_var, dims=(concat_dim_name,))
             })
