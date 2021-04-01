@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import pandas as pd
 import xarray as xr
 import argparse
 from datetime import datetime
@@ -16,7 +17,8 @@ def main():
     parser.add_argument("--config", "-c", type=str, action="append")
     parser.add_argument("--verbose", "-v", action="count", default=0)
     parser.add_argument("--dry-run", "-d", action="store_true")
-    parser.add_argument("dateformat", type=str)
+    parser.add_argument("dateformat", type=str,
+                        help="Date format in path (e.g. /%Y/%m/%d/)")
     args = parser.parse_args()
     config = nc2zarr.config.load_config(args.config, return_kwargs=True)
     all_paths = nc2zarr.opener.DatasetOpener.resolve_input_paths(
@@ -50,7 +52,7 @@ def get_last_date_in_zarr(config: dict) -> datetime:
     )
     else:
         dataset = xr.open_zarr(zarrfile, consolidated=True)
-    return dataset.time[-1].item()
+    return pd.Timestamp(dataset.time[-1].values).to_pydatetime()
 
 
 def is_path_after_datetime(date_rep: str, date_format: str,
