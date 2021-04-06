@@ -18,15 +18,20 @@ def main():
     parser.add_argument("--verbose", "-v", action="count", default=0)
     parser.add_argument("--dry-run", "-d", action="store_true")
     parser.add_argument("dateformat", type=str,
-                        help="Date format in path (e.g. /%Y/%m/%d/)")
+                        help="Date format in path (e.g. /%%Y/%%m/%%d/)")
     args = parser.parse_args()
-    config = nc2zarr.config.load_config(args.config, return_kwargs=True)
+    update_zarr(args.config, args.dateformat, args.verbosity, args.dry_run)
+
+
+def update_zarr(config_file: str, dateformat: str, verbosity: int,
+                dry_run: bool) -> None:
+    config = nc2zarr.config.load_config(config_file, return_kwargs=True)
     all_paths = nc2zarr.opener.DatasetOpener.resolve_input_paths(
         config["input_paths"])
     last_date_in_zarr = get_last_date_in_zarr(config)
 
     def pathfilter(path):
-        return is_path_after_datetime(path, args.dateformat, last_date_in_zarr)
+        return is_path_after_datetime(path, dateformat, last_date_in_zarr)
     new_paths = list(filter(pathfilter, all_paths))
     
     if len(new_paths) == 0:
@@ -36,8 +41,8 @@ def main():
     config["output_overwrite"] = False
     config["output_append"] = True
     config["input_paths"] = new_paths
-    config["verbosity"] = args.verbose
-    config["dry_run"] = args.dry_run
+    config["verbosity"] = verbosity
+    config["dry_run"] = dry_run
 
     nc2zarr.converter.Converter(**config).run()
 
