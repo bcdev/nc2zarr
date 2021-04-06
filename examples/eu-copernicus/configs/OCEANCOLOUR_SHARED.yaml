@@ -1,0 +1,21 @@
+# This configuration file contains parameters common to multiple datasets.
+# It must be used in conjunction with one or more additional configuration
+# files to produce a complete configuration for nc2zarr.
+
+input:
+  sort_by: path
+  prefetch_chunks: true
+  custom_preprocessor: calendar_preprocessor:preprocess_ensure_calendar_lower_case
+
+output:
+  overwrite: true
+  consolidated: true
+  append_dim: time
+  s3:
+    anon: false
+    # key and secret supplied in separate configuration file
+    client_kwargs:
+      endpoint_url: https://s3.amazonaws.com
+      region_name: eu-central-1
+    s3_additional_kwargs:
+      ACL: public-read

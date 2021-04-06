@@ -1,8 +1,10 @@
+# This configuration file only contains parameters unique to
+# OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045 .
+# Common parameters are configured in a separate file.
+
 input:
   paths:
     - /eodata/CMEMS/NRT/BLA/CHL/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045/*/*/*/*_d-OC_CNR-L4-CHL-INTERP_MULTI_1KM-BS-DT-v02.nc
-  sort_by: path
-  prefetch_chunks: true
 
 process:
   rechunk:
@@ -15,6 +17,4 @@ process:
     lon: null
   
 output:
-  path: /home/eouser/data/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045.zarr/
-  overwrite: true
-  consolidated: true
+  path: s3://cop-services/OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045.zarr/

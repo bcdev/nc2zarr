@@ -1,3 +1,7 @@
+# This configuration file only contains parameters unique to
+# OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038 .
+# Common parameters are configured in a separate file.
+
 input:
   paths: /eodata/CMEMS/NRT/MED/OPT/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038/*/*/*/*_d-OC_CNR-L3-KD490-MedOC4AD4_MULTI_1KM-MED-DT-v02.nc
   variables:
@@ -20,7 +24,4 @@ process:
     time: 10000
 
 output:
-  path: /home/eouser/data/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038.zarr
-  overwrite: true
-  consolidated: true
-  append_dim: time
+  path: s3://cop-services/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038.zarr
