@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import List
 
 import pandas as pd
 import xarray as xr
@@ -23,9 +24,9 @@ def main():
     update_zarr(args.config, args.dateformat, args.verbosity, args.dry_run)
 
 
-def update_zarr(config_file: str, dateformat: str, verbosity: int,
+def update_zarr(config_files: List[str], dateformat: str, verbosity: int,
                 dry_run: bool) -> None:
-    config = nc2zarr.config.load_config(config_file, return_kwargs=True)
+    config = nc2zarr.config.load_config(config_files, return_kwargs=True)
     all_paths = nc2zarr.opener.DatasetOpener.resolve_input_paths(
         config["input_paths"])
     last_date_in_zarr = get_last_date_in_zarr(config)
