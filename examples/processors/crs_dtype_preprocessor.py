@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 
 
-def preprocess_crs(ds):
+def preprocess_crs(dataset):
     """Force a dtype of "<U1" on the crs array
 
     The LWQ dataset includes a dimensionless array called "crs", containing
@@ -24,10 +24,13 @@ def preprocess_crs(ds):
 
     We create a new crs DataArray with a <U1 dtype and copy the attributes
     rather than using ds.crs.astype, since the latter can't guarantee that
-    a cast (e.g. from int) will actually be possible.
+    a cast (e.g. from int) will actually be possible. We also remove any
+    existing _FillValue attribute, since it might be incompatible with the
+    new data type.
     """
 
-    da = xr.DataArray(data=np.array("", dtype="<U1"), name="crs")
-    da.attrs.update(ds.crs.attrs)
-    ds["crs"] = da
-    return ds
+    data_array = xr.DataArray(data=np.array("", dtype="<U1"), name="crs")
+    data_array.attrs.update(dataset.crs.attrs)
+    dataset["crs"] = data_array
+    dataset["crs"].attrs.pop("_FillValue", None)
+    return dataset
