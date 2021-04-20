@@ -24,18 +24,16 @@ def main():
                         help="Look for files (recursively) in these "
                              "directories.")
     args = parser.parse_args()
-    pruner = Pruner(args.target, args.search_path, args.dry_run, args.fast,
-                    args.verbose)
+    pruner = Pruner(args.target, args.search_path, args.dry_run, args.verbose)
     pruner.prune()
 
 
 class Pruner:
 
-    def __init__(self, target: str, search_path: str,
-                 dry_run: bool, fast: bool, verbose: bool):
+    def __init__(self, target: str, search_path: str, dry_run: bool,
+                 verbose: bool):
         self.target = target
         self.search_path = search_path
-        self.fast = fast
         self.dry_run = dry_run
         self.verbose = verbose
         self.buffering = 10000000
