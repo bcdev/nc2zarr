@@ -134,7 +134,22 @@ $ nc2zarr -a -o outputs/SST.zarr outputs/SST-part3.zarr
 
 nc2zarr's built-in processors can be expanded with _custom processors_, Python
 functions which modify the dataset at particular points in the conversion
-pipeline.
+pipeline. A processor function takes an `xarray.Dataset` as an argument and
+returns an `xarray.Dataset` as its result. A processor is specified in the
+configuration file as `<MODULE_NAME>:<FUNCTION_NAME>`, so for example the
+processor specification `mymodule:myfunction` could refer to a function
+defined in a file `mymodule.py` with the following contents:
+
+```python
+def myfunction(dataset):
+    dataset.attrs["greeting"] = "Hello world!"
+    return dataset
+```
+
+This processor function adds a predefined attribute to the dataset (modifying
+it in-place), then returns the modified dataset.
+
+There are three points at which processors may be run:
 
 | Section | Parameter name | When is the processor run? |
 | -- | -- | -- |
@@ -142,8 +157,13 @@ pipeline.
 | `process` | `custom_processor` | After variable renaming, before rechunking |
 | `output`  | `custom_postprocessor` | Before writing data |
 
-A custom processor is specified as a Python module name and function name (see
-template configuration file for syntax). The module is searched for on Python's
-current search path, so it will usually be necessary to ensure that the parent
-directories of all processor modules are listed in the `PYTHONPATH` environment
-variable.
+See the template configuration file for more details of syntax. The module is
+searched for on Python's current search path, so it will usually be necessary
+to ensure that the parent directories of all processor modules are listed in
+the `PYTHONPATH` environment variable, e.g. by executing
+
+```shell
+export PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}/path/to/module/directory/"
+```
+
+before running nc2zarr.
