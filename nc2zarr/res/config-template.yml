@@ -61,6 +61,10 @@ input:
 
   # An optional custom preprocessor.
   # Called after variable selection.
+  # The Python module containing the preprocessor function must be on the
+  # Python search path. If nc2zarr can't find it, add the parent directory of
+  # the Python module to the PYTHONPATH environment variable before running
+  # nc2zarr.
   custom_preprocessor: <module>:<function>
 
   # Read all input files as one block?
@@ -101,6 +105,8 @@ process:
 
   # An optional custom processor.
   # Called after variable renaming and before rechunking.
+  # See comments on the custom_preprocessor option for information on setting
+  # the search path for the module.
   custom_processor: <module>:<function>
 
   # (Re)chunk variable dimensions
@@ -138,6 +144,8 @@ output:
 
   # An optional custom post-processor.
   # Called before the data is written.
+  # See comments on the custom_preprocessor option for information on setting
+  # the search path for the module.
   custom_postprocessor: <module>:<function>
 
   # The "consolidated" keyword argument passed to xarray.Dataset.to_zarr().

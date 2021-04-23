@@ -5,6 +5,9 @@
 input:
   sort_by: path
   prefetch_chunks: true
+  # To use this preprocessor, make sure that the parent directory of the
+  # calendar_preprocessor.py module is listed in the PYTHONPATH environment
+  # variable.
   custom_preprocessor: calendar_preprocessor:preprocess_ensure_calendar_lower_case
 
 output:

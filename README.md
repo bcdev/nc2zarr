@@ -129,3 +129,21 @@ Append one Zarr to existing Zarr:
 ```bash
 $ nc2zarr -a -o outputs/SST.zarr outputs/SST-part3.zarr
 ```
+
+### Custom processors
+
+nc2zarr's built-in processors can be expanded with _custom processors_, Python
+functions which modify the dataset at particular points in the conversion
+pipeline.
+
+| Section | Parameter name | When is the processor run? |
+| -- | -- | -- |
+| `input`   | `custom_preprocessor`  | After variable selection |
+| `process` | `custom_processor` | After variable renaming, before rechunking |
+| `output`  | `custom_postprocessor` | Before writing data |
+
+A custom processor is specified as a Python module name and function name (see
+template configuration file for syntax). The module is searched for on Python's
+current search path, so it will usually be necessary to ensure that the parent
+directories of all processor modules are listed in the `PYTHONPATH` environment
+variable.
