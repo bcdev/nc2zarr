@@ -166,4 +166,6 @@ the `PYTHONPATH` environment variable, e.g. by executing
 export PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}/path/to/module/directory/"
 ```
 
-before running nc2zarr.
+before running nc2zarr. See
+[the Python documentation](https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH)
+for more details on `PYTHONPATH`.
