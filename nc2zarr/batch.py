@@ -37,7 +37,7 @@ class TemplateBatch:
 
     :param config_template_variables: A sequence of dictionaries comprising template
         variables for the configuration templates. Each dictionary
-        is used to creates a new nc2zarr configuration.
+        is used to create a new nc2zarr configuration.
     :param config_template_path: Path to configuration file that serves as template
         for multiple configuration files to be generated. The configuration
         may contain placeholders of the form "${variable_name}" that will be
