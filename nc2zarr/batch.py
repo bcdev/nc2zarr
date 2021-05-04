@@ -519,7 +519,8 @@ class SlurmJob(ObservedBatchJob):
         }
 
     def _poll(self) -> Optional[Dict[str, Any]]:
-        squeue_program = [self._squeue_program] if self._squeue_program else ['squeue', '--job=${job_id}']
+        squeue_program = [self._squeue_program] if self._squeue_program \
+            else ['squeue', '--job=${job_id}']
         squeue_command = [arg.replace('${job_id}', self._job_id) for arg in squeue_program]
         try:
             result = subprocess.run(squeue_command,
