@@ -50,6 +50,7 @@ class TemplateBatch:
         by *config_path_template* when they do not exist.
     :param dry_run: If true, any actions that would have been performed are
         logged. No files are generated and no actual processes are spawned.
+    :verbosity: verbosity level of log messages as a non-negative integer
     """
 
     def __init__(self,
