@@ -104,12 +104,6 @@ class Converter:
         # whenever there is more than one input file.
         output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
 
-        if not input_multi_file and input_concat_dim is not None:
-            # input_concat_dim may be specified but will not be used if
-            # input_multi_file is False. We may raise a warning here saying that
-            # we will ignore input_concat_dim.
-            input_concat_dim = None
-
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags cannot be given both.')
 

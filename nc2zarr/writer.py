@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os.path
 from typing import Dict, Any
 
 import fsspec
@@ -68,6 +69,7 @@ class DatasetWriter:
             self._fs = fsspec.filesystem('s3', **(output_s3_kwargs or {}))
         else:
             self._fs = fsspec.filesystem('file')
+            self._output_path = os.path.expanduser(self._output_path)
         self._output_store = None
         self._output_path_exists = None
 

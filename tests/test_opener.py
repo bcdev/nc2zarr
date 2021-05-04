@@ -163,6 +163,10 @@ class ResolveInputPathsTest(unittest.TestCase):
         resolved_paths = DatasetOpener.resolve_input_paths([])
         self.assertEqual([], resolved_paths)
 
+    def test_expands_user(self):
+        resolved_paths = DatasetOpener.resolve_input_paths(['~'])
+        self.assertEqual([os.path.expanduser('~')], resolved_paths)
+
     def test_unsorted_nc(self):
         resolved_paths = DatasetOpener.resolve_input_paths('inputs/**/*.nc')
         self._assert_unsorted(resolved_paths)

@@ -90,7 +90,7 @@ input:
 
   # Open one input to fetch internal chunking, if any.
   # Then use this chunking to open all input files (and
-  # foce using Dask arrays).
+  # force using Dask arrays).
   # This may slow down the process slightly, but may be
   # required to avoid memory problems for very large inputs.
   prefetch_chunks: false

@@ -2,6 +2,16 @@
 
 ### Version 1.1.0 (in development)
 
+* Ensure attributes are maintained when missing dimensions are added to 
+  concatenation dimension variable . (#32) 
+
+* Added some basic batch utilities that help spawning multiple concurrent
+  nc2zarr jobs, see new module `nc2zarr.batch`. (#19)    
+  
+* Local input and output paths may now include tilde '~' which will expand 
+  to the current user's home, and '~username' for the home directory
+  of a specified user. (#26)
+
 * Fixed a problem when `input/sort_by` was `"name"` and one of `input/paths` 
   ended with "/". In these cases sorting did not work. (#29)
 

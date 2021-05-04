@@ -84,6 +84,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         with self.assertRaises(zarr.errors.ContainsGroupError):
             writer.write_dataset(ds)
 
+    def test_expands_user(self):
+        writer = DatasetWriter('~/my.zarr')
+        self.assertEqual(os.path.expanduser('~/my.zarr'), writer._output_path)
+
     def test_local_overwrite(self):
         self.add_path('my.zarr')
         writer = DatasetWriter('my.zarr', output_overwrite=False)

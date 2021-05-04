@@ -131,6 +131,7 @@ class DatasetOpener:
 
         resolved_input_files = []
         for input_path in input_paths:
+            input_path = os.path.expanduser(input_path)
             if '*' in input_path or '?' in input_path:
                 glob_result = glob.glob(input_path, recursive=True)
                 if not glob_result:
