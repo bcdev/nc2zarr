@@ -211,8 +211,8 @@ class SlurmJobTest(BatchJobTest):
 
 SBATCH_OUT = 'Submitted batch job 43862490'
 
-SQUEUE_OUT_OK_1 = '             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST\(REASON\)'
-SQUEUE_OUT_OK_2 = '          43862490 short-ser ghg/ch4/   forman  R       0:03      1 host495'
+SQUEUE_OUT_OK_1 = r'             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)'
+SQUEUE_OUT_OK_2 = r'          43862490 short-ser ghg/ch4/   forman  R       0:03      1 host495'
 
 
 class SlurmJobSuccessTest(SlurmJobTest):

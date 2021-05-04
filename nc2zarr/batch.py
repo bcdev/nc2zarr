@@ -28,6 +28,7 @@ from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
 from .log import LOGGER, log_duration, use_verbosity
 
+import shlex
 
 class TemplateBatch:
     """
@@ -376,7 +377,7 @@ class LocalJob(ObservedBatchJob):
         stderr = open(err_path, 'w')
         subprocess_kwargs.update(stdout=stdout, stderr=stderr)
 
-        command_line = subprocess.list2cmdline(command)
+        command_line = shlex.join(command)
 
         with log_duration(f'Spawning process for command: {command_line}'):
             # noinspection PyBroadException
@@ -474,7 +475,7 @@ class SlurmJob(ObservedBatchJob):
             sbatch_command += [f'--export=ALL,{export}']
         sbatch_command += command
 
-        command_line = subprocess.list2cmdline(sbatch_command)
+        command_line = shlex.join(sbatch_command)
 
         with log_duration(f'Running command: {command_line}'):
             result = subprocess.run(sbatch_command, capture_output=True)
