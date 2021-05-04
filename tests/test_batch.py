@@ -224,8 +224,8 @@ class SlurmJobSuccessTest(SlurmJobTest):
                                f'@echo {SBATCH_OUT}\n')
         self._write_squeue_exe(
             f'#!/bin/sh\n'
-            f'echo {SQUEUE_OUT_OK_1}\n'
-            f'echo {SQUEUE_OUT_OK_2}\n',
+            f"echo '{SQUEUE_OUT_OK_1}'\n"
+            f"echo '{SQUEUE_OUT_OK_2}'\n",
             f'@echo {SQUEUE_OUT_OK_1}\n'
             f'@echo {SQUEUE_OUT_OK_2}\n'
         )
