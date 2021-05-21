@@ -55,7 +55,7 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help='Sort input files by specified property.')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
-@click.option('--verbose', '-v', 'verbose', is_flag=True, multiple=True,
+@click.option('--verbose', '-v', 'verbose', count=True,
               help='Print more output. Use twice for even more output.')
 @click.option('--version', is_flag=True,
               help='Show version number and exit.')
@@ -69,7 +69,7 @@ def nc2zarr(input_paths: Tuple[str],
             decode_cf: bool,
             sort_by: str,
             dry_run: bool,
-            verbose: Tuple[bool],
+            verbose: int,
             version: bool):
     """
     Reads one or more input datasets and writes or appends them to a single
@@ -129,7 +129,7 @@ def nc2zarr(input_paths: Tuple[str],
                                     output_path=output_path,
                                     output_overwrite=overwrite,
                                     output_append=append,
-                                    verbosity=sum(verbose) if verbose else None,
+                                    verbosity=verbose if verbose else None,
                                     dry_run=dry_run)
         Converter(**config_kwargs).run()
     except ConverterError as e:
