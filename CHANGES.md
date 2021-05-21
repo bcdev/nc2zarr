@@ -1,5 +1,10 @@
 ## nc2zarr Change History
 
+### Version 1.1.1
+
+* Fix an incompatibility with version 8 of the click library which
+  was causing command-line parsing errors.
+
 ### Version 1.1.0
 
 * Ensure attributes are maintained when missing dimensions are added to 
