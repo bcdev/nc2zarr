@@ -54,7 +54,9 @@ class Converter:
     :param output_encoding:
     :param output_consolidated:
     :param output_overwrite:
-    :param output_append:
+    :param output_append: append to existing dataset, if one is present.
+           If there is no existing dataset, one will be created regardless
+           of the value of this parameter.
     :param output_append_dim:
     :param output_s3:
     :param output_custom_postprocessor:

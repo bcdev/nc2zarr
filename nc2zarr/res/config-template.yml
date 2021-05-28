@@ -161,9 +161,11 @@ output:
   overwrite: false
 
   # Append to existing dataset?
+  # If there is no existing dataset, this option has no effect (i.e.
+  # the dataset will be created whether "append" is true or false).
   append: false
 
-  # Append dimension. Defaults to input/concat_dim or "time"
+  # Append dimension. Defaults to input/concat_dim or "time".
   append_dim: false
 
   # Object storage file system configuration.
