@@ -103,7 +103,7 @@ def delete_path(path, ignore_errors=False):
 def new_test_dataset(w: int = 36,
                      h: int = 18,
                      day: int = None,
-                     chunked: bool = False):
+                     chunked: bool = False) -> xr.Dataset:
     res = 180 / h
     lon = xr.DataArray(np.linspace(-180 + res, 180 - res, num=w), dims=('lon',))
     lat = xr.DataArray(np.linspace(-90 + res, 90 - res, num=h), dims=('lat',))
