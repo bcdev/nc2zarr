@@ -28,18 +28,19 @@ import click
 import click.testing
 
 from nc2zarr.cli import nc2zarr
+from nc2zarr.cli import nc2zarr_batch
 from tests.helpers import IOCollector
 from tests.helpers import ZarrOutputTestMixin
 
 
-class MainTest(unittest.TestCase):
+class Nc2zarrTest(unittest.TestCase):
 
     def _invoke_cli(self, args: List[str]):
         self.runner = click.testing.CliRunner()
         return self.runner.invoke(nc2zarr, args, catch_exceptions=False)
 
 
-class NoOpCliTest(MainTest):
+class NoOpNc2zarrCliTest(Nc2zarrTest):
     def test_noargs(self):
         self.assertEqual(1, self._invoke_cli([]).exit_code)
 
@@ -53,7 +54,7 @@ class NoOpCliTest(MainTest):
         subprocess.call([sys.executable, '-m', 'nc2zarr.cli', '--help'])
 
 
-class CliTest(MainTest, ZarrOutputTestMixin, IOCollector):
+class Nc2zarrCliTest(Nc2zarrTest, ZarrOutputTestMixin, IOCollector):
     def setUp(self):
         self.reset_paths()
 
@@ -116,3 +117,57 @@ class CliTest(MainTest, ZarrOutputTestMixin, IOCollector):
             print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
         if result.stdout_bytes:
             print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
+
+
+class Nc2zarrBatchTest(unittest.TestCase):
+
+    def _invoke_cli(self, args: List[str]):
+        self.runner = click.testing.CliRunner()
+        return self.runner.invoke(nc2zarr_batch, args, catch_exceptions=False)
+
+
+class NoOpNc2zarrBatchCliTest(Nc2zarrBatchTest):
+    def test_noargs(self):
+        self.assertEqual(1, self._invoke_cli([]).exit_code)
+
+    def test_help(self):
+        self.assertEqual(0, self._invoke_cli(['--help']).exit_code)
+
+
+class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
+    def setUp(self):
+        self.reset_paths()
+
+    def tearDown(self):
+        self.delete_paths()
+
+    @staticmethod
+    def _dump_cli_output(result):
+        if result.stderr_bytes:
+            print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
+        if result.stdout_bytes:
+            print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
+
+    def test_fully_configured_run(self):
+        for year in range(2010, 2014):
+            self.add_inputs(f'inputs/{year}', day_offset=1, num_days=3, prefix=f'input-{year}')
+
+        self.add_path('config-template.yml')
+        with open('config-template.yml', 'w') as fp:
+            fp.write('input:\n'
+                     '  paths: ${base_dir}/inputs/${year}/input-*.nc\n'
+                     'output:\n'
+                     '  path: ${base_dir}/output/${year}.zarr\n')
+
+        self.add_path('local-config.yml')
+        with open('local-config.yml', 'w') as fp:
+            fp.write('type: local\n')
+
+        result = self._invoke_cli(['--range', 'year', '2010', '2013',
+                                   '--value', 'base_dir', '.',
+                                   '--scheduler', 'local-config.yml',
+                                   'config-template.yml',
+                                   '${base_dir}/batch/${year}.yml'])
+        if result.exit_code != 0:
+            self._dump_cli_output(result)
+            self.fail(f'failed with exit code {result.exit_code}')

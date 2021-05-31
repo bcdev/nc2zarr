@@ -7,6 +7,8 @@
   with `input.decode_cf = false` (the default) and for variables
   that defined a `scale_factor` and/or `add_offset` encoding
   attribute. (#35)
+  
+* Added a CLI tool `nc2zarr-batch`. 
 
 ### Version 1.1.1
 

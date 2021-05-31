@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 import os.path
+import shlex
 import subprocess
 import threading
 import time
@@ -28,7 +29,6 @@ from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
 from .log import LOGGER, log_duration, use_verbosity
 
-import shlex
 
 class TemplateBatch:
     """
