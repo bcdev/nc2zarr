@@ -131,9 +131,10 @@ class DatasetWriter:
                 # If the data to be appended is already encoded (because we
                 # read it by default with decode_cf=False) then this leads
                 # to entirely corrupt data.
-                # This is a hack decodes the data xarray's encoding is
-                # finally correct, however this fully redundant and costs
-                # extra CPU.
+                # This hack decodes the data xarray if it was not decoded
+                # on reading, making the encoded, written values correct;
+                # however, this is fully redundant, costs extra CPU, and
+                # may reduce precision.
                 #
                 # TODO: remove this hack once issue is fixed in xarray.
                 ds = xr.decode_cf(ds)
