@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import subprocess
 import sys
 import unittest
@@ -149,6 +150,7 @@ class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
             print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
 
     def test_fully_configured_run(self):
+        self.add_path('inputs')
         for year in range(2010, 2014):
             self.add_inputs(f'inputs/{year}', day_offset=1, num_days=3, prefix=f'input-{year}')
 
@@ -157,17 +159,42 @@ class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
             fp.write('input:\n'
                      '  paths: ${base_dir}/inputs/${year}/input-*.nc\n'
                      'output:\n'
-                     '  path: ${base_dir}/output/${year}.zarr\n')
+                     '  path: ${base_dir}/outputs/${year}.zarr\n')
 
         self.add_path('local-config.yml')
         with open('local-config.yml', 'w') as fp:
             fp.write('type: local\n')
 
+        self.add_path('batch')
+        self.add_path('outputs')
         result = self._invoke_cli(['--range', 'year', '2010', '2013',
                                    '--value', 'base_dir', '.',
                                    '--scheduler', 'local-config.yml',
                                    'config-template.yml',
                                    '${base_dir}/batch/${year}.yml'])
+
         if result.exit_code != 0:
             self._dump_cli_output(result)
             self.fail(f'failed with exit code {result.exit_code}')
+
+        self.assertEqual({
+            '2010.err',
+            '2010.out',
+            '2010.yml',
+            '2011.err'
+            '2011.out',
+            '2011.yml',
+            '2012.err',
+            '2012.out',
+            '2012.yml',
+            '2013.err',
+            '2013.out',
+            '2013.yml',
+        }, set(os.listdir('batch')))
+
+        self.assertEqual({
+            '2010.zarr',
+            '2011.zarr',
+            '2012.zarr',
+            '2013.zarr',
+        }, set(os.listdir('outputs')))
