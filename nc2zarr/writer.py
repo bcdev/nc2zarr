@@ -46,7 +46,7 @@ class DatasetWriter:
                  output_append_dim: str = None,
                  output_s3_kwargs: Dict[str, Any] = None,
                  output_retry_kwargs: Dict[str, Any] = None,
-                 reset_attrs: bool = False,
+                 input_decode_cf: bool = False,
                  dry_run: bool = False):
         if not output_path:
             raise ValueError('output_path must be given')
@@ -63,7 +63,7 @@ class DatasetWriter:
         self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_s3_kwargs = output_s3_kwargs
         self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
-        self._reset_attrs = reset_attrs
+        self._input_decode_cf = input_decode_cf
         self._dry_run = dry_run
         if output_s3_kwargs or output_path.startswith('s3://'):
             self._fs = fsspec.filesystem('s3', **(output_s3_kwargs or {}))
@@ -121,9 +121,23 @@ class DatasetWriter:
                 LOGGER.warning('Writing disabled, dry run!')
             self._output_path_exists = True
 
-    def _append_dataset(self, ds):
+    def _append_dataset(self, ds: xr.Dataset):
         with log_duration('Appending dataset'):
-            if self._reset_attrs:
+            if not self._input_decode_cf:
+                # Fix for https://github.com/bcdev/nc2zarr/issues/35
+                #
+                # xarray 0.18.2 always CF-encodes variable data according to
+                # encoding info of existing variables before it appends it.
+                # If the data to be appended is already encoded (because we
+                # read it by default with decode_cf=False) then this leads
+                # to entirely corrupt data.
+                # This hack decodes the data xarray if it was not decoded
+                # on reading, making the encoded, written values correct;
+                # however, this is fully redundant, costs extra CPU, and
+                # may reduce precision.
+                #
+                # TODO: remove this hack once issue is fixed in xarray.
+                ds = xr.decode_cf(ds)
                 # For all slices except the first we must remove
                 # encoding attributes e.g. "_FillValue" .
                 ds = self._remove_variable_attrs(ds)

@@ -1,5 +1,13 @@
 ## nc2zarr Change History
 
+### Version 1.1.2 (in development)
+
+* Fixed a severe problem where data was "encoded" twice before 
+  being appended to existing data. The bug became apparent
+  with `input.decode_cf = false` (the default) and for variables
+  that defined a `scale_factor` and/or `add_offset` encoding
+  attribute. (#35)
+
 ### Version 1.1.1
 
 * Fix an incompatibility with version 8 of the click library which

@@ -170,8 +170,8 @@ class Converter:
                                output_append_dim=self.output_append_dim,
                                output_s3_kwargs=self.output_s3,
                                output_retry_kwargs=self.output_retry,
-                               dry_run=self.dry_run,
-                               reset_attrs=not self.input_decode_cf)
+                               input_decode_cf=self.input_decode_cf,
+                               dry_run=self.dry_run)
 
         append = None
         for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
