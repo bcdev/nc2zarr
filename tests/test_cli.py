@@ -23,7 +23,7 @@ import os
 import subprocess
 import sys
 import unittest
-from typing import List, Collection
+from typing import List, Collection, Callable
 
 import click
 import click.testing
@@ -34,14 +34,21 @@ from tests.helpers import IOCollector
 from tests.helpers import ZarrOutputTestMixin
 
 
-class Nc2zarrTest(unittest.TestCase):
+class CliTest(unittest.TestCase):
 
-    def _invoke_cli(self, args: List[str]):
+    def _invoke_cli(self, args: List[str], main: Callable = nc2zarr):
         self.runner = click.testing.CliRunner()
-        return self.runner.invoke(nc2zarr, args, catch_exceptions=False)
+        return self.runner.invoke(main, args, catch_exceptions=False)
+
+    @staticmethod
+    def _dump_cli_output(result):
+        if result.stderr_bytes:
+            print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
+        if result.stdout_bytes:
+            print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
 
 
-class NoOpNc2zarrCliTest(Nc2zarrTest):
+class NoOpNc2zarrCliTest(CliTest):
     def test_noargs(self):
         self.assertEqual(1, self._invoke_cli([]).exit_code)
 
@@ -55,7 +62,7 @@ class NoOpNc2zarrCliTest(Nc2zarrTest):
         subprocess.call([sys.executable, '-m', 'nc2zarr.cli', '--help'])
 
 
-class Nc2zarrCliTest(Nc2zarrTest, ZarrOutputTestMixin, IOCollector):
+class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
     def setUp(self):
         self.reset_paths()
 
@@ -112,66 +119,48 @@ class Nc2zarrCliTest(Nc2zarrTest, ZarrOutputTestMixin, IOCollector):
             self.assertIn(expected_stderr,
                           result.stderr_bytes.decode("utf-8") if result.stderr_bytes else '')
 
-    @staticmethod
-    def _dump_cli_output(result):
-        if result.stderr_bytes:
-            print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
-        if result.stdout_bytes:
-            print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
 
-
-class Nc2zarrBatchTest(unittest.TestCase):
-
-    def _invoke_cli(self, args: List[str]):
-        self.runner = click.testing.CliRunner()
-        return self.runner.invoke(nc2zarr_batch, args, catch_exceptions=False)
-
-
-class NoOpNc2zarrBatchCliTest(Nc2zarrBatchTest):
+class NoOpNc2zarrBatchCliTest(CliTest):
     def test_noargs(self):
-        self.assertEqual(1, self._invoke_cli([]).exit_code)
+        self.assertEqual(2, self._invoke_cli([], main=nc2zarr_batch).exit_code)
 
     def test_help(self):
-        self.assertEqual(0, self._invoke_cli(['--help']).exit_code)
+        self.assertEqual(0, self._invoke_cli(['--help'], main=nc2zarr_batch).exit_code)
 
 
-class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
+class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
     def setUp(self):
         self.reset_paths()
 
     def tearDown(self):
         self.delete_paths()
 
-    @staticmethod
-    def _dump_cli_output(result):
-        if result.stderr_bytes:
-            print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
-        if result.stdout_bytes:
-            print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
-
     def test_fully_configured_run(self):
-        self.add_path('inputs')
-        for year in range(2010, 2014):
-            self.add_inputs(f'inputs/{year}', day_offset=1, num_days=3, prefix=f'input-{year}')
+        base_dir = os.path.dirname(__file__)
 
-        self.add_path('config-template.yml')
-        with open('config-template.yml', 'w') as fp:
+        self.add_path(f'{base_dir}/inputs')
+        for year in range(2010, 2014):
+            self.add_inputs(f'{base_dir}/inputs/{year}', day_offset=1, num_days=3, prefix=f'input-{year}')
+
+        self.add_path(f'{base_dir}/config-template.yml')
+        with open(f'{base_dir}/config-template.yml', 'w') as fp:
             fp.write('input:\n'
                      '  paths: ${base_dir}/inputs/${year}/input-*.nc\n'
                      'output:\n'
                      '  path: ${base_dir}/outputs/${year}.zarr\n')
 
-        self.add_path('local-config.yml')
-        with open('local-config.yml', 'w') as fp:
+        self.add_path(f'{base_dir}/local-config.yml')
+        with open(f'{base_dir}/local-config.yml', 'w') as fp:
             fp.write('type: local\n')
 
-        self.add_path('batch')
-        self.add_path('outputs')
+        self.add_path(f'{base_dir}/batch')
+        self.add_path(f'{base_dir}/outputs')
         result = self._invoke_cli(['--range', 'year', '2010', '2013',
-                                   '--value', 'base_dir', '.',
-                                   '--scheduler', 'local-config.yml',
-                                   'config-template.yml',
-                                   '${base_dir}/batch/${year}.yml'])
+                                   '--value', 'base_dir', base_dir,
+                                   '--scheduler', f'{base_dir}/local-config.yml',
+                                   f'{base_dir}/config-template.yml',
+                                   '${base_dir}/batch/${year}.yml'],
+                                  main=nc2zarr_batch)
 
         if result.exit_code != 0:
             self._dump_cli_output(result)
@@ -181,7 +170,7 @@ class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
             '2010.err',
             '2010.out',
             '2010.yml',
-            '2011.err'
+            '2011.err',
             '2011.out',
             '2011.yml',
             '2012.err',
@@ -190,11 +179,11 @@ class Nc2zarrBatchCliTest(Nc2zarrBatchTest, ZarrOutputTestMixin, IOCollector):
             '2013.err',
             '2013.out',
             '2013.yml',
-        }, set(os.listdir('batch')))
+        }, set(os.listdir(f'{base_dir}/batch')))
 
         self.assertEqual({
             '2010.zarr',
             '2011.zarr',
             '2012.zarr',
             '2013.zarr',
-        }, set(os.listdir('outputs')))
+        }, set(os.listdir(f'{base_dir}/outputs')))
