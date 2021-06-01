@@ -23,7 +23,7 @@ import os
 import subprocess
 import sys
 import unittest
-from typing import List, Collection, Callable
+from typing import List, Collection, Callable, Union, Optional
 
 import click
 import click.testing
@@ -50,19 +50,26 @@ class CliTest(unittest.TestCase):
     def assertCliResult(self,
                         result,
                         expected_exit_code: int = None,
-                        expected_stdout: str = None,
-                        expected_stderr: str = None):
+                        expected_stdout: Union[str, List[str]] = None,
+                        expected_stderr: Union[str, List[str]] = None):
         if expected_exit_code is not None:
             if result.exit_code != expected_exit_code:
                 self.dump_cli_output(result)
             self.assertEqual(expected_exit_code,
                              result.exit_code)
-        if expected_stdout is not None:
-            self.assertIn(expected_stdout,
-                          result.stdout_bytes.decode("utf-8") if result.stdout_bytes else '')
-        if expected_stderr is not None:
-            self.assertIn(expected_stderr,
-                          result.stderr_bytes.decode("utf-8") if result.stderr_bytes else '')
+        self._assertOutput(result.stdout_bytes, expected_stdout, 'stdout')
+        self._assertOutput(result.stderr_bytes, expected_stderr, 'stderr')
+
+    def _assertOutput(self,
+                      out_bytes: Optional[bytes],
+                      expected_parts: Union[str, List[str]],
+                      msg: str):
+        if expected_parts is not None:
+            actual = out_bytes.decode("utf-8") if out_bytes else ''
+            if isinstance(expected_parts, str):
+                expected_parts = [expected_parts]
+            for expected_part in expected_parts:
+                self.assertIn(expected_part, actual, msg=msg)
 
 
 class NoOpNc2zarrCliTest(CliTest):
@@ -142,7 +149,9 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=1,
-                             expected_stdout='Error: Could not open file config-template.yml: not found')
+                             expected_stdout=['Error: Could not open file',
+                                              'config-template.yml',
+                                              ': not found'])
 
     def test_config_path_template_invalid(self):
         # create empty file so it exists
@@ -156,7 +165,8 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=2,
-                             expected_stdout='Error: reference "${year}" missing in CONFIG_PATH_TEMPLATE')
+                             expected_stdout='Error: reference "${year}" '
+                                             'missing in CONFIG_PATH_TEMPLATE')
 
     def test_scheduler_config_not_found(self):
         # create empty file so it exists
@@ -171,7 +181,9 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=1,
-                             expected_stdout='Error: Could not open file local.yml: not found')
+                             expected_stdout=['Error: Could not open file ',
+                                              'local.yml',
+                                              ': not found'])
 
     def test_fully_configured_run(self):
         base_dir = os.path.dirname(__file__)
@@ -189,7 +201,10 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
 
         self.add_path(f'{base_dir}/local-config.yml')
         with open(f'{base_dir}/local-config.yml', 'w') as fp:
-            fp.write('type: local\n')
+            fp.write('type: local\n'
+                     'env_vars:\n'
+                     '  TEST1: "123"\n'
+                     '  TEST2: "ABC"\n')
 
         self.add_path(f'{base_dir}/batch')
         self.add_path(f'{base_dir}/outputs')
