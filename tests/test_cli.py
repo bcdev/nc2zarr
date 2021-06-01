@@ -36,27 +36,44 @@ from tests.helpers import ZarrOutputTestMixin
 
 class CliTest(unittest.TestCase):
 
-    def _invoke_cli(self, args: List[str], main: Callable = nc2zarr):
+    def invoke_cli(self, args: List[str], main: Callable = nc2zarr):
         self.runner = click.testing.CliRunner()
         return self.runner.invoke(main, args, catch_exceptions=False)
 
     @staticmethod
-    def _dump_cli_output(result):
+    def dump_cli_output(result):
         if result.stderr_bytes:
             print(f'stderr: {result.stderr_bytes.decode("utf-8")}')
         if result.stdout_bytes:
             print(f'stdout: {result.stdout_bytes.decode("utf-8")}')
 
+    def assertCliResult(self,
+                        result,
+                        expected_exit_code: int = None,
+                        expected_stdout: str = None,
+                        expected_stderr: str = None):
+        if expected_exit_code is not None:
+            if result.exit_code != expected_exit_code:
+                self.dump_cli_output(result)
+            self.assertEqual(expected_exit_code,
+                             result.exit_code)
+        if expected_stdout is not None:
+            self.assertIn(expected_stdout,
+                          result.stdout_bytes.decode("utf-8") if result.stdout_bytes else '')
+        if expected_stderr is not None:
+            self.assertIn(expected_stderr,
+                          result.stderr_bytes.decode("utf-8") if result.stderr_bytes else '')
+
 
 class NoOpNc2zarrCliTest(CliTest):
     def test_noargs(self):
-        self.assertEqual(1, self._invoke_cli([]).exit_code)
+        self.assertCliResult(self.invoke_cli([]), expected_exit_code=1)
 
     def test_version(self):
-        self.assertEqual(0, self._invoke_cli(['--version']).exit_code)
+        self.assertCliResult(self.invoke_cli(['--version']), expected_exit_code=0)
 
     def test_help(self):
-        self.assertEqual(0, self._invoke_cli(['--help']).exit_code)
+        self.assertCliResult(self.invoke_cli(['--help']), expected_exit_code=0)
 
     def test_help_main(self):
         subprocess.call([sys.executable, '-m', 'nc2zarr.cli', '--help'])
@@ -71,14 +88,15 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
 
     def test_0_inputs(self):
         self.add_output('out.zarr')
-        result = self._invoke_cli([])
-        self.assertCliResultError(result, 1,
-                                  expected_stdout='Error: At least one input must be given.')
+        result = self.invoke_cli([])
+        self.assertCliResult(result,
+                             expected_exit_code=1,
+                             expected_stdout='Error: At least one input must be given.')
 
     def test_3_netcdf_inputs(self):
         self.add_inputs('inputs', day_offset=1, num_days=3)
         self.add_output('out.zarr')
-        result = self._invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
+        result = self.invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
         self.assertCliResultOk(result,
                                'out.zarr',
                                expected_vars={'lon', 'lat', 'time', 'r_ui16',
@@ -93,39 +111,21 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                           expected_vars: Collection[str],
                           expected_times: Collection[str]):
         if result.exit_code != 0:
-            self._dump_cli_output(result)
+            self.dump_cli_output(result)
         self.assertEqual(0, result.exit_code)
         self.assertZarrOutputOk(expected_output_path,
                                 expected_vars=expected_vars,
                                 expected_times=expected_times)
 
-    def assertCliResultError(self,
-                             result,
-                             expected_error_code: int = None,
-                             expected_stdout: str = None,
-                             expected_stderr: str = None):
-        if result.exit_code != 0:
-            self._dump_cli_output(result)
-
-        if expected_error_code is not None:
-            self.assertEqual(expected_error_code, result.exit_code)
-        else:
-            self.assertTrue(result.exit_code != 0)
-
-        if expected_stdout is not None:
-            self.assertIn(expected_stdout,
-                          result.stdout_bytes.decode("utf-8") if result.stdout_bytes else '')
-        if expected_stderr is not None:
-            self.assertIn(expected_stderr,
-                          result.stderr_bytes.decode("utf-8") if result.stderr_bytes else '')
-
 
 class NoOpNc2zarrBatchCliTest(CliTest):
     def test_noargs(self):
-        self.assertEqual(2, self._invoke_cli([], main=nc2zarr_batch).exit_code)
+        self.assertCliResult(self.invoke_cli([], main=nc2zarr_batch),
+                             expected_exit_code=2)
 
     def test_help(self):
-        self.assertEqual(0, self._invoke_cli(['--help'], main=nc2zarr_batch).exit_code)
+        self.assertCliResult(self.invoke_cli(['--help'], main=nc2zarr_batch),
+                             expected_exit_code=0)
 
 
 class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
@@ -134,6 +134,44 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
 
     def tearDown(self):
         self.delete_paths()
+
+    def test_config_template_path_not_found(self):
+        result = self.invoke_cli(['--range', 'year', '2010', '2013',
+                                  f'config-template.yml',
+                                  'batch/${year}.yml'],
+                                 main=nc2zarr_batch)
+        self.assertCliResult(result,
+                             expected_exit_code=1,
+                             expected_stdout='Error: Could not open file config-template.yml: not found')
+
+    def test_config_path_template_invalid(self):
+        # create empty file so it exists
+        self.add_path('config-template.yml')
+        with open('config-template.yml', 'w') as fp:
+            fp.write('')
+
+        result = self.invoke_cli(['--range', 'year', '2010', '2013',
+                                  f'config-template.yml',
+                                  'batch/${YEAR}.yml'],
+                                 main=nc2zarr_batch)
+        self.assertCliResult(result,
+                             expected_exit_code=2,
+                             expected_stdout='Error: reference "${year}" missing in CONFIG_PATH_TEMPLATE')
+
+    def test_scheduler_config_not_found(self):
+        # create empty file so it exists
+        self.add_path('config-template.yml')
+        with open('config-template.yml', 'w') as fp:
+            fp.write('')
+
+        result = self.invoke_cli(['--range', 'year', '2010', '2013',
+                                  '--scheduler', 'local.yml',
+                                  f'config-template.yml',
+                                  'batch/${year}.yml'],
+                                 main=nc2zarr_batch)
+        self.assertCliResult(result,
+                             expected_exit_code=1,
+                             expected_stdout='Error: Could not open file local.yml: not found')
 
     def test_fully_configured_run(self):
         base_dir = os.path.dirname(__file__)
@@ -155,16 +193,15 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
 
         self.add_path(f'{base_dir}/batch')
         self.add_path(f'{base_dir}/outputs')
-        result = self._invoke_cli(['--range', 'year', '2010', '2013',
-                                   '--value', 'base_dir', base_dir,
-                                   '--scheduler', f'{base_dir}/local-config.yml',
-                                   f'{base_dir}/config-template.yml',
-                                   '${base_dir}/batch/${year}.yml'],
-                                  main=nc2zarr_batch)
+        result = self.invoke_cli(['--range', 'year', '2010', '2013',
+                                  '--value', 'base_dir', base_dir,
+                                  '--scheduler', f'{base_dir}/local-config.yml',
+                                  f'{base_dir}/config-template.yml',
+                                  '${base_dir}/batch/${year}.yml'],
+                                 main=nc2zarr_batch)
 
-        if result.exit_code != 0:
-            self._dump_cli_output(result)
-            self.fail(f'failed with exit code {result.exit_code}')
+        self.assertCliResult(result,
+                             expected_exit_code=0)
 
         self.assertEqual({
             '2010.err',
