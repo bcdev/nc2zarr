@@ -150,7 +150,7 @@ if __name__ == '__main__':
               help=f'Key value range assignments. MIN and MAX must be integers. Multiple may be given.')
 @click.option('--value', '-V', 'values',
               metavar='KEY VALUE', nargs=2, multiple=True,
-              help=f'Key value assignments. Multiple may be given.')
+              help=f'Key value assignments. Option may be repeated.')
 @click.option('--scheduler', '-s', 'scheduler_config_path',
               metavar='FILE',
               help=f'Scheduler configuration file (YAML).')
