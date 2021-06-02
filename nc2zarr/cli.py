@@ -147,7 +147,7 @@ if __name__ == '__main__':
 @click.argument('config_path_template', metavar='CONFIG_PATH_TEMPLATE')
 @click.option('--range', '-R', 'ranges',
               metavar='KEY MIN MAX', nargs=3, multiple=True,
-              help=f'Key value range assignments. MIN and MAX must be integers. Multiple may be given.')
+              help=f'Key value range assignments. MIN and MAX must be integers. Option may be repeated.')
 @click.option('--value', '-V', 'values',
               metavar='KEY VALUE', nargs=2, multiple=True,
               help=f'Key value assignments. Option may be repeated.')
