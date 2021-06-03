@@ -26,6 +26,7 @@ import fsspec
 import fsspec.implementations.local
 import retry.api
 import xarray as xr
+import numpy as np
 
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
@@ -128,7 +129,8 @@ class DatasetWriter:
             append_dim = self._output_append_dim
             ds = ds.drop_vars([var_name
                                for var_name, var in ds.data_vars.items()
-                               if append_dim not in var.dims])
+                               if append_dim not in var.dims
+                               and np.issubdtype(var.dtype, 'S')])
 
             if not self._input_decode_cf:
                 # Fix for https://github.com/bcdev/nc2zarr/issues/35
