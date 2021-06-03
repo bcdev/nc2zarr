@@ -23,6 +23,7 @@ import os.path
 import unittest
 import uuid
 
+import numpy as np
 import xarray as xr
 import zarr.errors
 
@@ -173,6 +174,34 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                         src_dataset[var_name].encoding = {}
                         src_dataset[var_name].attrs = {}
                     src_dataset.to_zarr(dst_path, append_dim='time')
+
+        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+
+    def test_appending_vars_that_lack_append_dim(self):
+
+        src_path_pat = 'src_{}.zarr'
+        dst_path = 'my.zarr'
+        self.add_path(dst_path)
+
+        writer = DatasetWriter(dst_path, output_overwrite=False, input_decode_cf=False)
+
+        n = 3
+        for i in range(0, n):
+            field_names_values = np.full((3, 50), 0, dtype='S')
+            field_names_values[0, 0] = np.array('A')
+            field_names_values[1, 0] = np.array('B')
+            field_names_values[2, 0] = np.array('C')
+
+            src_dataset = new_test_dataset(day=i + 1)
+            src_dataset = src_dataset.assign(
+                field_names=xr.DataArray(field_names_values,
+                                         dims=("fields", "field_name_length"))
+            )
+            src_path = src_path_pat.format(i)
+            self.add_path(src_path)
+            src_dataset.to_zarr(src_path)
+            with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
+                writer.write_dataset(src_dataset, append=i > 0)
 
         self._assert_time_slices_ok(dst_path, src_path_pat, n)
 
