@@ -40,6 +40,7 @@ setup(
     entry_points={
         'console_scripts': [
             'nc2zarr = nc2zarr.cli:nc2zarr',
+            'nc2zarr-batch = nc2zarr.cli:nc2zarr_batch',
         ],
     },
 )

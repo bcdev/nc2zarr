@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any, List
 
 import click
 
@@ -59,18 +59,20 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
               help='Print more output. Use twice for even more output.')
 @click.option('--version', is_flag=True,
               help='Show version number and exit.')
-def nc2zarr(input_paths: Tuple[str],
-            output_path: str,
-            config_paths: Tuple[str],
-            multi_file: bool,
-            concat_dim: Optional[str],
-            overwrite: bool,
-            append: bool,
-            decode_cf: bool,
-            sort_by: str,
-            dry_run: bool,
-            verbose: int,
-            version: bool):
+def nc2zarr(
+        input_paths: Tuple[str],
+        output_path: str,
+        config_paths: Tuple[str],
+        multi_file: bool,
+        concat_dim: Optional[str],
+        overwrite: bool,
+        append: bool,
+        decode_cf: bool,
+        sort_by: str,
+        dry_run: bool,
+        verbose: int,
+        version: bool
+):
     """
     Reads one or more input datasets and writes or appends them to a single
     Zarr output dataset.
@@ -138,3 +140,122 @@ def nc2zarr(input_paths: Tuple[str],
 
 if __name__ == '__main__':
     nc2zarr()
+
+
+@click.command(name='nc2zarr-batch')
+@click.argument('config_template_path', metavar='CONFIG_TEMPLATE_PATH')
+@click.argument('config_path_template', metavar='CONFIG_PATH_TEMPLATE')
+@click.option('--range', '-R', 'ranges',
+              metavar='KEY MIN MAX', nargs=3, multiple=True,
+              help=f'Key value range assignments. MIN and MAX must be integers. Option may be repeated.')
+@click.option('--value', '-V', 'values',
+              metavar='KEY VALUE', nargs=2, multiple=True,
+              help=f'Key value assignments. Option may be repeated.')
+@click.option('--scheduler', '-s', 'scheduler_config_path',
+              metavar='FILE',
+              help=f'Scheduler configuration file (YAML).')
+@click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
+              help='Open and process inputs only, omit data writing.')
+@click.option('--verbose', '-v', 'verbose', count=True,
+              help='Print more output. Use twice for even more output.')
+def nc2zarr_batch(
+        config_template_path: str,
+        config_path_template: str,
+        ranges: Tuple[Tuple[str]],
+        values: Tuple[Tuple[str]],
+        scheduler_config_path: str,
+        dry_run: bool,
+        verbose: int
+):
+    """
+    Run nc2zarr in batch mode.
+
+    Example:
+
+    \b
+        $ nc2zarr-batch \\
+            --range year 2002 2017 \\
+            --value base_dir . \\
+            --scheduler ../slurm-config.yml \\
+            seaice/config-template.yml \\
+            seaice/batch/config-${year}.yml
+
+    """
+    import datetime
+    import time
+    import os.path
+    import yaml
+
+    from nc2zarr.batch import TemplateBatch
+
+    if not os.path.isfile(config_template_path):
+        raise click.exceptions.FileError(config_template_path, 'not found')
+
+    for k, _, _ in ranges:
+        ref = "${" + k + "}"
+        if ref not in config_path_template:
+            raise click.exceptions.BadArgumentUsage(f'reference "{ref}" '
+                                                    f'missing in CONFIG_PATH_TEMPLATE')
+
+    config_template_variables = expand_config_template_variables(ranges, values)
+
+    job_config = {}
+    if scheduler_config_path:
+        if not os.path.isfile(scheduler_config_path):
+            raise click.exceptions.FileError(scheduler_config_path, 'not found')
+        with open(scheduler_config_path) as fp:
+            job_config = yaml.load(fp, Loader=yaml.SafeLoader)
+
+    job_type = job_config.pop('type', 'local')
+    job_env_vars = job_config.pop('env_vars', {})
+    job_cwd_path = job_config.get('cwd_path', os.path.curdir)
+
+    if job_env_vars:
+        environ = dict(os.environ)
+        environ.update(job_env_vars)
+        job_env_vars = environ
+    python_path_ex = os.path.dirname(config_template_path) or '.'
+    python_path = job_env_vars.get('PYTHONPATH')
+    if python_path:
+        job_env_vars['PYTHONPATH'] = os.path.pathsep.join([python_path, python_path_ex])
+    else:
+        job_env_vars['PYTHONPATH'] = python_path_ex
+
+    batch = TemplateBatch(config_template_variables,
+                          config_template_path,
+                          config_path_template,
+                          dry_run=dry_run,
+                          verbosity=verbose)
+
+    jobs = batch.execute(nc2zarr_args=['-' + (max(1, verbose) * 'v')],
+                         job_type=job_type,
+                         job_env_vars=job_env_vars,
+                         job_cwd_path=job_cwd_path,
+                         **job_config)
+
+    while True:
+        print(f'\n{datetime.datetime.now()}:')
+        for values, job in zip(config_template_variables, jobs):
+            print(f'  {values}: {job.status}')
+        if all([job.done for job in jobs]):
+            break
+        time.sleep(2.0)
+
+
+def expand_config_template_variables(key_min_max_tuples: Tuple[Tuple[str, ...], ...],
+                                     key_value_tuples: Tuple[Tuple[str, ...], ...]) -> List[Dict[str, Any]]:
+    """
+    Helper that computes a list of key-value dictionaries
+    from all value-combinations of key-min-max and key-value
+    assignments.
+    """
+    import itertools
+    keys = [k for k, _, _ in key_min_max_tuples] + [k for k, _ in key_value_tuples]
+    # noinspection PyTypeChecker
+    values_iterators = [(range(int(min_value), int(max_value) + 1))
+                        for _, min_value, max_value in key_min_max_tuples] \
+                       + [(value,) for _, value in key_value_tuples]
+    if not values_iterators:
+        return []
+    return [{k: v for k, v in zip(keys, values)}
+            for values in itertools.product(*values_iterators)]

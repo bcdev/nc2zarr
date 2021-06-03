@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 import os.path
+import shlex
 import subprocess
 import threading
 import time
@@ -28,7 +29,6 @@ from typing import Dict, List, Any, Sequence, Tuple, Optional, TextIO, Type
 
 from .log import LOGGER, log_duration, use_verbosity
 
-import shlex
 
 class TemplateBatch:
     """
@@ -250,7 +250,11 @@ class BatchJob(ABC):
     def done(self) -> Optional[bool]:
         if self.status is JobStatus.UNKNOWN:
             return None
-        return self.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.TERMINATED)
+        # Note: using Slurm, we'll never receive COMPLETED
+        return self.status in (JobStatus.COMPLETING,
+                               JobStatus.COMPLETED,
+                               JobStatus.FAILED,
+                               JobStatus.TERMINATED)
 
 
 class DryRunJob(BatchJob):
