@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any, List
 
 import click
 
@@ -184,7 +184,6 @@ def nc2zarr_batch(
     import datetime
     import time
     import os.path
-    import itertools
     import yaml
 
     from nc2zarr.batch import TemplateBatch
@@ -198,15 +197,7 @@ def nc2zarr_batch(
             raise click.exceptions.BadArgumentUsage(f'reference "{ref}" '
                                                     f'missing in CONFIG_PATH_TEMPLATE')
 
-    # noinspection PyTypeChecker
-    product_args = [range(int(min_value), int(max_value) + 1) for _, min_value, max_value in ranges] \
-                   + [(value,) for _, value in values]
-
-    keys = [k for k, _, _ in ranges] + [k for k, _ in values]
-
-    config_template_variables = []
-    for values in itertools.product(*product_args):
-        config_template_variables.append({k: v for k, v in zip(keys, values)})
+    config_template_variables = expand_config_template_variables(ranges, values)
 
     job_config = {}
     if scheduler_config_path:
@@ -249,3 +240,22 @@ def nc2zarr_batch(
         if all([job.done for job in jobs]):
             break
         time.sleep(2.0)
+
+
+def expand_config_template_variables(key_min_max_tuples: Tuple[Tuple[str, ...], ...],
+                                     key_value_tuples: Tuple[Tuple[str, ...], ...]) -> List[Dict[str, Any]]:
+    """
+    Helper that computes a list of key-value dictionaries
+    from all value-combinations of key-min-max and key-value
+    assignments.
+    """
+    import itertools
+    keys = [k for k, _, _ in key_min_max_tuples] + [k for k, _ in key_value_tuples]
+    # noinspection PyTypeChecker
+    values_iterators = [(range(int(min_value), int(max_value) + 1))
+                        for _, min_value, max_value in key_min_max_tuples] \
+                       + [(value,) for _, value in key_value_tuples]
+    if not values_iterators:
+        return []
+    return [{k: v for k, v in zip(keys, values)}
+            for values in itertools.product(*values_iterators)]

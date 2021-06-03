@@ -28,6 +28,7 @@ from typing import List, Collection, Callable, Union, Optional
 import click
 import click.testing
 
+from nc2zarr.cli import expand_config_template_variables
 from nc2zarr.cli import nc2zarr
 from nc2zarr.cli import nc2zarr_batch
 from tests.helpers import IOCollector
@@ -239,3 +240,16 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
             '2012.zarr',
             '2013.zarr',
         }, set(os.listdir(f'{base_dir}/outputs')))
+
+
+class ConfigTemplateVariablesTest(unittest.TestCase):
+
+    def test_expand_config_template_variables(self):
+        self.assertEqual([],
+                         expand_config_template_variables((), ()))
+        self.assertEqual([{'base_dir': '.', 'year': 2010},
+                          {'base_dir': '.', 'year': 2011},
+                          {'base_dir': '.', 'year': 2012},
+                          {'base_dir': '.', 'year': 2013}],
+                         expand_config_template_variables((('year', '2010', '2013'),),
+                                                          (('base_dir', '.'),)))
