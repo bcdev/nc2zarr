@@ -123,6 +123,13 @@ class DatasetWriter:
 
     def _append_dataset(self, ds: xr.Dataset):
         with log_duration('Appending dataset'):
+            # Fix for https://github.com/bcdev/nc2zarr/issues/38
+            # Get rid of variables that lack append_dim dimension:
+            append_dim = self._output_append_dim
+            ds = ds.drop_vars([var_name
+                               for var_name, var in ds.data_vars.items()
+                               if append_dim not in var.dims])
+
             if not self._input_decode_cf:
                 # Fix for https://github.com/bcdev/nc2zarr/issues/35
                 #
@@ -144,7 +151,7 @@ class DatasetWriter:
 
             if not self._dry_run:
                 ds.to_zarr(self._output_store,
-                           append_dim=self._output_append_dim,
+                           append_dim=append_dim,
                            consolidated=self._output_consolidated)
             else:
                 LOGGER.warning('Appending disabled, dry run!')
