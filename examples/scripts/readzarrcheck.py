@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""readzarrtest.py: test that a Zarr store is readable
+"""readzarrcheck.py: test that a Zarr store is readable
 
 This script attempts to read one data value from each chunk in a specified
 Zarr store, and reports any errors encountered. It exits with status 0 if no
@@ -13,11 +13,11 @@ The Zarr path can be a local file. If the appropriate Python libraries
 and access credentials are present, http or S3 URLs may also be used.
 Examples:
 
-./readzarrtest.py /some/path/OCEANCOLOUR_ATL_CHL_L4_NRT_OBSERVATIONS_009_037.zarr
+./readzarrcheck.py /some/path/OCEANCOLOUR_ATL_CHL_L4_NRT_OBSERVATIONS_009_037.zarr
 
-./readzarrtest.py http://cop-services.s3.eu-central-1.amazonaws.com/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038.zarr/
+./readzarrcheck.py http://cop-services.s3.eu-central-1.amazonaws.com/OCEANCOLOUR_MED_OPTICS_L3_NRT_OBSERVATIONS_009_038.zarr/
 
-./readzarrtest.py s3://cop-services/LWQ-NRT-300m.zarr
+./readzarrcheck.py s3://cop-services/LWQ-NRT-300m.zarr
 """
 
 import sys
