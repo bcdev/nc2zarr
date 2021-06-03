@@ -3,9 +3,9 @@
 ### Version 1.1.2 (in development)
 
 * Fixed a problem that avoided appending datasets that contained variables
-  with `dtype = "|S1"` (ESA SST CCI). Such variables are no longer 
-  appended at all given that they do not contain the dimension along we 
-  append. Otherwise `nc2zarr` will still fail. (#38) 
+  with `dtype = "|S1"` (ESA SST CCI). Such variables are written initially, 
+  but then no longer appended at all given that they do not contain the 
+  dimension along we append. Otherwise `nc2zarr` will still fail. (#38) 
 
 * Fixed a severe problem where data was "encoded" twice before 
   being appended to existing data. The bug became apparent
