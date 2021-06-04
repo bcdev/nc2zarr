@@ -103,7 +103,8 @@ def delete_path(path, ignore_errors=False):
 def new_test_dataset(w: int = 36,
                      h: int = 18,
                      day: int = None,
-                     chunked: bool = False) -> xr.Dataset:
+                     chunked: bool = False,
+                     add_time_bnds: bool = False) -> xr.Dataset:
     res = 180 / h
     lon = xr.DataArray(np.linspace(-180 + res, 180 - res, num=w), dims=('lon',))
     lat = xr.DataArray(np.linspace(-90 + res, 90 - res, num=h), dims=('lat',))
@@ -122,7 +123,19 @@ def new_test_dataset(w: int = 36,
             calendar="proleptic_gregorian",
             units="seconds since 1970-01-01 00:00:00"
         )
-        coords = dict(lon=lon, lat=lat, time=time)
+        if add_time_bnds:
+            time.attrs['bounds'] = 'time_bnds'
+            time_bnds = xr.DataArray(np.array([['2020-12-{:02d}T09:30:00'.format(day),
+                                                '2020-12-{:02d}T10:30:00'.format(day)]],
+                                              dtype='datetime64[s]'),
+                                     dims=('time', 'bnds'))
+            time_bnds.encoding.update(
+                calendar="proleptic_gregorian",
+                units="seconds since 1970-01-01 00:00:00"
+            )
+            coords = dict(lon=lon, lat=lat, time=time, time_bnds=time_bnds)
+        else:
+            coords = dict(lon=lon, lat=lat, time=time)
 
     r_ui16 = xr.DataArray(
         np.random.randint(0, 1000, size=var_shape).astype(dtype=np.uint16),

@@ -64,6 +64,58 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         writer.write_dataset(ds)
         self.assertFalse(os.path.isdir('out.zarr'))
 
+    def test_finalize_adjusts_metadata(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               output_append=True,
+                               output_adjust_metadata=True,
+                               input_paths=['a.nc', 'z.zarr', 'b.nc'])
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1)
+            writer.write_dataset(ds)
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertNotIn('history', ds.attrs)
+            self.assertNotIn('source', ds.attrs)
+            self.assertNotIn('time_coverage_start', ds.attrs)
+            self.assertNotIn('time_coverage_end', ds.attrs)
+        writer.finalize()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('history', ds.attrs)
+            self.assertIn('source', ds.attrs)
+            self.assertEqual('a.nc, b.nc', ds.attrs['source'])
+            self.assertIn('time_coverage_start', ds.attrs)
+            self.assertEqual('2020-12-01 10:00:00', ds.attrs['time_coverage_start'])
+            self.assertIn('time_coverage_end', ds.attrs)
+            self.assertEqual('2020-12-03 10:00:00', ds.attrs['time_coverage_end'])
+
+    def test_finalize_adjusts_metadata_with_time_bnds(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr', output_append=True, output_adjust_metadata=True)
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1, add_time_bnds=True)
+            writer.write_dataset(ds)
+        writer.finalize()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('time_coverage_start', ds.attrs)
+            self.assertEqual('2020-12-01 09:30:00', ds.attrs['time_coverage_start'])
+            self.assertIn('time_coverage_end', ds.attrs)
+            self.assertEqual('2020-12-03 10:30:00', ds.attrs['time_coverage_end'])
+
+    def test_finalize_updates_metadata(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               output_append=True,
+                               output_metadata=dict(comment='This dataset is crap.'))
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1)
+            writer.write_dataset(ds)
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertNotIn('comment', ds.attrs)
+        writer.finalize()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('comment', ds.attrs)
+            self.assertEqual('This dataset is crap.', ds.attrs['comment'])
+
     def test_local_dry_run_for_existing(self):
         self.add_path('my.zarr')
         ds = new_test_dataset(day=1)

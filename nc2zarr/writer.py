@@ -19,20 +19,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import datetime
 import os.path
-from typing import Dict, Any
+from typing import Dict, Any, Sequence
 
 import fsspec
 import fsspec.implementations.local
+import numpy as np
+import pandas as pd
 import retry.api
 import xarray as xr
-import numpy as np
+import zarr
 
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
 from .custom import load_custom_func
 from .log import LOGGER
 from .log import log_duration
+from .version import version
 
 
 class DatasetWriter:
@@ -45,9 +49,12 @@ class DatasetWriter:
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_append_dim: str = None,
+                 output_adjust_metadata: bool = False,
+                 output_metadata: Dict[str, Any] = None,
                  output_s3_kwargs: Dict[str, Any] = None,
                  output_retry_kwargs: Dict[str, Any] = None,
                  input_decode_cf: bool = False,
+                 input_paths: Sequence[str] = None,
                  dry_run: bool = False):
         if not output_path:
             raise ValueError('output_path must be given')
@@ -62,9 +69,12 @@ class DatasetWriter:
         self._output_overwrite = output_overwrite
         self._output_append = output_append
         self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+        self._output_adjust_metadata = output_adjust_metadata
+        self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
         self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
         self._input_decode_cf = input_decode_cf
+        self._input_paths = input_paths
         self._dry_run = dry_run
         if output_s3_kwargs or output_path.startswith('s3://'):
             self._fs = fsspec.filesystem('s3', **(output_s3_kwargs or {}))
@@ -86,6 +96,35 @@ class DatasetWriter:
                              logger=LOGGER,
                              **self._output_retry_kwargs)
 
+    def finalize(self):
+        adjusted_metadata = {}
+        if self._output_adjust_metadata:
+            # Get new attribute values
+            with xr.open_zarr(self._output_store, decode_cf=True) as dataset:
+                history = self._get_history_metadata(dataset)
+                source = self._get_source_metadata(dataset)
+                time_coverage_start, time_coverage_end = \
+                    self._get_time_coverage_metadata(dataset)
+                adjusted_data = (
+                    ('history', history, False),
+                    ('source', source, False),
+                    ('time_coverage_start', time_coverage_start, False),
+                    ('time_coverage_end', time_coverage_end, False),
+                    ('start_time', time_coverage_start, True),
+                    ('stop_time', time_coverage_end, True),
+                )
+                adjusted_metadata = {k: v
+                                     for k, v, f in adjusted_data
+                                     if v is not None
+                                     and not f or k in dataset.attrs}
+        if self._output_metadata:
+            adjusted_metadata.update(self._output_metadata)
+
+        if adjusted_metadata:
+            # Externally modify attributes
+            with zarr.open_group(self._output_store, cache_attrs=False) as group:
+                group.attrs.update(adjusted_metadata)
+
     def _write_dataset(self,
                        ds: xr.Dataset,
                        encoding: Dict[str, Any] = None,
@@ -97,12 +136,6 @@ class DatasetWriter:
             self._create_dataset(ds, encoding)
         else:
             self._append_dataset(ds)
-
-    # def close(self):
-    #     if self._output_store is not None \
-    #             and hasattr(self._output_store, 'close') \
-    #             and callable(self._output_store.close):
-    #         self._output_store.close()
 
     def _ensure_store(self):
         if self._output_store is None:
@@ -172,3 +205,46 @@ class DatasetWriter:
         for k, v in ds.variables.items():
             v.attrs = dict()
         return ds
+
+    def _get_source_metadata(self, dataset: xr.Dataset):
+        source = None
+        if self._input_paths:
+            # Note, currently we only name root sources, our NetCDF files.
+            nc_paths = ', '.join(path for path in self._input_paths if path.endswith('.nc'))
+            source = dataset.attrs.get('source')
+            source = ((source + ',\n') if source else '') + nc_paths
+        return source
+
+    @classmethod
+    def _get_history_metadata(cls, dataset: xr.Dataset):
+        now = _np_timestamp_to_str(np.array(datetime.datetime.utcnow(), dtype=np.datetime64))
+        present = f"{now}: converted by nc2zarr, version {version}"
+        history = dataset.attrs.get("history")
+        return ((history + '\n') if history else '') + present
+
+    @classmethod
+    def _get_time_coverage_metadata(cls, dataset: xr.Dataset):
+        time_coverage_start, time_coverage_end = None, None
+        if 'time' in dataset:
+            time = dataset['time']
+            bounds = time.attrs.get('bounds', 'time_bnds')
+            if bounds in dataset \
+                    and dataset[bounds].ndim == 2 \
+                    and dataset[bounds].shape[1] == 2:
+                time_bnds = dataset[bounds]
+                time_coverage_start = _xr_timestamp_to_str(time_bnds[0, 0])
+                time_coverage_end = _xr_timestamp_to_str(time_bnds[-1, 1])
+            else:
+                time_coverage_start = _xr_timestamp_to_str(dataset.time[0])
+                time_coverage_end = _xr_timestamp_to_str(dataset.time[-1])
+        return time_coverage_start, time_coverage_end
+
+
+def _xr_timestamp_to_str(time_scalar: xr.DataArray):
+    return _np_timestamp_to_str(time_scalar.values.item())
+
+
+def _np_timestamp_to_str(time_scalar: np.ndarray):
+    # noinspection PyTypeChecker
+    return pd.to_datetime(time_scalar, utc=True) \
+        .strftime("%Y-%m-%d %H:%M:%S")

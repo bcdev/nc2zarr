@@ -168,6 +168,19 @@ output:
   # Append dimension. Defaults to input/concat_dim or "time".
   append_dim: false
 
+  # Whether to adjust output metadata (global attributes)
+  # After the last write/append. This will adjust the
+  # following global attributes
+  # - "history"
+  # - "source"
+  # - "time_coverage_start" (and "start_time" if existed before)
+  # - "time_coverage_end" (and "stop_time" if existed before)
+  adjust_metadata: false
+
+  # Extra metadata (global attributes) used to update
+  # after the last write/append.
+  metadata: { }
+
   # Object storage file system configuration.
   # If given, content are the keyword arguments passed to s3fs.S3FileSystem().
   # See https://s3fs.readthedocs.io/en/latest/api.html#s3fs.core.S3FileSystem
