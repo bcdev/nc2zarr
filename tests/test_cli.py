@@ -102,16 +102,38 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                              expected_stdout='Error: At least one input must be given.')
 
     def test_3_netcdf_inputs(self):
-        self.add_inputs('inputs', day_offset=1, num_days=3)
+        self.add_inputs('inputs', day_offset=1, num_days=3, add_time_bnds=True)
         self.add_output('out.zarr')
         result = self.invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
-        self.assertCliResultOk(result,
-                               'out.zarr',
-                               expected_vars={'lon', 'lat', 'time', 'r_ui16',
-                                              'r_i32', 'r_f32'},
-                               expected_times=['2020-12-01T10:00:00',
-                                               '2020-12-02T10:00:00',
-                                               '2020-12-03T10:00:00'])
+        ds = self.assertCliResultOk(result,
+                                    'out.zarr',
+                                    expected_vars={'lon', 'lat', 'time', 'time_bnds',
+                                                   'r_ui16', 'r_i32', 'r_f32'},
+                                    expected_times=['2020-12-01T10:00:00',
+                                                    '2020-12-02T10:00:00',
+                                                    '2020-12-03T10:00:00'])
+        self.assertEqual({}, ds.attrs)
+
+    def test_3_netcdf_inputs_finalize_only(self):
+        self.add_inputs('inputs', day_offset=1, num_days=3, add_time_bnds=True)
+        self.add_output('out.zarr')
+        result = self.invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
+        self.assertEqual(0, result.exit_code)
+        result = self.invoke_cli(['--adjust-metadata', '--finalize-only', 'inputs/*.nc'])
+        ds = self.assertCliResultOk(result,
+                                    'out.zarr',
+                                    expected_vars={'lon', 'lat', 'time', 'time_bnds',
+                                                   'r_ui16', 'r_i32', 'r_f32'},
+                                    expected_times=['2020-12-01T10:00:00',
+                                                    '2020-12-02T10:00:00',
+                                                    '2020-12-03T10:00:00'])
+        self.assertIn('history', ds.attrs)
+        self.assertEqual('inputs/input-01.nc, '
+                         'inputs/input-02.nc, '
+                         'inputs/input-03.nc',
+                         ds.attrs.get('source', '').replace('\\', '/'))
+        self.assertEqual('2020-12-01 09:30:00', ds.attrs.get('time_coverage_start'))
+        self.assertEqual('2020-12-03 10:30:00', ds.attrs.get('time_coverage_end'))
 
     def assertCliResultOk(self,
                           result,
@@ -121,9 +143,9 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
         if result.exit_code != 0:
             self.dump_cli_output(result)
         self.assertEqual(0, result.exit_code)
-        self.assertZarrOutputOk(expected_output_path,
-                                expected_vars=expected_vars,
-                                expected_times=expected_times)
+        return self.assertZarrOutputOk(expected_output_path,
+                                       expected_vars=expected_vars,
+                                       expected_times=expected_times)
 
 
 class NoOpNc2zarrBatchCliTest(CliTest):

@@ -78,7 +78,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             self.assertNotIn('source', ds.attrs)
             self.assertNotIn('time_coverage_start', ds.attrs)
             self.assertNotIn('time_coverage_end', ds.attrs)
-        writer.finalize()
+        writer.finalize_dataset()
         with xr.open_zarr('my.zarr') as ds:
             self.assertIn('history', ds.attrs)
             self.assertIn('source', ds.attrs)
@@ -94,7 +94,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         for i in range(3):
             ds = new_test_dataset(day=i + 1, add_time_bnds=True)
             writer.write_dataset(ds)
-        writer.finalize()
+        writer.finalize_dataset()
         with xr.open_zarr('my.zarr') as ds:
             self.assertIn('time_coverage_start', ds.attrs)
             self.assertEqual('2020-12-01 09:30:00', ds.attrs['time_coverage_start'])
@@ -111,7 +111,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             writer.write_dataset(ds)
         with xr.open_zarr('my.zarr') as ds:
             self.assertNotIn('comment', ds.attrs)
-        writer.finalize()
+        writer.finalize_dataset()
         with xr.open_zarr('my.zarr') as ds:
             self.assertIn('comment', ds.attrs)
             self.assertEqual('This dataset is crap.', ds.attrs['comment'])
@@ -201,7 +201,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
                 writer.write_dataset(src_dataset, append=i > 0)
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     # see also https://github.com/pydata/xarray/issues/4412
     def test_append_with_input_decode_cf_xarray(self):
@@ -227,7 +227,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                         src_dataset[var_name].attrs = {}
                     src_dataset.to_zarr(dst_path, append_dim='time')
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     def test_appending_vars_that_lack_append_dim(self):
 
@@ -255,10 +255,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
                 writer.write_dataset(src_dataset, append=i > 0)
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     @classmethod
-    def _assert_time_slices_ok(cls, dst_path, src_path_pat, n):
+    def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):
         with xr.open_zarr(dst_path, decode_cf=False) as ds:
             for i in range(0, n):
                 src_path = src_path_pat.format(i)

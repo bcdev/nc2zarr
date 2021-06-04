@@ -2,20 +2,24 @@
 
 ### Version 1.1.2 (in development)
 
-* Whether to adjust output metadata (global attributes)
-  after the last write/append can now be forced by the new
-  `output.adjust_metadata` setting whose default is `false`.
-  If set to `true`, this will adjust the
-  following metadata attributes
+* Whether to adjust output metadata (global attributes) after the last 
+  write/append can now be forced by the new `output.adjust_metadata` 
+  setting whose default is `false`. If set to `true`, this will adjust 
+  the following metadata attributes:
   - "history"
   - "source"
-  - "time_coverage_start" (and "start_time" if existed before)
-  - "time_coverage_end" (and "stop_time" if existed before)
+  - "time_coverage_start"
+  - "time_coverage_end" 
     
   In addition, extra metadata (global attributes) can now be added 
   after the last write/append using the new setting
   `output.metadata` whose value is a mapping from attribute 
-  names to values. (#20, #34)
+  names to values. 
+  
+  The above functionality is also reflected in two new CLI options
+  `--adjust-metadata` and `--finalize-only`. In combination, they
+  can be used to later adjust metadata in already existing Zarr 
+  datasets. (#20, #34)
   
 * Fixed a problem that avoided appending datasets that contained variables
   with `dtype = "|S1"` (ESA SST CCI). Such variables are written initially, 

@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 import datetime
+import json
 import os.path
 from typing import Dict, Any, Sequence
 
@@ -96,34 +97,10 @@ class DatasetWriter:
                              logger=LOGGER,
                              **self._output_retry_kwargs)
 
-    def finalize(self):
-        adjusted_metadata = {}
-        if self._output_adjust_metadata:
-            # Get new attribute values
-            with xr.open_zarr(self._output_store, decode_cf=True) as dataset:
-                history = self._get_history_metadata(dataset)
-                source = self._get_source_metadata(dataset)
-                time_coverage_start, time_coverage_end = \
-                    self._get_time_coverage_metadata(dataset)
-                adjusted_data = (
-                    ('history', history, False),
-                    ('source', source, False),
-                    ('time_coverage_start', time_coverage_start, False),
-                    ('time_coverage_end', time_coverage_end, False),
-                    ('start_time', time_coverage_start, True),
-                    ('stop_time', time_coverage_end, True),
-                )
-                adjusted_metadata = {k: v
-                                     for k, v, f in adjusted_data
-                                     if v is not None
-                                     and not f or k in dataset.attrs}
-        if self._output_metadata:
-            adjusted_metadata.update(self._output_metadata)
-
-        if adjusted_metadata:
-            # Externally modify attributes
-            with zarr.open_group(self._output_store, cache_attrs=False) as group:
-                group.attrs.update(adjusted_metadata)
+    def finalize_dataset(self):
+        retry.api.retry_call(self._finalize_dataset,
+                             logger=LOGGER,
+                             **self._output_retry_kwargs)
 
     def _write_dataset(self,
                        ds: xr.Dataset,
@@ -205,6 +182,43 @@ class DatasetWriter:
         for k, v in ds.variables.items():
             v.attrs = dict()
         return ds
+
+    def _finalize_dataset(self):
+        if not self._output_adjust_metadata and not self._output_metadata:
+            return
+
+        with log_duration('Finalizing dataset'):
+            adjusted_metadata = {}
+
+            if self._output_adjust_metadata:
+                self._ensure_store()
+                # Get new attribute values
+                with xr.open_zarr(self._output_store, decode_cf=True) as dataset:
+                    history = self._get_history_metadata(dataset)
+                    source = self._get_source_metadata(dataset)
+                    time_coverage_start, time_coverage_end = \
+                        self._get_time_coverage_metadata(dataset)
+                    adjusted_data = (
+                        ('history', history),
+                        ('source', source),
+                        ('time_coverage_start', time_coverage_start),
+                        ('time_coverage_end', time_coverage_end),
+                    )
+                    adjusted_metadata = {k: v
+                                         for k, v in adjusted_data
+                                         if v is not None}
+            if self._output_metadata:
+                adjusted_metadata.update(self._output_metadata)
+
+            LOGGER.info('Metadata update:\n', json.dumps(adjusted_metadata, indent=2))
+
+            if not self._dry_run:
+                self._ensure_store()
+                # Externally modify attributes
+                with zarr.open_group(self._output_store, cache_attrs=False) as group:
+                    group.attrs.update(adjusted_metadata)
+            else:
+                LOGGER.warning('Updating of metadata disabled, dry run!')
 
     def _get_source_metadata(self, dataset: xr.Dataset):
         source = None
