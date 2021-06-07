@@ -249,8 +249,8 @@ class DatasetWriter:
                 time_coverage_start = _xr_timestamp_to_str(time_bnds[0, 0])
                 time_coverage_end = _xr_timestamp_to_str(time_bnds[-1, 1])
             else:
-                time_coverage_start = _xr_timestamp_to_str(dataset.time[0])
-                time_coverage_end = _xr_timestamp_to_str(dataset.time[-1])
+                time_coverage_start = _xr_timestamp_to_str(time[0])
+                time_coverage_end = _xr_timestamp_to_str(time[-1])
         return time_coverage_start, time_coverage_end
 
 
