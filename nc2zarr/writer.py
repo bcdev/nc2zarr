@@ -237,10 +237,11 @@ class DatasetWriter:
     def _get_source_metadata(self, dataset: xr.Dataset):
         source = None
         if self._input_paths:
-            # Note, currently we only name root sources, our NetCDF files.
-            nc_paths = ', '.join(path for path in self._input_paths if path.endswith('.nc'))
-            source = dataset.attrs.get('source')
-            source = ((source + ',\n') if source else '') + nc_paths
+            # Note, currently we only name root sources = our NetCDF files.
+            nc_paths = [path for path in self._input_paths if path.endswith('.nc')]
+            if nc_paths:
+                source = dataset.attrs.get('source')
+                source = ((source + ',\n') if source else '') + ', '.join(nc_paths)
         return source
 
     @classmethod
