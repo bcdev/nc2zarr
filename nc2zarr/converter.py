@@ -195,6 +195,7 @@ class Converter:
                                output_retry_kwargs=self.output_retry,
                                input_decode_cf=self.input_decode_cf,
                                input_paths=input_paths,
+                               finalize_only=self.finalize_only,
                                dry_run=self.dry_run)
 
         if not self.finalize_only:
