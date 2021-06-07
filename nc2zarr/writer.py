@@ -221,7 +221,8 @@ class DatasetWriter:
             if self._output_metadata:
                 adjusted_metadata.update(self._output_metadata)
 
-            LOGGER.info('Metadata update:\n', json.dumps(adjusted_metadata, indent=2))
+            LOGGER.info(f'Metadata update:\n'
+                        f'{json.dumps(adjusted_metadata, indent=2)}')
 
             if not self._dry_run:
                 self._ensure_store()
