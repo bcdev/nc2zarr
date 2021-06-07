@@ -217,6 +217,8 @@ class DatasetWriter:
                 # Externally modify attributes
                 with zarr.open_group(self._output_store, cache_attrs=False) as group:
                     group.attrs.update(adjusted_metadata)
+                if self._output_consolidated:
+                    zarr.convenience.consolidate_metadata(self._output_store)
             else:
                 LOGGER.warning('Updating of metadata disabled, dry run!')
 
