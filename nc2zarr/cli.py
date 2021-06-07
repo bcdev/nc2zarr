@@ -111,7 +111,7 @@ def nc2zarr(
     configurations and thus override settings in any CONFIG_FILE:
 
     \b
-    [--finalize_only] overrides /finalize_only
+    [--finalize-only] overrides /finalize_only
     [--dry-run] overrides /dry_run
     [--verbose] overrides /verbosity
 
