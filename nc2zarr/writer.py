@@ -247,7 +247,7 @@ class DatasetWriter:
     @classmethod
     def _get_history_metadata(cls, dataset: xr.Dataset):
         now = _np_timestamp_to_str(np.array(datetime.datetime.utcnow(), dtype=np.datetime64))
-        present = f"{now}: converted by nc2zarr, version {version}"
+        present = f"{now} - converted by nc2zarr, version {version}"
         history = dataset.attrs.get("history")
         return ((history + '\n') if history else '') + present
 
