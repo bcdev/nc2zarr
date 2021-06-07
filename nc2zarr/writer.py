@@ -56,6 +56,7 @@ class DatasetWriter:
                  output_retry_kwargs: Dict[str, Any] = None,
                  input_decode_cf: bool = False,
                  input_paths: Sequence[str] = None,
+                 finalize_only: bool = False,
                  dry_run: bool = False):
         if not output_path:
             raise ValueError('output_path must be given')
@@ -76,6 +77,7 @@ class DatasetWriter:
         self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
         self._input_decode_cf = input_decode_cf
         self._input_paths = input_paths
+        self._finalize_only = finalize_only
         self._dry_run = dry_run
         if output_s3_kwargs or output_path.startswith('s3://'):
             self._fs = fsspec.filesystem('s3', **(output_s3_kwargs or {}))
@@ -89,6 +91,10 @@ class DatasetWriter:
                       ds: xr.Dataset,
                       encoding: Dict[str, Any] = None,
                       append: bool = None):
+        if self._finalize_only:
+            raise RuntimeError('internal error: '
+                               'cannot write/append datasets when '
+                               'in finalize-only mode')
         if self._output_custom_postprocessor is not None:
             ds = self._output_custom_postprocessor(ds)
         retry.api.retry_call(self._write_dataset,
@@ -117,8 +123,13 @@ class DatasetWriter:
     def _ensure_store(self):
         if self._output_store is None:
             self._output_path_exists = self._fs.isdir(self._output_path)
-            if self._output_overwrite and self._output_path_exists:
-                self._remove_dataset()
+            if self._finalize_only:
+                if not self._output_path_exists:
+                    raise FileNotFoundError(f'output path not found:'
+                                            f' {self._output_path}')
+            else:
+                if self._output_overwrite and self._output_path_exists:
+                    self._remove_dataset()
             self._output_store = self._fs.get_mapper(self._output_path)
 
     def _create_dataset(self, ds, encoding):
