@@ -27,6 +27,11 @@ from nc2zarr.constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 
 
+# Important note: when adding new options, make sure their default
+# value is None, otherwise the default values will override any value
+# given in the configuration files.
+
+
 @click.command(name='nc2zarr')
 @click.argument('input_paths', nargs=-1, metavar='[INPUT_FILE ...]')
 @click.option('--config', '-c', 'config_paths', metavar='CONFIG_FILE', multiple=True,
@@ -53,10 +58,10 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 @click.option('--sort-by', '-s', 'sort_by', default=None,
               type=click.Choice(['path', 'name'], case_sensitive=True),
               help='Sort input files by specified property.')
-@click.option('--adjust-metadata', 'adjust_metadata', is_flag=True,
+@click.option('--adjust-metadata', 'adjust_metadata', is_flag=True, default=None,
               help=f'Adjust metadata attributes after the last '
                    f'write/append step.')
-@click.option('--finalize-only', 'finalize_only', is_flag=True,
+@click.option('--finalize-only', 'finalize_only', is_flag=True, default=None,
               help=f'Whether to just run "finalize" tasks on an existing '
                    f'output dataset. Currently, this updates the metadata only, '
                    f'given that configuration output/adjust_metadata is set or '
