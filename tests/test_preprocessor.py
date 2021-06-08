@@ -51,6 +51,22 @@ class DatasetPreProcessorTest(unittest.TestCase):
         self.assertIn('time', new_ds)
         self.assertEqual(ds.time, new_ds.time)
 
+    def test_time_var_is_scalar(self):
+        ds = new_test_dataset(day=2)
+        time = ds.time
+        ds = ds.rename_vars({'time': 't'})
+        ds = ds.swap_dims({'time': 't'})
+        ds = ds.assign_coords({'time': xr.DataArray(time[0].values.item(), dims=())})
+        ds = ds.drop_vars('t')
+        pre_processor = DatasetPreProcessor(input_variables=None, input_concat_dim='time')
+        new_ds = pre_processor.preprocess_dataset(ds)
+        self.assertIsInstance(new_ds, xr.Dataset)
+        self.assertAllInDataset(['r_ui16', 'r_ui16', 'r_i32', 'lon', 'lat', 'time'], new_ds)
+        self.assertIn('time', new_ds)
+        self.assertEqual(('time',), new_ds.time.dims)
+        self.assertEqual((1,), new_ds.time.shape)
+        self.assertEqual(ds.time, new_ds.time)
+
     def test_adds_time_dim_from_iso_format_attrs(self):
         ds = new_test_dataset(day=None)
         ds.attrs.update(time_coverage_start='2020-09-08 10:30:00',
