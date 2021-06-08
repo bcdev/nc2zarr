@@ -114,7 +114,7 @@ class Converter:
 
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags '
-                                 'cannot be given both.')
+                                 'cannot both be given.')
 
         if output_metadata \
                 and (not isinstance(output_metadata, dict)
