@@ -48,55 +48,60 @@ Usage: nc2zarr [OPTIONS] [INPUT_FILE ...]
   nc2zarr out-01.zarr out-02.zarr -o final.zarr
 
   Command line arguments and options have precedence over other
-  configurations and thus overwrite settings in any CONFIG_FILE:
+  configurations and thus override settings in any CONFIG_FILE:
 
-  [--dry-run] overwrites /dry_run
-  [--verbose] overwrites /verbosity
-  [INPUT_FILE ...] overwrites /input/paths in CONFIG_FILE
-  [--multi-file] overwrites /input/multi_file
-  [--concat-dim] overwrites /input/concat_dim
-  [--decode-cf] overwrites /input/decode_cf
-  [--sort-by] overwrites /input/sort_by
-  [--output OUTPUT_FILE] overwrites /output/path
-  [--overwrite] overwrites /output/overwrite
-  [--append] overwrites /output/append
+  [--finalize-only] overrides /finalize_only
+  [--dry-run] overrides /dry_run
+  [--verbose] overrides /verbosity
+
+  [INPUT_FILE ...] overrides /input/paths in CONFIG_FILE
+  [--multi-file] overrides /input/multi_file
+  [--concat-dim] overrides /input/concat_dim
+  [--decode-cf] overrides /input/decode_cf
+  [--sort-by] overrides /input/sort_by
+
+  [--output OUTPUT_FILE] overrides /output/path
+  [--overwrite] overrides /output/overwrite
+  [--append] overrides /output/append
+  [--adjust-metadata] overrides /output/adjust_metadata
 
 Options:
-  -c, --config CONFIG_FILE        Configuration file (YAML). Multiple may be
-                                  given.
+  -c, --config CONFIG_FILE   Configuration file (YAML). Multiple may be given.
+  -o, --output OUTPUT_PATH   Output name. Defaults to "out.zarr".
+  -d, --concat-dim DIM_NAME  Dimension for concatenation. Defaults to "time".
+  -m, --multi-file           Open multiple input files as one block. Works for
+                             NetCDF files only. Use --concat-dim to specify
+                             the dimension for concatenation.
 
-  -o, --output OUTPUT_PATH        Output name. Defaults to "out.zarr".
-  -d, --concat-dim DIM_NAME       Dimension for concatenation. Defaults to
-                                  "time".
+  -w, --overwrite            Overwrite existing OUTPUT_PATH. If OUTPUT_PATH
+                             does not exist, the option has no effect. Cannot
+                             be used with --append.
 
-  -m, --multi-file                Open multiple input files as one block.
-                                  Works for NetCDF files only. Use --concat-
-                                  dim to specify the dimension for
-                                  concatenation.
+  -a, --append               Append inputs to existing OUTPUT_PATH. If
+                             OUTPUT_PATH does not exist, the option has no
+                             effect. Cannot be used with --overwrite.
 
-  -w, --overwrite                 Overwrite existing OUTPUT_PATH. If
-                                  OUTPUT_PATH does not exist, the option has
-                                  no effect. Cannot be used with --append.
+  --decode-cf                Decode variables according to CF conventions.
+                             Caution: array data may be converted to floating
+                             point type if a "_FillValue" attribute is
+                             present.
 
-  -a, --append                    Append inputs to existing OUTPUT_PATH. If
-                                  OUTPUT_PATH does not exist, the option has
-                                  no effect. Cannot be used with --overwrite.
+  -s, --sort-by [path|name]  Sort input files by specified property.
+  --adjust-metadata          Adjust metadata attributes after the last
+                             write/append step.
 
-  --decode-cf                     Decode variables according to CF
-                                  conventions. Caution: array data may be
-                                  converted to floating point type if a
-                                  "_FillValue" attribute is present.
+  --finalize-only            Whether to just run "finalize" tasks on an
+                             existing output dataset. Currently, this updates
+                             the metadata only, given that configuration
+                             output/adjust_metadata is set or output/metadata
+                             is not empty. See also option --adjust-metadata.
 
-  -s, --sort-by [path|name]
-                                  Sort input files by specified property.
-  -d, --dry-run                   Open and process inputs only, omit data
-                                  writing.
+  -d, --dry-run              Open and process inputs only, omit data writing.
+  -v, --verbose              Print more output. Use twice for even more
+                             output.
 
-  -v, --verbose                   Print more output. Use twice for even more
-                                  output.
-
-  --version                       Show version number and exit.
-  --help                          Show this message and exit.
+  --version                  Show version number and exit.
+  --help                     Show this message and exit.
 ```
 
 ### Configuration file format
