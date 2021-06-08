@@ -174,7 +174,28 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
             Converter()
         self.assertEqual('At least one input must be given.', f'{cm.exception}')
 
-    def test_both_append_dim_and_concat_dim(self):
-        with self.assertRaises(ConverterError) as cm:
+    def test_both_output_append_dim_and_overwrite(self):
+        with self.assertRaises(ConverterError) as e:
             Converter(input_paths='inputs/*.nc', output_overwrite=True, output_append=True)
-        self.assertEqual('Output overwrite and append flags cannot be given both.', f'{cm.exception}')
+        self.assertEqual(('Output overwrite and append '
+                          'flags cannot both be given.',),
+                         e.exception.args)
+
+    def test_invalid_output_metadata(self):
+        self.add_path('my.zarr')
+
+        with self.assertRaises(ConverterError) as e:
+            # noinspection PyTypeChecker
+            Converter(input_paths='inputs/*.nc',
+                      output_metadata=[('comment', 'This dataset is a test.')])
+        self.assertEqual(('Output metadata must be a '
+                          'mapping from attribute names to values.',),
+                         e.exception.args)
+
+        with self.assertRaises(ConverterError) as e:
+            # noinspection PyTypeChecker
+            Converter(input_paths='inputs/*.nc',
+                      output_metadata={12: 'This dataset is a test.'})
+        self.assertEqual(('Output metadata must be a '
+                          'mapping from attribute names to values.',),
+                         e.exception.args)

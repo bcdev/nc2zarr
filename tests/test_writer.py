@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import os.path
 import unittest
 import uuid
@@ -63,6 +64,127 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds = new_test_dataset(day=1)
         writer.write_dataset(ds)
         self.assertFalse(os.path.isdir('out.zarr'))
+
+    def test_finalize_adjusts_metadata(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               output_append=True,
+                               output_adjust_metadata=True,
+                               input_paths=['a.nc', 'z.zarr', 'b.nc'])
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1)
+            writer.write_dataset(ds)
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertNotIn('history', ds.attrs)
+            self.assertNotIn('source', ds.attrs)
+            self.assertNotIn('time_coverage_start', ds.attrs)
+            self.assertNotIn('time_coverage_end', ds.attrs)
+        writer.finalize_dataset()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('history', ds.attrs)
+            self.assertIn('source', ds.attrs)
+            self.assertEqual('a.nc, b.nc', ds.attrs['source'])
+            self.assertIn('time_coverage_start', ds.attrs)
+            self.assertEqual('2020-12-01 10:00:00', ds.attrs['time_coverage_start'])
+            self.assertIn('time_coverage_end', ds.attrs)
+            self.assertEqual('2020-12-03 10:00:00', ds.attrs['time_coverage_end'])
+
+    def test_finalize_adjusts_metadata_with_time_bnds(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr', output_append=True, output_adjust_metadata=True)
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1, add_time_bnds=True)
+            writer.write_dataset(ds)
+        writer.finalize_dataset()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('time_coverage_start', ds.attrs)
+            self.assertEqual('2020-12-01 09:30:00', ds.attrs['time_coverage_start'])
+            self.assertIn('time_coverage_end', ds.attrs)
+            self.assertEqual('2020-12-03 10:30:00', ds.attrs['time_coverage_end'])
+
+    def test_finalize_updates_metadata(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               output_append=True,
+                               output_metadata=dict(comment='This dataset is a test.'))
+        for i in range(3):
+            ds = new_test_dataset(day=i + 1)
+            writer.write_dataset(ds)
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertNotIn('comment', ds.attrs)
+        writer.finalize_dataset()
+        with xr.open_zarr('my.zarr') as ds:
+            self.assertIn('comment', ds.attrs)
+            self.assertEqual('This dataset is a test.', ds.attrs['comment'])
+
+    def test_finalize_only_and_append(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True)
+
+        ds = new_test_dataset(day=1)
+        with self.assertRaises(RuntimeError) as e:
+            writer.write_dataset(ds)
+        self.assertEqual(('internal error: cannot write/append'
+                          ' datasets when in finalize-only mode',),
+                         e.exception.args)
+
+    def test_finalize_only_and_no_output(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True,
+                               output_metadata=dict(comment='This dataset is a test.'))
+
+        with self.assertRaises(FileNotFoundError) as e:
+            writer.finalize_dataset()
+        self.assertEqual(('output path not found: my.zarr',),
+                         e.exception.args)
+
+    def test_finalize_only_and_consolidate_if_specified(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr',
+                               output_overwrite=True)
+        writer.write_dataset(ds)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertFalse(os.path.isfile('my.zarr/.zmetadata'))
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=True,
+                               finalize_only=True)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        with open('my.zarr/.zmetadata') as fp:
+            metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
+        self.assertEqual({},
+                         metadata['metadata'].get('.zattrs'))
+
+    def test_finalize_only_and_consolidate_if_not_specified(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=True,
+                               output_overwrite=True)
+        writer.write_dataset(ds)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=False,
+                               output_metadata=dict(comment='This dataset is a test.'),
+                               finalize_only=True)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        with open('my.zarr/.zmetadata') as fp:
+            metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
+        self.assertEqual({'comment': 'This dataset is a test.'},
+                         metadata['metadata'].get('.zattrs'))
 
     def test_local_dry_run_for_existing(self):
         self.add_path('my.zarr')
@@ -149,7 +271,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
                 writer.write_dataset(src_dataset, append=i > 0)
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     # see also https://github.com/pydata/xarray/issues/4412
     def test_append_with_input_decode_cf_xarray(self):
@@ -175,7 +297,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                         src_dataset[var_name].attrs = {}
                     src_dataset.to_zarr(dst_path, append_dim='time')
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     def test_appending_vars_that_lack_append_dim(self):
 
@@ -203,10 +325,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
                 writer.write_dataset(src_dataset, append=i > 0)
 
-        self._assert_time_slices_ok(dst_path, src_path_pat, n)
+        self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
     @classmethod
-    def _assert_time_slices_ok(cls, dst_path, src_path_pat, n):
+    def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):
         with xr.open_zarr(dst_path, decode_cf=False) as ds:
             for i in range(0, n):
                 src_path = src_path_pat.format(i)

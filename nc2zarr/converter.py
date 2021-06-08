@@ -35,7 +35,7 @@ from .writer import DatasetWriter
 
 class Converter:
     """
-    TODO: describe me any py params.
+    TODO: describe me and my params.
 
     :param input_paths:
     :param input_sort_by:
@@ -58,8 +58,11 @@ class Converter:
            If there is no existing dataset, one will be created regardless
            of the value of this parameter.
     :param output_append_dim:
+    :param output_adjust_metadata:
+    :param output_metadata:
     :param output_s3:
     :param output_custom_postprocessor:
+    :param finalize_only:
     :param dry_run:
     :param verbosity:
     """
@@ -84,9 +87,12 @@ class Converter:
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_append_dim: str = None,
+                 output_adjust_metadata: bool = False,
+                 output_metadata: Dict[str, Any] = None,
                  output_s3: Dict[str, Any] = None,
                  output_retry: Dict[str, Any] = None,
                  output_custom_postprocessor: str = False,
+                 finalize_only: bool = False,
                  dry_run: bool = False,
                  verbosity: int = None):
 
@@ -107,7 +113,14 @@ class Converter:
         output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
 
         if output_overwrite and output_append:
-            raise ConverterError('Output overwrite and append flags cannot be given both.')
+            raise ConverterError('Output overwrite and append flags '
+                                 'cannot both be given.')
+
+        if output_metadata \
+                and (not isinstance(output_metadata, dict)
+                     or any(not isinstance(k, str) for k in output_metadata)):
+            raise ConverterError('Output metadata must be a mapping '
+                                 'from attribute names to values.')
 
         self.input_paths = input_paths
         self.input_sort_by = input_sort_by
@@ -129,8 +142,11 @@ class Converter:
         self.output_overwrite = output_overwrite
         self.output_append = output_append
         self.output_append_dim = output_append_dim
+        self.output_adjust_metadata = output_adjust_metadata
+        self.output_metadata = output_metadata
         self.output_s3 = output_s3
         self.output_retry = output_retry
+        self.finalize_only = finalize_only
         self.dry_run = dry_run
         self.verbosity = verbosity
 
@@ -143,7 +159,12 @@ class Converter:
         if self.dry_run:
             LOGGER.warning('Dry run!')
 
-        opener = DatasetOpener(input_paths=self.input_paths,
+        if self.output_adjust_metadata:
+            input_paths = DatasetOpener.resolve_input_paths(self.input_paths, sort_by=self.input_sort_by)
+        else:
+            input_paths = self.input_paths
+
+        opener = DatasetOpener(input_paths=input_paths,
                                input_multi_file=self.input_multi_file,
                                input_sort_by=self.input_sort_by,
                                input_decode_cf=self.input_decode_cf,
@@ -168,14 +189,23 @@ class Converter:
                                output_overwrite=self.output_overwrite,
                                output_append=self.output_append,
                                output_append_dim=self.output_append_dim,
+                               output_adjust_metadata=self.output_adjust_metadata,
+                               output_metadata=self.output_metadata,
                                output_s3_kwargs=self.output_s3,
                                output_retry_kwargs=self.output_retry,
                                input_decode_cf=self.input_decode_cf,
+                               input_paths=input_paths,
+                               finalize_only=self.finalize_only,
                                dry_run=self.dry_run)
 
-        append = None
-        for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
-            output_dataset, output_encoding = processor.process_dataset(input_dataset)
-            writer.write_dataset(output_dataset, encoding=output_encoding, append=append)
-            input_dataset.close()
-            append = True
+        if not self.finalize_only:
+            append = None
+            for input_dataset in opener.open_datasets(preprocess=pre_processor.preprocess_dataset):
+                output_dataset, output_encoding = processor.process_dataset(input_dataset)
+                writer.write_dataset(output_dataset, encoding=output_encoding, append=append)
+                input_dataset.close()
+                append = True
+        else:
+            LOGGER.warning('Running finalizer tasks only, no input data is being consumed.')
+
+        writer.finalize_dataset()

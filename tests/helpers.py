@@ -50,13 +50,30 @@ class PathCollector:
 class IOCollector(PathCollector):
 
     # noinspection PyShadowingBuiltins
-    def add_inputs(self, input_dir_path, day_offset=1, num_days=5, prefix='input', format='nc'):
+    def add_inputs(self,
+                   input_dir_path,
+                   day_offset=1,
+                   num_days=5,
+                   prefix='input',
+                   format='nc',
+                   add_time_bnds=False):
         self.add_path(input_dir_path, ensure_deleted=False)
         for day in range(day_offset, day_offset + num_days):
-            self.add_input(input_dir_path, day, prefix=prefix, add=False, format=format)
+            self.add_input(input_dir_path,
+                           day,
+                           prefix=prefix,
+                           add=False,
+                           format=format,
+                           add_time_bnds=add_time_bnds)
 
     # noinspection PyShadowingBuiltins
-    def add_input(self, input_dir_path, day, prefix='input', add=True, format='nc'):
+    def add_input(self,
+                  input_dir_path,
+                  day,
+                  prefix='input',
+                  add=True,
+                  format='nc',
+                  add_time_bnds=False):
         if format not in ('nc', 'zarr'):
             raise ValueError('invalid format')
         input_path = os.path.join(input_dir_path, '{}-{:02d}.{}'.format(prefix, day, format))
@@ -64,7 +81,7 @@ class IOCollector(PathCollector):
             self.add_path(input_path)
         if not os.path.exists(input_dir_path):
             os.makedirs(input_dir_path)
-        ds = new_test_dataset(w=36, h=18, day=day)
+        ds = new_test_dataset(w=36, h=18, day=day, add_time_bnds=add_time_bnds)
         chunks_name = 'chunksizes' if format == 'nc' else 'chunks'
         encoding = {k: dict(**v.encoding, **{chunks_name: (1, 9, 9)})
                     for k, v in ds.data_vars.items()}
@@ -84,13 +101,14 @@ class ZarrOutputTestMixin:
     def assertZarrOutputOk(self,
                            expected_output_path: str,
                            expected_vars: Collection[str],
-                           expected_times: Collection[str]):
+                           expected_times: Collection[str]) -> xr.Dataset:
         self.assertTrue(os.path.isdir(expected_output_path))
         ds = xr.open_zarr(expected_output_path)
         self.assertEqual(set(expected_vars), set(ds.variables))
         self.assertEqual(len(expected_times), len(ds.time))
         np.testing.assert_equal(ds.time.values,
                                 np.array(expected_times, dtype='datetime64'))
+        return ds
 
 
 def delete_path(path, ignore_errors=False):
@@ -103,7 +121,8 @@ def delete_path(path, ignore_errors=False):
 def new_test_dataset(w: int = 36,
                      h: int = 18,
                      day: int = None,
-                     chunked: bool = False) -> xr.Dataset:
+                     chunked: bool = False,
+                     add_time_bnds: bool = False) -> xr.Dataset:
     res = 180 / h
     lon = xr.DataArray(np.linspace(-180 + res, 180 - res, num=w), dims=('lon',))
     lat = xr.DataArray(np.linspace(-90 + res, 90 - res, num=h), dims=('lat',))
@@ -122,7 +141,19 @@ def new_test_dataset(w: int = 36,
             calendar="proleptic_gregorian",
             units="seconds since 1970-01-01 00:00:00"
         )
-        coords = dict(lon=lon, lat=lat, time=time)
+        if add_time_bnds:
+            time.attrs['bounds'] = 'time_bnds'
+            time_bnds = xr.DataArray(np.array([['2020-12-{:02d}T09:30:00'.format(day),
+                                                '2020-12-{:02d}T10:30:00'.format(day)]],
+                                              dtype='datetime64[s]'),
+                                     dims=('time', 'bnds'))
+            time_bnds.encoding.update(
+                calendar="proleptic_gregorian",
+                units="seconds since 1970-01-01 00:00:00"
+            )
+            coords = dict(lon=lon, lat=lat, time=time, time_bnds=time_bnds)
+        else:
+            coords = dict(lon=lon, lat=lat, time=time)
 
     r_ui16 = xr.DataArray(
         np.random.randint(0, 1000, size=var_shape).astype(dtype=np.uint16),

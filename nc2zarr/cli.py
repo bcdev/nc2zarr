@@ -27,6 +27,11 @@ from nc2zarr.constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 
 
+# Important note: when adding new options, make sure their default
+# value is None, otherwise the default values will override any value
+# given in the configuration files.
+
+
 @click.command(name='nc2zarr')
 @click.argument('input_paths', nargs=-1, metavar='[INPUT_FILE ...]')
 @click.option('--config', '-c', 'config_paths', metavar='CONFIG_FILE', multiple=True,
@@ -53,6 +58,15 @@ from nc2zarr.constants import DEFAULT_OUTPUT_PATH
 @click.option('--sort-by', '-s', 'sort_by', default=None,
               type=click.Choice(['path', 'name'], case_sensitive=True),
               help='Sort input files by specified property.')
+@click.option('--adjust-metadata', 'adjust_metadata', is_flag=True, default=None,
+              help=f'Adjust metadata attributes after the last '
+                   f'write/append step.')
+@click.option('--finalize-only', 'finalize_only', is_flag=True, default=None,
+              help=f'Whether to just run "finalize" tasks on an existing '
+                   f'output dataset. Currently, this updates the metadata only, '
+                   f'given that configuration output/adjust_metadata is set or '
+                   f'output/metadata is not empty. '
+                   f'See also option --adjust-metadata.')
 @click.option('--dry-run', '-d', 'dry_run', is_flag=True, default=None,
               help='Open and process inputs only, omit data writing.')
 @click.option('--verbose', '-v', 'verbose', count=True,
@@ -69,6 +83,8 @@ def nc2zarr(
         append: bool,
         decode_cf: bool,
         sort_by: str,
+        adjust_metadata: bool,
+        finalize_only: bool,
         dry_run: bool,
         verbose: int,
         version: bool
@@ -100,16 +116,20 @@ def nc2zarr(
     configurations and thus override settings in any CONFIG_FILE:
 
     \b
+    [--finalize-only] overrides /finalize_only
     [--dry-run] overrides /dry_run
     [--verbose] overrides /verbosity
+
     [INPUT_FILE ...] overrides /input/paths in CONFIG_FILE
     [--multi-file] overrides /input/multi_file
     [--concat-dim] overrides /input/concat_dim
     [--decode-cf] overrides /input/decode_cf
     [--sort-by] overrides /input/sort_by
+
     [--output OUTPUT_FILE] overrides /output/path
     [--overwrite] overrides /output/overwrite
     [--append] overrides /output/append
+    [--adjust-metadata] overrides /output/adjust_metadata
     """
 
     if version:
@@ -131,6 +151,8 @@ def nc2zarr(
                                     output_path=output_path,
                                     output_overwrite=overwrite,
                                     output_append=append,
+                                    output_adjust_metadata=adjust_metadata,
+                                    finalize_only=finalize_only,
                                     verbosity=verbose if verbose else None,
                                     dry_run=dry_run)
         Converter(**config_kwargs).run()
