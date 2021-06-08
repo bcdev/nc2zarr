@@ -105,7 +105,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         self.add_path('my.zarr')
         writer = DatasetWriter('my.zarr',
                                output_append=True,
-                               output_metadata=dict(comment='This dataset is crap.'))
+                               output_metadata=dict(comment='This is a test.'))
         for i in range(3):
             ds = new_test_dataset(day=i + 1)
             writer.write_dataset(ds)
@@ -114,7 +114,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         writer.finalize_dataset()
         with xr.open_zarr('my.zarr') as ds:
             self.assertIn('comment', ds.attrs)
-            self.assertEqual('This dataset is crap.', ds.attrs['comment'])
+            self.assertEqual('This is a test.', ds.attrs['comment'])
 
     def test_finalize_only_and_append(self):
         self.add_path('my.zarr')
@@ -134,7 +134,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         writer = DatasetWriter('my.zarr',
                                finalize_only=True,
                                output_append=True,
-                               output_metadata=dict(comment='This dataset is crap.'))
+                               output_metadata=dict(comment='This is a test.'))
 
         with self.assertRaises(FileNotFoundError) as e:
             writer.finalize_dataset()
