@@ -159,8 +159,9 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
         with open('my.zarr/.zmetadata') as fp:
             metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
         self.assertEqual({},
-                         metadata.get('.zattrs'))
+                         metadata['metadata'].get('.zattrs'))
 
     def test_finalize_only_and_consolidate_if_not_specified(self):
         self.add_path('my.zarr')
@@ -181,8 +182,9 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
         with open('my.zarr/.zmetadata') as fp:
             metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
         self.assertEqual({'comment': 'This dataset is a test.'},
-                         metadata.get('.zattrs'))
+                         metadata['metadata'].get('.zattrs'))
 
     def test_local_dry_run_for_existing(self):
         self.add_path('my.zarr')
