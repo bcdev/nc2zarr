@@ -116,6 +116,47 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             self.assertIn('comment', ds.attrs)
             self.assertEqual('This dataset is crap.', ds.attrs['comment'])
 
+    def test_finalize_only_and_append(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True)
+
+        ds = new_test_dataset(day=1)
+        with self.assertRaises(RuntimeError) as e:
+            writer.write_dataset(ds)
+        self.assertEqual(('internal error: cannot write/append'
+                          ' datasets when in finalize-only mode',),
+                         e.exception.args)
+
+    def test_finalize_only_and_no_output(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True,
+                               output_metadata=dict(comment='This dataset is crap.'))
+
+        with self.assertRaises(FileNotFoundError) as e:
+            writer.finalize_dataset()
+        self.assertEqual(('output path not found: my.zarr',),
+                         e.exception.args)
+
+    def test_finalize_only_and_consolidate(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr', output_overwrite=True)
+        writer.write_dataset(ds)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertFalse(os.path.isfile('my.zarr/.zmetadata'))
+        writer = DatasetWriter('my.zarr',
+                               output_overwrite=True,
+                               output_consolidated=True,
+                               finalize_only=True)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+
     def test_local_dry_run_for_existing(self):
         self.add_path('my.zarr')
         ds = new_test_dataset(day=1)

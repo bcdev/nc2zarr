@@ -195,9 +195,6 @@ class DatasetWriter:
         return ds
 
     def _finalize_dataset(self):
-        if not self._output_adjust_metadata and not self._output_metadata:
-            return
-
         with log_duration('Finalizing dataset'):
             adjusted_metadata = {}
 
@@ -225,14 +222,18 @@ class DatasetWriter:
                         f'{json.dumps(adjusted_metadata, indent=2)}')
 
             if not self._dry_run:
-                self._ensure_store()
-                # Externally modify attributes
-                with zarr.open_group(self._output_store, cache_attrs=False) as group:
-                    group.attrs.update(adjusted_metadata)
+                if adjusted_metadata:
+                    self._ensure_store()
+                    # Externally modify attributes
+                    with zarr.open_group(self._output_store,
+                                         cache_attrs=False) as group:
+                        group.attrs.update(adjusted_metadata)
                 if self._output_consolidated:
+                    self._ensure_store()
                     zarr.convenience.consolidate_metadata(self._output_store)
             else:
-                LOGGER.warning('Updating of metadata disabled, dry run!')
+                LOGGER.warning('Updating/consolidating '
+                               'of metadata disabled, dry run!')
 
     def _get_source_metadata(self, dataset: xr.Dataset):
         source = None
@@ -246,7 +247,8 @@ class DatasetWriter:
 
     @classmethod
     def _get_history_metadata(cls, dataset: xr.Dataset):
-        now = _np_timestamp_to_str(np.array(datetime.datetime.utcnow(), dtype=np.datetime64))
+        now = _np_timestamp_to_str(np.array(datetime.datetime.utcnow(),
+                                            dtype=np.datetime64))
         present = f"{now} - converted by nc2zarr, version {version}"
         history = dataset.attrs.get("history")
         return ((history + '\n') if history else '') + present
