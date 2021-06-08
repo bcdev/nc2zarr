@@ -166,7 +166,21 @@ output:
   append: false
 
   # Append dimension. Defaults to input/concat_dim or "time".
-  append_dim: false
+  append_dim: null
+
+  # When appending non-overlapping data, there is only one expected
+  # behaviour: it's added to the end of the existing dataset along the
+  # append axis. With overlapping data, several behaviours are possible,
+  # and the desired behaviour is dependent on the use case:
+  # "ignore":   Assume data to be appended is always newer than
+  #             existing data and the append_dim coordinates are
+  #             monotonically increasing. This is the default.
+  # "complain": Overlapping data is treated as a "should never happen"
+  #             event, an error is thrown, and no data is modified.
+  # "newer":    Any appended data falling within the existing range
+  #             of T-values is ignored and thrown away.
+  # TODO: add more
+  append_mode: "ignore"
 
   # Whether to adjust output metadata (global attributes)
   # After the last write/append. This will adjust the
@@ -226,3 +240,4 @@ output:
     delay: 0.1
     # multiplier applied to delay between attempts. 1.0 means no backoff.
     backoff: 1.1
+
