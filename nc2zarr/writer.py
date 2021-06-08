@@ -196,7 +196,7 @@ class DatasetWriter:
 
     def _finalize_dataset(self):
         with log_duration('Finalizing dataset'):
-            adjusted_metadata = {}
+            metadata_update = {}
 
             if self._output_adjust_metadata:
                 self._ensure_store()
@@ -212,23 +212,25 @@ class DatasetWriter:
                         ('time_coverage_start', time_coverage_start),
                         ('time_coverage_end', time_coverage_end),
                     )
-                    adjusted_metadata = {k: v
+                    metadata_update = {k: v
                                          for k, v in adjusted_data
                                          if v is not None}
             if self._output_metadata:
-                adjusted_metadata.update(self._output_metadata)
+                metadata_update.update(self._output_metadata)
 
             LOGGER.info(f'Metadata update:\n'
-                        f'{json.dumps(adjusted_metadata, indent=2)}')
+                        f'{json.dumps(metadata_update, indent=2)}')
 
             if not self._dry_run:
-                if adjusted_metadata:
+                if metadata_update:
                     self._ensure_store()
                     # Externally modify attributes
                     with zarr.open_group(self._output_store,
                                          cache_attrs=False) as group:
-                        group.attrs.update(adjusted_metadata)
-                if self._output_consolidated:
+                        group.attrs.update(metadata_update)
+                if self._output_consolidated \
+                        or (metadata_update
+                            and '.zmetadata' in (self._output_store or {})):
                     self._ensure_store()
                     zarr.convenience.consolidate_metadata(self._output_store)
             else:
