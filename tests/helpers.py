@@ -136,7 +136,8 @@ def new_test_dataset(w: int = 36,
         var_shape = (1, h, w)
         time = xr.DataArray(np.array(['2020-12-{:02d}T10:00:00'.format(day)],
                                      dtype='datetime64[s]'),
-                            dims=('time',))
+                            dims=('time',),
+                            attrs=dict(long_name="time"))
         time.encoding.update(
             calendar="proleptic_gregorian",
             units="seconds since 1970-01-01 00:00:00"
@@ -146,7 +147,8 @@ def new_test_dataset(w: int = 36,
             time_bnds = xr.DataArray(np.array([['2020-12-{:02d}T09:30:00'.format(day),
                                                 '2020-12-{:02d}T10:30:00'.format(day)]],
                                               dtype='datetime64[s]'),
-                                     dims=('time', 'bnds'))
+                                     dims=('time', 'bnds'),
+                                     attrs=dict(long_name="time"))
             time_bnds.encoding.update(
                 calendar="proleptic_gregorian",
                 units="seconds since 1970-01-01 00:00:00"
