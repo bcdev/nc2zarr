@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import os.path
 import unittest
 import uuid
@@ -105,7 +106,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         self.add_path('my.zarr')
         writer = DatasetWriter('my.zarr',
                                output_append=True,
-                               output_metadata=dict(comment='This dataset is crap.'))
+                               output_metadata=dict(comment='This dataset is a test.'))
         for i in range(3):
             ds = new_test_dataset(day=i + 1)
             writer.write_dataset(ds)
@@ -114,7 +115,76 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         writer.finalize_dataset()
         with xr.open_zarr('my.zarr') as ds:
             self.assertIn('comment', ds.attrs)
-            self.assertEqual('This dataset is crap.', ds.attrs['comment'])
+            self.assertEqual('This dataset is a test.', ds.attrs['comment'])
+
+    def test_finalize_only_and_append(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True)
+
+        ds = new_test_dataset(day=1)
+        with self.assertRaises(RuntimeError) as e:
+            writer.write_dataset(ds)
+        self.assertEqual(('internal error: cannot write/append'
+                          ' datasets when in finalize-only mode',),
+                         e.exception.args)
+
+    def test_finalize_only_and_no_output(self):
+        self.add_path('my.zarr')
+        writer = DatasetWriter('my.zarr',
+                               finalize_only=True,
+                               output_append=True,
+                               output_metadata=dict(comment='This dataset is a test.'))
+
+        with self.assertRaises(FileNotFoundError) as e:
+            writer.finalize_dataset()
+        self.assertEqual(('output path not found: my.zarr',),
+                         e.exception.args)
+
+    def test_finalize_only_and_consolidate_if_specified(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr',
+                               output_overwrite=True)
+        writer.write_dataset(ds)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertFalse(os.path.isfile('my.zarr/.zmetadata'))
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=True,
+                               finalize_only=True)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        with open('my.zarr/.zmetadata') as fp:
+            metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
+        self.assertEqual({},
+                         metadata['metadata'].get('.zattrs'))
+
+    def test_finalize_only_and_consolidate_if_not_specified(self):
+        self.add_path('my.zarr')
+        ds = new_test_dataset(day=1)
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=True,
+                               output_overwrite=True)
+        writer.write_dataset(ds)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        writer = DatasetWriter('my.zarr',
+                               output_consolidated=False,
+                               output_metadata=dict(comment='This dataset is a test.'),
+                               finalize_only=True)
+        writer.finalize_dataset()
+        self.assertTrue(os.path.isdir('my.zarr'))
+        self.assertTrue(os.path.isfile('my.zarr/.zmetadata'))
+        with open('my.zarr/.zmetadata') as fp:
+            metadata = json.load(fp)
+        self.assertIn('metadata', metadata)
+        self.assertEqual({'comment': 'This dataset is a test.'},
+                         metadata['metadata'].get('.zattrs'))
 
     def test_local_dry_run_for_existing(self):
         self.add_path('my.zarr')

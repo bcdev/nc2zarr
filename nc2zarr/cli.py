@@ -119,13 +119,13 @@ def nc2zarr(
     [--finalize-only] overrides /finalize_only
     [--dry-run] overrides /dry_run
     [--verbose] overrides /verbosity
-
+    \b
     [INPUT_FILE ...] overrides /input/paths in CONFIG_FILE
     [--multi-file] overrides /input/multi_file
     [--concat-dim] overrides /input/concat_dim
     [--decode-cf] overrides /input/decode_cf
     [--sort-by] overrides /input/sort_by
-
+    \b
     [--output OUTPUT_FILE] overrides /output/path
     [--overwrite] overrides /output/overwrite
     [--append] overrides /output/append

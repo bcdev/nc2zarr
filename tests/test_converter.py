@@ -178,7 +178,7 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
         with self.assertRaises(ConverterError) as e:
             Converter(input_paths='inputs/*.nc', output_overwrite=True, output_append=True)
         self.assertEqual(('Output overwrite and append '
-                          'flags cannot be given both.',),
+                          'flags cannot both be given.',),
                          e.exception.args)
 
     def test_invalid_output_metadata(self):
@@ -187,7 +187,7 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
         with self.assertRaises(ConverterError) as e:
             # noinspection PyTypeChecker
             Converter(input_paths='inputs/*.nc',
-                      output_metadata=[('comment', 'This dataset is crap.')])
+                      output_metadata=[('comment', 'This dataset is a test.')])
         self.assertEqual(('Output metadata must be a '
                           'mapping from attribute names to values.',),
                          e.exception.args)
@@ -195,7 +195,7 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
         with self.assertRaises(ConverterError) as e:
             # noinspection PyTypeChecker
             Converter(input_paths='inputs/*.nc',
-                      output_metadata={12: 'This dataset is crap.'})
+                      output_metadata={12: 'This dataset is a test.'})
         self.assertEqual(('Output metadata must be a '
                           'mapping from attribute names to values.',),
                          e.exception.args)
