@@ -22,6 +22,7 @@
 import datetime
 import json
 import os.path
+from enum import Enum
 from typing import Dict, Any, Sequence
 
 import fsspec
@@ -40,6 +41,11 @@ from .log import log_duration
 from .version import version
 
 
+_APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
+                 "retain"]
+AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
+
+
 class DatasetWriter:
     def __init__(self,
                  output_path: str,
@@ -50,6 +56,7 @@ class DatasetWriter:
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_append_dim: str = None,
+                 output_append_mode: str = "append_all",
                  output_adjust_metadata: bool = False,
                  output_metadata: Dict[str, Any] = None,
                  output_s3_kwargs: Dict[str, Any] = None,
@@ -63,6 +70,7 @@ class DatasetWriter:
         if output_append and output_custom_postprocessor:
             raise ValueError('output_append and output_custom_postprocessor'
                              ' cannot be given both')
+
         self._output_path = output_path
         self._output_custom_postprocessor = load_custom_func(output_custom_postprocessor) \
             if output_custom_postprocessor else None
@@ -72,6 +80,10 @@ class DatasetWriter:
         self._output_append = output_append
         self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_adjust_metadata = output_adjust_metadata
+        self._output_append_mode = AppendMode(output_append_mode)
+        if self._output_append_mode is not AppendMode.append_all:
+            raise NotImplementedError("Only the append_all append mode is "
+                                      "currently supported.")
         self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
         self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS

@@ -21,10 +21,12 @@
 
 import json
 import os.path
+import tempfile
 import unittest
 import uuid
 
 import numpy as np
+import pytest
 import xarray as xr
 import zarr.errors
 
@@ -326,6 +328,40 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                 writer.write_dataset(src_dataset, append=i > 0)
 
         self.assertTimeSlicesOk(dst_path, src_path_pat, n)
+
+    def test_invalid_append_mode(self):
+        mode = "invalid_mode"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.raises(ValueError,
+                               match=f"'{mode}' is not a valid AppendMode"):
+                DatasetWriter(os.path.join(tmpdir, "tempfile"),
+                              output_append_mode=mode)
+
+    def test_append_to_non_increasing(self):
+        ds1 = xr.Dataset(
+            {
+                "v": (["x", "y", "t"], np.zeros((3, 3, 3)))
+            },
+            coords={
+                "x": np.array([0, 1, 2]),
+                "y": np.array([0, 1, 2]),
+                "t": np.array(['2001-01-01', '2001-01-03', '2001-01-02'],
+                              dtype='datetime64')})
+        ds2 = xr.Dataset(
+            {
+                "v": (["x", "y", "t"], np.zeros((3, 3, 3)))
+            },
+            coords={
+                "x": np.array([0, 1, 2]),
+                "y": np.array([0, 1, 2]),
+                "t": np.array(['2001-01-04', '2001-01-05', '2001-01-06'],
+                              dtype='datetime64')})
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            w = DatasetWriter(path, output_append=True, output_append_dim="t",
+                              output_append_mode="append_all")
+            w.write_dataset(ds2)
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):
