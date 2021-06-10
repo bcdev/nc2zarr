@@ -43,7 +43,8 @@ from .version import version
 
 _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
-_CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap"]
+_CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap",
+                                     "append_newer"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 
@@ -197,6 +198,11 @@ class DatasetWriter:
                 ds = self._remove_variable_attrs(ds)
 
             if not self._dry_run:
+                if self._output_append_mode is AppendMode.append_newer:
+                    output_ds = xr.open_zarr(self._output_store)
+                    ds = ds.where(ds[self._output_append_dim] >
+                                  output_ds[self._output_append_dim][-1],
+                                  drop=True)
                 ds.to_zarr(self._output_store,
                            append_dim=append_dim,
                            consolidated=self._output_consolidated)
@@ -216,6 +222,12 @@ class DatasetWriter:
                 raise ValueError(
                     f"Existing and appended {self._output_append_dim} "
                     f"values may not overlap when using "
+                    f"{self._output_append_mode.name}.")
+        if self._output_append_mode is AppendMode.append_newer:
+            if not self._is_append_dim_increasing(ds):
+                raise ValueError(
+                    f"Appended {self._output_append_dim} values must "
+                    f"be increasing when using "
                     f"{self._output_append_mode.name}.")
 
     def _is_append_dim_increasing(self, ds: xr.Dataset) -> bool:

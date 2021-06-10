@@ -339,8 +339,8 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_append_to_non_increasing_append_all(self):
         ds1, ds2 = self._create_append_datasets(
-            ['2001-01-01', '2001-01-03', '2001-01-02'],
-            ['2001-01-04', '2001-01-05', '2001-01-06']
+            ["2001-01-01", "2001-01-03", "2001-01-02"],
+            ["2001-01-04", "2001-01-05", "2001-01-06"]
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "temp.zarr")
@@ -351,8 +351,8 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_append_to_non_increasing_forbid_overlap(self):
         ds1, ds2 = self._create_append_datasets(
-            ['2001-01-01', '2001-01-03', '2001-01-02'],
-            ['2001-01-04', '2001-01-05', '2001-01-06']
+            ["2001-01-01", "2001-01-03", "2001-01-02"],
+            ["2001-01-04", "2001-01-05", "2001-01-06"]
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "temp.zarr")
@@ -366,8 +366,8 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_append_overlapping_forbid_overlap(self):
         ds1, ds2 = self._create_append_datasets(
-            ['2001-01-01', '2001-01-02', '2001-01-03'],
-            ['2001-01-02', '2001-01-03', '2001-01-04']
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-02", "2001-01-03", "2001-01-04"]
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "temp.zarr")
@@ -378,6 +378,40 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                                   output_append_dim="t",
                                   output_append_mode="forbid_overlap")
                 w.write_dataset(ds2)
+
+    def test_append_overlapping_append_newer(self):
+        ds1, ds2 = self._create_append_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-02", "2001-01-03", "2001-01-04", "2001-02-05"]
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            w = DatasetWriter(path, output_append=True,
+                              output_append_dim="t",
+                              output_append_mode="append_newer")
+            w.write_dataset(ds2)
+            ds3 = xr.open_zarr(path)
+            expected = np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                                 "2001-01-04", "2001-02-05"],
+                                dtype="datetime64[ns]")
+            np.testing.assert_equal(expected, ds3.t.data)
+
+    def test_append_non_increasing_append_newer(self):
+        ds1, ds2 = self._create_append_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-05", "2001-01-04", "2001-01-03", "2001-02-02"]
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            w = DatasetWriter(path, output_append=True,
+                              output_append_dim="t",
+                              output_append_mode="append_newer")
+            with pytest.raises(ValueError,
+                               match="must be increasing"):
+                w.write_dataset(ds2)
+
 
     @staticmethod
     def _create_append_datasets(dates1, dates2):
