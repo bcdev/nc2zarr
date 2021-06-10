@@ -333,35 +333,62 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         mode = "invalid_mode"
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(ValueError,
-                               match=f"'{mode}' is not a valid AppendMode"):
+                               match=f"Unknown append mode"):
                 DatasetWriter(os.path.join(tmpdir, "tempfile"),
                               output_append_mode=mode)
 
-    def test_append_to_non_increasing(self):
-        ds1 = xr.Dataset(
-            {
-                "v": (["x", "y", "t"], np.zeros((3, 3, 3)))
-            },
-            coords={
-                "x": np.array([0, 1, 2]),
-                "y": np.array([0, 1, 2]),
-                "t": np.array(['2001-01-01', '2001-01-03', '2001-01-02'],
-                              dtype='datetime64')})
-        ds2 = xr.Dataset(
-            {
-                "v": (["x", "y", "t"], np.zeros((3, 3, 3)))
-            },
-            coords={
-                "x": np.array([0, 1, 2]),
-                "y": np.array([0, 1, 2]),
-                "t": np.array(['2001-01-04', '2001-01-05', '2001-01-06'],
-                              dtype='datetime64')})
+    def test_append_to_non_increasing_append_all(self):
+        ds1, ds2 = self._create_append_datasets(
+            ['2001-01-01', '2001-01-03', '2001-01-02'],
+            ['2001-01-04', '2001-01-05', '2001-01-06']
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "temp.zarr")
             ds1.to_zarr(path)
             w = DatasetWriter(path, output_append=True, output_append_dim="t",
                               output_append_mode="append_all")
             w.write_dataset(ds2)
+
+    def test_append_to_non_increasing_forbid_overlap(self):
+        ds1, ds2 = self._create_append_datasets(
+            ['2001-01-01', '2001-01-03', '2001-01-02'],
+            ['2001-01-04', '2001-01-05', '2001-01-06']
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            with pytest.raises(ValueError,
+                               match="must be increasing"):
+                w = DatasetWriter(path, output_append=True,
+                                  output_append_dim="t",
+                                  output_append_mode="forbid_overlap")
+                w.write_dataset(ds2)
+
+    def test_append_overlapping_forbid_overlap(self):
+        ds1, ds2 = self._create_append_datasets(
+            ['2001-01-01', '2001-01-02', '2001-01-03'],
+            ['2001-01-02', '2001-01-03', '2001-01-04']
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            with pytest.raises(ValueError,
+                               match="may not overlap"):
+                w = DatasetWriter(path, output_append=True,
+                                  output_append_dim="t",
+                                  output_append_mode="forbid_overlap")
+                w.write_dataset(ds2)
+
+    @staticmethod
+    def _create_append_datasets(dates1, dates2):
+        return xr.Dataset(
+            {"v": (["x", "y", "t"], np.zeros((3, 3, len(dates1))))},
+            coords={"x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
+                    "t": np.array(dates1, dtype="datetime64")}), \
+               xr.Dataset(
+            {"v": (["x", "y", "t"], np.zeros((3, 3, len(dates2))))},
+            coords={"x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
+                    "t": np.array(dates2, dtype="datetime64")})
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):

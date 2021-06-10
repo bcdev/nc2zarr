@@ -43,6 +43,7 @@ from .version import version
 
 _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
+_CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 
@@ -80,10 +81,17 @@ class DatasetWriter:
         self._output_append = output_append
         self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_adjust_metadata = output_adjust_metadata
+        if output_append_mode not in _APPEND_MODES:
+            raise ValueError(
+                f'Unknown append mode "{output_append_mode}"; '
+                "valid append modes: " +
+                ", ".join(_APPEND_MODES))
+        if output_append_mode not in _CURRENTLY_SUPPORTED_APPEND_MODES:
+            raise NotImplementedError(
+                f'Unsupported append mode "{output_append_mode}"; '
+                "Only the following append modes are currently supported: " +
+                ", ".join(_CURRENTLY_SUPPORTED_APPEND_MODES))
         self._output_append_mode = AppendMode(output_append_mode)
-        if self._output_append_mode is not AppendMode.append_all:
-            raise NotImplementedError("Only the append_all append mode is "
-                                      "currently supported.")
         self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
         self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
@@ -157,6 +165,10 @@ class DatasetWriter:
 
     def _append_dataset(self, ds: xr.Dataset):
         with log_duration('Appending dataset'):
+
+            if not self._dry_run:
+                self._check_append_allowed(ds)
+
             # Fix for https://github.com/bcdev/nc2zarr/issues/38
             # Get rid of variables that lack append_dim dimension:
             append_dim = self._output_append_dim
@@ -190,6 +202,25 @@ class DatasetWriter:
                            consolidated=self._output_consolidated)
             else:
                 LOGGER.warning('Appending disabled, dry run!')
+
+    def _check_append_allowed(self, ds: xr.Dataset) -> None:
+        output_ds = xr.open_zarr(self._output_store)
+        if self._output_append_mode is not AppendMode.append_all:
+            if not self._is_append_dim_increasing(output_ds):
+                raise ValueError(
+                    f"Existing {self._output_append_dim} values must "
+                    f"be increasing.")
+        if self._output_append_mode is AppendMode.forbid_overlap:
+            if output_ds[self._output_append_dim][-1] > \
+                    ds[self._output_append_dim][0]:
+                raise ValueError(
+                    f"Existing and appended {self._output_append_dim} "
+                    f"values may not overlap when using "
+                    f"{self._output_append_mode.name}.")
+
+    def _is_append_dim_increasing(self, ds: xr.Dataset) -> bool:
+        arr = ds[self._output_append_dim].data
+        return np.all(arr[1:] >= arr[:-1])
 
     def _remove_dataset(self):
         with log_duration(f'Removing dataset {self._output_path}'):
