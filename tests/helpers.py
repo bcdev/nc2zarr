@@ -111,29 +111,26 @@ class ZarrOutputTestMixin:
         return ds
 
 
-def delete_path(path, ignore_errors=False):
-    if os.path.isdir(path):
-        shutil.rmtree(path, ignore_errors=ignore_errors)
-    elif os.path.exists(path):
-        os.remove(path)
-
-
 def new_test_dataset(w: int = 36,
                      h: int = 18,
                      day: int = None,
                      chunked: bool = False,
-                     add_time_bnds: bool = False) -> xr.Dataset:
+                     add_time_as_dim_to_vars: bool = True,
+                     add_time_bnds: bool = False,
+                     time_bounds_name: str = 'time_bnds',
+                     add_time_bounds_as_var: bool = False) -> xr.Dataset:
     res = 180 / h
     lon = xr.DataArray(np.linspace(-180 + res, 180 - res, num=w), dims=('lon',))
     lat = xr.DataArray(np.linspace(-90 + res, 90 - res, num=h), dims=('lat',))
 
+    var_data = dict()
     if day is None:
         var_dims = ('lat', 'lon')
         var_shape = (h, w)
         coords = dict(lon=lon, lat=lat)
     else:
-        var_dims = ('time', 'lat', 'lon')
-        var_shape = (1, h, w)
+        var_dims = ('time', 'lat', 'lon') if add_time_as_dim_to_vars else ('lat', 'lon')
+        var_shape = (1, h, w) if add_time_as_dim_to_vars else (h, w)
         time = xr.DataArray(np.array(['2020-12-{:02d}T10:00:00'.format(day)],
                                      dtype='datetime64[s]'),
                             dims=('time',),
@@ -142,20 +139,29 @@ def new_test_dataset(w: int = 36,
             calendar="proleptic_gregorian",
             units="seconds since 1970-01-01 00:00:00"
         )
+        coords = dict(lon=lon, lat=lat, time=time)
         if add_time_bnds:
-            time.attrs['bounds'] = 'time_bnds'
-            time_bnds = xr.DataArray(np.array([['2020-12-{:02d}T09:30:00'.format(day),
-                                                '2020-12-{:02d}T10:30:00'.format(day)]],
+            time.attrs['bounds'] = time_bounds_name
+            if add_time_as_dim_to_vars:
+                bounds_dims = ('time', 'bnds')
+                bounds_data = [['2020-12-{:02d}T09:30:00'.format(day),
+                                '2020-12-{:02d}T10:30:00'.format(day)]]
+            else:
+                bounds_dims = ('bnds', )
+                bounds_data = ['2020-12-{:02d}T09:30:00'.format(day),
+                               '2020-12-{:02d}T10:30:00'.format(day)]
+            time_bnds = xr.DataArray(np.array(bounds_data,
                                               dtype='datetime64[s]'),
-                                     dims=('time', 'bnds'),
-                                     attrs=dict(long_name="time"))
+                                     dims=bounds_dims,
+                                     attrs=dict(long_name="time bounds"))
             time_bnds.encoding.update(
                 calendar="proleptic_gregorian",
                 units="seconds since 1970-01-01 00:00:00"
             )
-            coords = dict(lon=lon, lat=lat, time=time, time_bnds=time_bnds)
-        else:
-            coords = dict(lon=lon, lat=lat, time=time)
+            if add_time_bounds_as_var:
+                var_data[time_bounds_name] = time_bnds
+            else:
+                coords[time_bounds_name] = time_bnds
 
     r_ui16 = xr.DataArray(
         np.random.randint(0, 1000, size=var_shape).astype(dtype=np.uint16),
@@ -177,12 +183,19 @@ def new_test_dataset(w: int = 36,
         attrs=dict(_FillValue=float('nan'))
     )
 
-    data_vars = dict(r_ui16=r_ui16, r_i32=r_i32, r_f32=r_f32)
+    var_data.update(dict(r_ui16=r_ui16, r_i32=r_i32, r_f32=r_f32))
 
-    dataset = xr.Dataset(data_vars=data_vars, coords=coords)
+    dataset = xr.Dataset(data_vars=var_data, coords=coords)
     if chunked:
         chunks = dict(lat=math.ceil(h / 2), lon=math.ceil(w / 2))
         if day is not None:
             chunks.update(time=1)
         dataset = dataset.chunk(chunks)
     return dataset
+
+
+def delete_path(path, ignore_errors=False):
+    if os.path.isdir(path):
+        shutil.rmtree(path, ignore_errors=ignore_errors)
+    elif os.path.exists(path):
+        os.remove(path)
