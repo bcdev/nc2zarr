@@ -79,9 +79,11 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
             # If the concat_dim_var does not yet has a dimension, add it.
             # This is typically the case if time value is a scalar rather
             # than an 1-element array.
+            encoding = concat_dim_var.encoding
             concat_dim_var = xr.DataArray([concat_dim_var.values],
                                           dims=(concat_dim_name,),
                                           attrs=concat_dim_var.attrs)
+            concat_dim_var.encoding.update(encoding)
             ds = ds.assign_coords({concat_dim_name: concat_dim_var})
     elif concat_dim_name == 'time':
         time_coverage_start, time_coverage_end = \
@@ -89,8 +91,10 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
 
         time_coverage_start = time_coverage_start or time_coverage_end
         time_coverage_end = time_coverage_end or time_coverage_start
+        time_coverage_avg = time_coverage_start + 0.5 \
+                            * (time_coverage_end - time_coverage_start)
         ds = ds.assign_coords(
-            time=xr.DataArray([time_coverage_start + 0.5 * (time_coverage_end - time_coverage_start)],
+            time=xr.DataArray([time_coverage_avg],
                               dims=('time',),
                               attrs=dict(bounds='time_bnds')),
             time_bnds=xr.DataArray([[time_coverage_start, time_coverage_end]],
@@ -99,14 +103,20 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
         concat_dim_var = ds.time
     else:
         # Can't do anything
-        raise ConverterError(f'Missing (coordinate) variable "{concat_dim_name}" for dimension "{concat_dim_name}".')
+        raise ConverterError(f'Missing (coordinate) variable '
+                             f'"{concat_dim_name}" for dimension '
+                             f'"{concat_dim_name}".')
 
-    is_concat_dim_used = any((concat_dim_name in ds[var_name].dims) for var_name in ds.data_vars)
+    is_concat_dim_used = any((concat_dim_name in ds[var_name].dims)
+                             for var_name in ds.data_vars)
     if not is_concat_dim_used:
-        concat_dim_bnds_name = concat_dim_var.attrs.get('bounds', f'{concat_dim_name}_bnds')
-        concat_dim_bnds_var = ds[concat_dim_bnds_name] if concat_dim_bnds_name in ds else None
+        concat_dim_bnds_name = concat_dim_var.attrs.get('bounds',
+                                                        f'{concat_dim_name}_bnds')
+        concat_dim_bnds_var = ds[concat_dim_bnds_name] \
+            if concat_dim_bnds_name in ds else None
 
-        # ds.expand_dims() will raise if coordinates exist, so remove them temporarily
+        # ds.expand_dims() will raise if coordinates exist,
+        # so remove them temporarily
         if concat_dim_bnds_var is not None:
             ds = ds.drop_vars([concat_dim_name, concat_dim_bnds_name])
         else:
@@ -116,11 +126,17 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
         if concat_dim_name in ds.dims:
             ds = ds.drop_dims(concat_dim_name)
 
-        # expand dataset by concat_dim_name/concat_dim_var, this will add the dimension and the coordinate
+        # expand dataset by concat_dim_name/concat_dim_var,
+        # this will add the dimension and the coordinate
         ds = ds.expand_dims({concat_dim_name: concat_dim_var})
+        # ds.expand_dims() does not use the attributes of new
+        # variable given by concat_dim_name, so we need to
+        # assign it ourselves:
+        ds[concat_dim_name].attrs.update(concat_dim_var.attrs)
+        ds[concat_dim_name].encoding.update(concat_dim_var.encoding)
         # also (re)assign bounds coordinates
         if concat_dim_bnds_var is not None:
-            ds = ds.assign_coords(time_bnds=concat_dim_bnds_var)
+            ds = ds.assign_coords({concat_dim_bnds_name: concat_dim_bnds_var})
 
     return ds
 
@@ -129,20 +145,24 @@ def get_time_coverage_from_ds(ds: xr.Dataset,
                               datetime_format: str = None) -> Tuple[datetime, datetime]:
     time_coverage_start = ds.attrs.get('time_coverage_start')
     if time_coverage_start is not None:
-        time_coverage_start = parse_timestamp(time_coverage_start, datetime_format=datetime_format)
+        time_coverage_start = parse_timestamp(time_coverage_start,
+                                              datetime_format=datetime_format)
 
     time_coverage_end = ds.attrs.get('time_coverage_end')
     if time_coverage_end is not None:
-        time_coverage_end = parse_timestamp(time_coverage_end, datetime_format=datetime_format)
+        time_coverage_end = parse_timestamp(time_coverage_end,
+                                            datetime_format=datetime_format)
 
     time_coverage_start = time_coverage_start or time_coverage_end
     time_coverage_end = time_coverage_end or time_coverage_start
     if time_coverage_start and time_coverage_end:
         return time_coverage_start, time_coverage_end
 
-    # TODO: use special parameters to parse time_coverage_start, time_coverage_end from source_path
+    # TODO: use special parameters to parse
+    #  time_coverage_start, time_coverage_end from source_path
     # source_path = ds.encoding.get('source', '')
-    raise ConverterError('Missing time_coverage_start and/or time_coverage_end in dataset attributes.')
+    raise ConverterError('Missing time_coverage_start and/or '
+                         'time_coverage_end in dataset attributes.')
 
 
 def parse_timestamp(string: str, datetime_format: str = None) \
