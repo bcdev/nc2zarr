@@ -412,17 +412,40 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                                match="must be increasing"):
                 w.write_dataset(ds2)
 
+    def test_append_overlapping_replace(self):
+        ds1, ds2 = self._create_append_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-04"],
+            ["2001-01-02", "2001-01-03"]
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "temp.zarr")
+            ds1.to_zarr(path)
+            w = DatasetWriter(path, output_append=True,
+                              output_append_dim="t",
+                              output_append_mode="replace")
+            w.write_dataset(ds2)
+            ds3 = xr.open_zarr(path)
+            np.testing.assert_equal(
+                np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                          "2001-01-04"],
+                         dtype="datetime64[ns]"), ds3.t.data)
+            np.testing.assert_equal(
+                np.array([0, 1, 1, 0]),
+                ds3.v.isel(x=0, y=0)
+            )
 
     @staticmethod
     def _create_append_datasets(dates1, dates2):
         return xr.Dataset(
-            {"v": (["x", "y", "t"], np.zeros((3, 3, len(dates1))))},
-            coords={"x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
-                    "t": np.array(dates1, dtype="datetime64")}), \
+            {"v": (["t", "x", "y"], np.zeros((len(dates1), 3, 3)))},
+            coords={"t": np.array(dates1, dtype="datetime64"),
+                    "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2])
+                    }), \
                xr.Dataset(
-            {"v": (["x", "y", "t"], np.zeros((3, 3, len(dates2))))},
-            coords={"x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
-                    "t": np.array(dates2, dtype="datetime64")})
+            {"v": (["t", "x", "y"], np.ones((len(dates2), 3, 3)))},
+            coords={"t": np.array(dates2, dtype="datetime64"),
+                    "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
+                    })
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):

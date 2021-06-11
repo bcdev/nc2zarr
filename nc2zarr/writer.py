@@ -36,15 +36,18 @@ import zarr
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
 from .custom import load_custom_func
+from .dataslice import append_slice
 from .log import LOGGER
 from .log import log_duration
+from .dataslice import find_slice
+from .dataslice import update_slice
 from .version import version
 
 
 _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
 _CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap",
-                                     "append_newer"]
+                                     "append_newer", "replace"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 
@@ -198,16 +201,54 @@ class DatasetWriter:
                 ds = self._remove_variable_attrs(ds)
 
             if not self._dry_run:
-                if self._output_append_mode is AppendMode.append_newer:
+                mode = self._output_append_mode
+                # From Python 3.10 on, the following would be better implemented
+                # with structural pattern matching (PEPs 634 - 636).
+                if mode is AppendMode.replace:
+                    self._append_with_replace(ds)
+                elif mode is AppendMode.append_newer:
                     output_ds = xr.open_zarr(self._output_store)
-                    ds = ds.where(ds[self._output_append_dim] >
-                                  output_ds[self._output_append_dim][-1],
-                                  drop=True)
-                ds.to_zarr(self._output_store,
-                           append_dim=append_dim,
-                           consolidated=self._output_consolidated)
+                    # NB: assumes both ds and output_ds increasing in append_dim
+                    ds_new_only = ds.where(
+                        ds[append_dim] > output_ds[append_dim][-1],
+                        drop=True)
+                    ds_new_only.to_zarr(self._output_store,
+                                        append_dim=append_dim,
+                                        consolidated=self._output_consolidated)
+                elif mode in (AppendMode.append_all, AppendMode.forbid_overlap):
+                    ds.to_zarr(self._output_store,
+                               append_dim=append_dim,
+                               consolidated=self._output_consolidated)
+                else:
+                    # This should never happen, but best to handle it anyway.
+                    raise NotImplementedError(
+                        f"Unhandled append mode {mode}"
+                    )
             else:
                 LOGGER.warning('Appending disabled, dry run!')
+
+    def _append_with_replace(self, ds):
+        append_dim = self._output_append_dim
+        for i in range(ds.dims[append_dim]):
+            dataslice = ds.isel({append_dim: slice(i, i+1)})
+            insert_index, update_mode = \
+                find_slice(self._output_store, dataslice[append_dim],
+                           dimension=append_dim)
+            if update_mode == "append":
+                # Currently only works for local filesystem stores
+                # TODO: make append_slice fsspec-aware
+                append_slice(self._output_store.root, dataslice,
+                             dimension=append_dim)
+            elif update_mode in ("insert", "replace"):
+                # Currently only works for local filesystem stores
+                # TODO: make update_slice fsspec-aware
+                update_slice(self._output_store.root, insert_index,
+                             dataslice, update_mode, dimension=append_dim)
+            else:
+                # This could only be "create", which we've already checked for,
+                # so it's a "can't happen".
+                raise NotImplementedError(
+                    f"Unhandled update mode {update_mode}!")
 
     def _check_append_allowed(self, ds: xr.Dataset) -> None:
         output_ds = xr.open_zarr(self._output_store)
