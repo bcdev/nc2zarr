@@ -47,7 +47,7 @@ from .version import version
 _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
 _CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap",
-                                     "append_newer", "replace"]
+                                     "append_newer", "replace", "retain"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 
@@ -204,8 +204,8 @@ class DatasetWriter:
                 mode = self._output_append_mode
                 # From Python 3.10 on, the following would be better implemented
                 # with structural pattern matching (PEPs 634 - 636).
-                if mode is AppendMode.replace:
-                    self._append_with_replace(ds)
+                if mode in (AppendMode.replace, AppendMode.retain):
+                    self._append_with_insertions(ds)
                 elif mode is AppendMode.append_newer:
                     output_ds = xr.open_zarr(self._output_store)
                     # NB: assumes both ds and output_ds increasing in append_dim
@@ -227,7 +227,7 @@ class DatasetWriter:
             else:
                 LOGGER.warning('Appending disabled, dry run!')
 
-    def _append_with_replace(self, ds):
+    def _append_with_insertions(self, ds):
         append_dim = self._output_append_dim
         for i in range(ds.dims[append_dim]):
             dataslice = ds.isel({append_dim: slice(i, i+1)})
@@ -239,14 +239,24 @@ class DatasetWriter:
                 # TODO: make append_slice fsspec-aware
                 append_slice(self._output_store.root, dataslice,
                              dimension=append_dim)
-            elif update_mode in ("insert", "replace"):
+            elif update_mode == "insert":
                 # Currently only works for local filesystem stores
                 # TODO: make update_slice fsspec-aware
                 update_slice(self._output_store.root, insert_index,
                              dataslice, update_mode, dimension=append_dim)
+            elif update_mode == "replace":
+                if self._output_append_mode is AppendMode.replace:
+                    # Currently only works for local filesystem stores
+                    # TODO: make update_slice fsspec-aware
+                    update_slice(self._output_store.root, insert_index,
+                                 dataslice, update_mode, dimension=append_dim)
+                # If the append mode is not "replace", it must be "retain" --
+                # so we do nothing, which retains the existing slice and
+                # discards the new one.
             else:
-                # This could only be "create", which we've already checked for,
-                # so it's a "can't happen".
+                # The remaining possible value is "create" -- but we've
+                # already confirmed that we have an existing store,
+                # so "create" is a "can't happen".
                 raise NotImplementedError(
                     f"Unhandled update mode {update_mode}!")
 
