@@ -2,6 +2,10 @@
 
 ### Version 1.1.2 (in development)
 
+* Introduce the new output parameter `append_mode` to select behaviour
+  when appending new data which overlaps in the append dimension with the
+  existing data.
+
 * Whether to adjust output metadata (global attributes) after the last 
   write/append can now be forced by the new `output.adjust_metadata` 
   setting whose default is `false`. If set to `true`, this will adjust 
