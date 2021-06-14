@@ -32,6 +32,7 @@ import pandas as pd
 import retry.api
 import xarray as xr
 import zarr
+from zarr.errors import GroupNotFoundError
 
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
 from .constants import DEFAULT_OUTPUT_RETRY_KWARGS
@@ -163,8 +164,7 @@ class DatasetWriter:
     def _append_dataset(self, ds: xr.Dataset):
         with log_duration('Appending dataset'):
 
-            if not self._dry_run:
-                self._check_append_allowed(ds)
+            self._check_append_allowed(ds)
 
             # Fix for https://github.com/bcdev/nc2zarr/issues/38
             # Get rid of variables that lack append_dim dimension:
@@ -254,13 +254,23 @@ class DatasetWriter:
                     f"Unhandled update mode {update_mode}!")
 
     def _check_append_allowed(self, ds: xr.Dataset) -> None:
-        output_ds = xr.open_zarr(self._output_store)
+        output_ds = None
+        try:
+            output_ds = xr.open_zarr(self._output_store)
+        except GroupNotFoundError:
+            pass
+            # Output store doesn't exist, so we'll skip checks on it.
+            # (This should only happen in the case of a dry run, in cases
+            # where the output file would have been created in a normal
+            # run, so self._output_path_exists is true but the Zarr doesn't
+            # actually exist.)
         if self._output_append_mode is not AppendMode.append_all:
             if not self._is_append_dim_increasing(output_ds):
                 raise ValueError(
                     f"Existing {self._output_append_dim} values must "
                     f"be increasing.")
-        if self._output_append_mode is AppendMode.forbid_overlap:
+        if output_ds is not None and \
+                self._output_append_mode is AppendMode.forbid_overlap:
             if output_ds[self._output_append_dim][-1] > \
                     ds[self._output_append_dim][0]:
                 raise ValueError(
