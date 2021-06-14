@@ -46,8 +46,6 @@ from .version import version
 
 _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
-_CURRENTLY_SUPPORTED_APPEND_MODES = ["append_all", "forbid_overlap",
-                                     "append_newer", "replace", "retain"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 
@@ -90,11 +88,6 @@ class DatasetWriter:
                 f'Unknown append mode "{output_append_mode}"; '
                 "valid append modes: " +
                 ", ".join(_APPEND_MODES))
-        if output_append_mode not in _CURRENTLY_SUPPORTED_APPEND_MODES:
-            raise NotImplementedError(
-                f'Unsupported append mode "{output_append_mode}"; '
-                "Only the following append modes are currently supported: " +
-                ", ".join(_CURRENTLY_SUPPORTED_APPEND_MODES))
         self._output_append_mode = AppendMode(output_append_mode)
         self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
