@@ -186,3 +186,17 @@ def new_test_dataset(w: int = 36,
             chunks.update(time=1)
         dataset = dataset.chunk(chunks)
     return dataset
+
+
+def new_append_test_datasets(dates1: List[str], dates2: List[str]) \
+        -> (xr.Dataset, xr.Dataset):
+    return xr.Dataset(
+        {"v": (["t", "x", "y"], np.zeros((len(dates1), 3, 3)))},
+        coords={"t": np.array(dates1, dtype="datetime64"),
+                "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2])
+                }), \
+           xr.Dataset(
+        {"v": (["t", "x", "y"], np.ones((len(dates2), 3, 3)))},
+        coords={"t": np.array(dates2, dtype="datetime64"),
+                "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
+                })

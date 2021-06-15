@@ -31,6 +31,7 @@ import zarr.errors
 
 from nc2zarr.writer import DatasetWriter
 from tests.helpers import IOCollector
+from tests.helpers import new_append_test_datasets
 from tests.helpers import new_test_dataset
 
 
@@ -340,7 +341,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_to_non_increasing_append_all(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
+        ds1, ds2 = new_append_test_datasets(
             ["2001-01-01", "2001-01-03", "2001-01-02"],
             ["2001-01-04", "2001-01-05", "2001-01-06"]
         )
@@ -352,7 +353,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_to_non_increasing_forbid_overlap(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
+        ds1, ds2 = new_append_test_datasets(
             ["2001-01-01", "2001-01-03", "2001-01-02"],
             ["2001-01-04", "2001-01-05", "2001-01-06"]
         )
@@ -367,7 +368,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_overlapping_forbid_overlap(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
+        ds1, ds2 = new_append_test_datasets(
             ["2001-01-01", "2001-01-02", "2001-01-03"],
             ["2001-01-02", "2001-01-03", "2001-01-04"]
         )
@@ -382,7 +383,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_overlapping_append_newer(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
+        ds1, ds2 = new_append_test_datasets(
             ["2001-01-01", "2001-01-02", "2001-01-03"],
             ["2001-01-02", "2001-01-03", "2001-01-04", "2001-02-05"]
         )
@@ -400,7 +401,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_non_increasing_append_newer(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
+        ds1, ds2 = new_append_test_datasets(
             ["2001-01-01", "2001-01-02", "2001-01-03"],
             ["2001-01-05", "2001-01-04", "2001-01-03", "2001-02-02"]
         )
@@ -415,9 +416,9 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
     def test_append_overlapping_replace(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
-            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-04"],
-            ["2001-01-02", "2001-01-03"]
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
+            ["2001-01-02", "2001-01-03", "2001-01-04", "2001-01-06"]
         )
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
@@ -427,19 +428,19 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds3 = xr.open_zarr(dst_path)
         np.testing.assert_equal(
             np.array(["2001-01-01", "2001-01-02", "2001-01-03",
-                      "2001-01-04"],
+                      "2001-01-04", "2001-01-05", "2001-01-06"],
                      dtype="datetime64[ns]"), ds3.t.data)
         np.testing.assert_equal(
-            np.array([0, 1, 1, 0]),
+            np.array([0, 1, 1, 1, 0, 1]),
             ds3.v.isel(x=0, y=0)
         )
 
     def test_append_overlapping_retain(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
-        ds1, ds2 = self._create_append_datasets(
-            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-04"],
-            ["2001-01-03", "2001-01-05"]
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
+            ["2001-01-03", "2001-01-04", "2001-01-05", "2001-01-06"]
         )
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
@@ -449,25 +450,12 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds3 = xr.open_zarr(dst_path)
         np.testing.assert_equal(
             np.array(["2001-01-01", "2001-01-02", "2001-01-03",
-                      "2001-01-04", "2001-01-05"],
+                      "2001-01-04", "2001-01-05", "2001-01-06"],
                      dtype="datetime64[ns]"), ds3.t.data)
         np.testing.assert_equal(
-            np.array([0, 0, 0, 0, 1]),
+            np.array([0, 0, 0, 1, 0, 1]),
             ds3.v.isel(x=0, y=0)
         )
-
-    @staticmethod
-    def _create_append_datasets(dates1, dates2):
-        return xr.Dataset(
-            {"v": (["t", "x", "y"], np.zeros((len(dates1), 3, 3)))},
-            coords={"t": np.array(dates1, dtype="datetime64"),
-                    "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2])
-                    }), \
-               xr.Dataset(
-            {"v": (["t", "x", "y"], np.ones((len(dates2), 3, 3)))},
-            coords={"t": np.array(dates2, dtype="datetime64"),
-                    "x": np.array([0, 1, 2]), "y": np.array([0, 1, 2]),
-                    })
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):

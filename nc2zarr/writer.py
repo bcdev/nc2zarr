@@ -214,7 +214,7 @@ class DatasetWriter:
                                consolidated=self._output_consolidated)
                 else:
                     # This should never happen, but best to handle it anyway.
-                    raise NotImplementedError(
+                    raise NotImplementedError(  # pragma: no cover
                         f"Unhandled append mode {mode}"
                     )
             else:
@@ -250,7 +250,7 @@ class DatasetWriter:
                 # The remaining possible value is "create" -- but we've
                 # already confirmed that we have an existing store,
                 # so "create" is a "can't happen".
-                raise NotImplementedError(
+                raise NotImplementedError(  # pragma: no cover
                     f"Unhandled update mode {update_mode}!")
 
     def _check_append_allowed(self, ds: xr.Dataset) -> None:
