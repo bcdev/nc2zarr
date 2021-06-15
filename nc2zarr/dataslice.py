@@ -30,8 +30,6 @@ import zarr
 from zarr.errors import GroupNotFoundError
 from zarr.errors import PathNotFoundError
 
-from .chunking import chunk_dataset
-from .chunking import unchunk_dataset
 
 DEFAULT_EPSILON = np.array(1000 * 1000, dtype='timedelta64[ns]')
 
@@ -72,18 +70,14 @@ def find_slice(store: Union[str, MutableMapping],
 
 def append_slice(store: Union[str, MutableMapping],
                  dataslice: xr.Dataset,
-                 chunk_sizes: Dict[str, int] = None,
                  dimension: str = "time") -> None:
     """
     Append time slice to existing zarr dataset.
 
     :param store: A zarr store.
     :param dataslice: Time slice to insert
-    :param chunk_sizes: desired chunk sizes
     :param dimension: dimension perpendicular to the slice
     """
-    if chunk_sizes:
-        dataslice = chunk_dataset(dataslice, chunk_sizes, format_name='zarr')
 
     # Unfortunately slice.to_zarr(store, mode='a', append_dim='time') will
     # replace global attributes of store with attributes of slice (xarray
@@ -99,14 +93,12 @@ def append_slice(store: Union[str, MutableMapping],
         dataslice.attrs.pop('coordinates')
 
     dataslice.to_zarr(store, mode='a', append_dim=dimension)
-    unchunk_dataset(store, coords_only=True)
 
 
 def update_slice(store: Union[str, MutableMapping],
                  insert_index: int,
                  dataslice: xr.Dataset,
                  mode: str,
-                 chunk_sizes: Dict[str, int] = None,
                  dimension: str = "time") -> None:
     """
     Update existing zarr dataset by new time slice.
@@ -115,7 +107,6 @@ def update_slice(store: Union[str, MutableMapping],
     :param insert_index: index at which to insert
     :param dataslice: slice to insert
     :param mode: Update mode, 'insert' or 'replace'
-    :param chunk_sizes: desired chunk sizes
     :param dimension: name of dimension perpendicular to slices
     """
 
@@ -144,8 +135,6 @@ def update_slice(store: Union[str, MutableMapping],
                     del enc['preferred_chunks']
                 encoding[var_name] = enc
 
-    if chunk_sizes:
-        dataslice = chunk_dataset(dataslice, chunk_sizes, format_name='zarr')
     temp_dir = tempfile.TemporaryDirectory(prefix='nc2zarr-slice-',
                                            suffix='.zarr')
     dataslice.to_zarr(temp_dir.name, encoding=encoding)
@@ -166,5 +155,3 @@ def update_slice(store: Union[str, MutableMapping],
                     var_array[insert_index:-1, ...]
             # Replace slice
             var_array[insert_index, ...] = slice_array[0]
-
-    unchunk_dataset(store, coords_only=True)
