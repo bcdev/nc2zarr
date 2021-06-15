@@ -31,23 +31,31 @@ from zarr.errors import GroupNotFoundError
 from zarr.errors import PathNotFoundError
 
 
+# TODO: Following the general nc2zarr software design, the functions in
+#  dataslice module should instead be combined in a class DataSliceAppender
+#  that implements the various append modes using the strategy OO pattern.
+#  (See https://github.com/bcdev/nc2zarr/pull/44 )
+
 DEFAULT_EPSILON = np.array(1000 * 1000, dtype='timedelta64[ns]')
 
 
 def find_slice(store: Union[str, MutableMapping],
                target_value,
                dimension: str,
-               epsilon: np.timedelta64 = DEFAULT_EPSILON) \
+               epsilon=DEFAULT_EPSILON) \
         -> Tuple[int, str]:
     """
-    Find time index and update mode for *time_stamp* in ZARR dataset given by
+    Find index and update mode for *target_value* in Zarr dataset specified by
     *store*.
 
-    :param store: A zarr store.
-    :param target_value:
-    :param dimension:
-    :param epsilon: Time epsilon for equality comparison, defaults to
-                     1 millisecond.
+    :param store: A Zarr store.
+    :param target_value: the position along the specified dimension at which
+                         to insert or replace a new data slice. Must have the
+                         same type as the dimension variable.
+    :param dimension: the name of the dimension perpendicular to the new slice
+    :param epsilon: epsilon for equality comparison. Must have the same type
+                    as the dimension variable. Defaults to 1 millisecond
+                    represented as a np.timedelta64.
     :return: A tuple (insert_index, 'insert') or (insert_index, 'replace') if an
              index was found, (-1, 'create') or (-1, 'append') otherwise.
     """
@@ -72,11 +80,11 @@ def append_slice(store: Union[str, MutableMapping],
                  dataslice: xr.Dataset,
                  dimension: str = "time") -> None:
     """
-    Append time slice to existing zarr dataset.
+    Append data slice to existing zarr dataset.
 
     :param store: A zarr store.
-    :param dataslice: Time slice to insert
-    :param dimension: dimension perpendicular to the slice
+    :param dataslice: Data slice to insert
+    :param dimension: name of dimension perpendicular to the slice
     """
 
     # Unfortunately slice.to_zarr(store, mode='a', append_dim='time') will
@@ -101,13 +109,13 @@ def update_slice(store: Union[str, MutableMapping],
                  mode: str,
                  dimension: str = "time") -> None:
     """
-    Update existing zarr dataset by new time slice.
+    Update existing Zarr dataset with new data slice.
 
-    :param store: A zarr store.
+    :param store: A Zarr store.
     :param insert_index: index at which to insert
     :param dataslice: slice to insert
     :param mode: Update mode, 'insert' or 'replace'
-    :param dimension: name of dimension perpendicular to slices
+    :param dimension: name of dimension perpendicular to slice
     """
 
     if mode not in ('insert', 'replace'):

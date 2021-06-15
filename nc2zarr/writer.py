@@ -49,6 +49,8 @@ _APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
                  "retain"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
+# TODO: Refactor this class, because it has become confusing.
+#   (See https://github.com/bcdev/nc2zarr/pull/44 )
 
 class DatasetWriter:
     def __init__(self,
@@ -82,7 +84,8 @@ class DatasetWriter:
         self._output_encoding = output_encoding
         self._output_overwrite = output_overwrite
         self._output_append = output_append
-        self._output_append_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+        self._output_append_dim =\
+            output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_adjust_metadata = output_adjust_metadata
         if output_append_mode not in _APPEND_MODES:
             raise ValueError(
@@ -92,7 +95,8 @@ class DatasetWriter:
         self._output_append_mode = AppendMode(output_append_mode)
         self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
-        self._output_retry_kwargs = output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
+        self._output_retry_kwargs =\
+            output_retry_kwargs or DEFAULT_OUTPUT_RETRY_KWARGS
         self._input_decode_cf = input_decode_cf
         self._input_paths = input_paths
         self._finalize_only = finalize_only
