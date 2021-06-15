@@ -52,6 +52,7 @@ AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 # TODO: Refactor this class, because it has become confusing.
 #   (See https://github.com/bcdev/nc2zarr/pull/44 )
 
+
 class DatasetWriter:
     def __init__(self,
                  output_path: str,
@@ -78,7 +79,8 @@ class DatasetWriter:
                              ' cannot be given both')
 
         self._output_path = output_path
-        self._output_custom_postprocessor = load_custom_func(output_custom_postprocessor) \
+        self._output_custom_postprocessor = \
+            load_custom_func(output_custom_postprocessor) \
             if output_custom_postprocessor else None
         self._output_consolidated = output_consolidated
         self._output_encoding = output_encoding
@@ -269,7 +271,7 @@ class DatasetWriter:
             # run, so self._output_path_exists is true but the Zarr doesn't
             # actually exist.)
         if self._output_append_mode is not AppendMode.append_all:
-            if not self._is_append_dim_increasing(output_ds):
+            if not self._is_append_dim_monotonic_increasing(output_ds):
                 raise ValueError(
                     f"Existing {self._output_append_dim} values must "
                     f"be increasing.")
@@ -282,13 +284,13 @@ class DatasetWriter:
                     f"values may not overlap when using "
                     f"{self._output_append_mode.name}.")
         if self._output_append_mode is AppendMode.append_newer:
-            if not self._is_append_dim_increasing(ds):
+            if not self._is_append_dim_monotonic_increasing(ds):
                 raise ValueError(
                     f"Appended {self._output_append_dim} values must "
                     f"be increasing when using "
                     f"{self._output_append_mode.name}.")
 
-    def _is_append_dim_increasing(self, ds: xr.Dataset) -> bool:
+    def _is_append_dim_monotonic_increasing(self, ds: xr.Dataset) -> bool:
         arr = ds[self._output_append_dim].data
         return np.all(arr[1:] >= arr[:-1])
 
