@@ -45,8 +45,7 @@ from .dataslice import update_slice
 from .version import version
 
 
-_APPEND_MODES = ["append_all", "forbid_overlap", "append_newer", "replace",
-                 "retain"]
+_APPEND_MODES = ["all", "no_overlap", "newer", "replace", "retain"]
 AppendMode = Enum("AppendMode", zip(_APPEND_MODES, _APPEND_MODES))
 
 # TODO: Refactor this class, because it has become confusing.
@@ -63,7 +62,7 @@ class DatasetWriter:
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_append_dim: str = None,
-                 output_append_mode: str = "append_all",
+                 output_append_mode: AppendMode = AppendMode.all,
                  output_adjust_metadata: bool = False,
                  output_metadata: Dict[str, Any] = None,
                  output_s3_kwargs: Dict[str, Any] = None,
@@ -89,12 +88,7 @@ class DatasetWriter:
         self._output_append_dim =\
             output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
         self._output_adjust_metadata = output_adjust_metadata
-        if output_append_mode not in _APPEND_MODES:
-            raise ValueError(
-                f'Unknown append mode "{output_append_mode}"; '
-                "valid append modes: " +
-                ", ".join(_APPEND_MODES))
-        self._output_append_mode = AppendMode(output_append_mode)
+        self._output_append_mode = output_append_mode
         self._output_metadata = output_metadata
         self._output_s3_kwargs = output_s3_kwargs
         self._output_retry_kwargs =\
@@ -205,7 +199,7 @@ class DatasetWriter:
                 # with structural pattern matching (PEPs 634 - 636).
                 if mode in (AppendMode.replace, AppendMode.retain):
                     self._append_with_insertions(ds)
-                elif mode is AppendMode.append_newer:
+                elif mode is AppendMode.newer:
                     output_ds = xr.open_zarr(self._output_store)
                     # NB: assumes both ds and output_ds increasing in append_dim
                     ds_new_only = ds.where(
@@ -214,7 +208,7 @@ class DatasetWriter:
                     ds_new_only.to_zarr(self._output_store,
                                         append_dim=append_dim,
                                         consolidated=self._output_consolidated)
-                elif mode in (AppendMode.append_all, AppendMode.forbid_overlap):
+                elif mode in (AppendMode.all, AppendMode.no_overlap):
                     ds.to_zarr(self._output_store,
                                append_dim=append_dim,
                                consolidated=self._output_consolidated)
@@ -265,20 +259,20 @@ class DatasetWriter:
             # where the output file would have been created in a normal
             # run, so self._output_path_exists is true but the Zarr doesn't
             # actually exist.)
-        if self._output_append_mode is not AppendMode.append_all:
+        if self._output_append_mode is not AppendMode.all:
             if not self._is_append_dim_monotonic_increasing(output_ds):
                 raise ValueError(
                     f"Existing {self._output_append_dim} values must "
                     f"be increasing.")
         if output_ds is not None and \
-                self._output_append_mode is AppendMode.forbid_overlap:
+                self._output_append_mode is AppendMode.no_overlap:
             if output_ds[self._output_append_dim][-1] > \
                     ds[self._output_append_dim][0]:
                 raise ValueError(
                     f"Existing and appended {self._output_append_dim} "
                     f"values may not overlap when using "
                     f"{self._output_append_mode.name}.")
-        if self._output_append_mode is AppendMode.append_newer:
+        if self._output_append_mode is AppendMode.newer:
             if not self._is_append_dim_monotonic_increasing(ds):
                 raise ValueError(
                     f"Appended {self._output_append_dim} values must "

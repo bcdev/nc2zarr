@@ -29,6 +29,7 @@ import pytest
 import xarray as xr
 import zarr.errors
 
+from nc2zarr.writer import AppendMode
 from nc2zarr.writer import DatasetWriter
 from tests.helpers import IOCollector
 from tests.helpers import new_append_test_datasets
@@ -333,14 +334,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
         self.assertTimeSlicesOk(dst_path, src_path_pat, n)
 
-    def test_invalid_append_mode(self):
-        mode = "invalid_mode"
-        with pytest.raises(ValueError,
-                           match=f"Unknown append mode"):
-            DatasetWriter("my.zarr",
-                          output_append_mode=mode)
-
-    def test_append_to_non_increasing_append_all(self):
+    def test_append_to_non_increasing_append_mode_all(self):
         dst_path = "my.zarr"
         self.add_path(dst_path)
         ds1, ds2 = new_append_test_datasets(
@@ -349,7 +343,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         )
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True, output_append_dim="t",
-                          output_append_mode="append_all")
+                          output_append_mode=AppendMode.all)
         w.write_dataset(ds2)
 
     def test_append_to_non_increasing_forbid_overlap(self):
@@ -364,7 +358,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                            match="must be increasing"):
             w = DatasetWriter(dst_path, output_append=True,
                               output_append_dim="t",
-                              output_append_mode="forbid_overlap")
+                              output_append_mode=AppendMode.no_overlap)
             w.write_dataset(ds2)
 
     def test_append_overlapping_forbid_overlap(self):
@@ -379,7 +373,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                            match="may not overlap"):
             w = DatasetWriter(dst_path, output_append=True,
                               output_append_dim="t",
-                              output_append_mode="forbid_overlap")
+                              output_append_mode=AppendMode.no_overlap)
             w.write_dataset(ds2)
 
     def test_append_overlapping_append_newer(self):
@@ -392,7 +386,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
                           output_append_dim="t",
-                          output_append_mode="append_newer")
+                          output_append_mode=AppendMode.newer)
         w.write_dataset(ds2)
         ds3 = xr.open_zarr(dst_path)
         expected = np.array(["2001-01-01", "2001-01-02", "2001-01-03",
@@ -410,7 +404,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
                           output_append_dim="t",
-                          output_append_mode="append_newer")
+                          output_append_mode=AppendMode.newer)
         with pytest.raises(ValueError,
                            match="must be increasing"):
             w.write_dataset(ds2)
@@ -425,7 +419,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
                           output_append_dim="t",
-                          output_append_mode="replace")
+                          output_append_mode=AppendMode.replace)
         w.write_dataset(ds2)
         ds3 = xr.open_zarr(dst_path)
         np.testing.assert_equal(
@@ -447,7 +441,7 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
                           output_append_dim="t",
-                          output_append_mode="retain")
+                          output_append_mode=AppendMode.retain)
         w.write_dataset(ds2)
         ds3 = xr.open_zarr(dst_path)
         np.testing.assert_equal(

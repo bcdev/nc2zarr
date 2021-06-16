@@ -22,6 +22,8 @@
 import os.path
 import unittest
 
+import pytest
+
 from nc2zarr.converter import Converter
 from nc2zarr.error import ConverterError
 from tests.helpers import IOCollector
@@ -199,3 +201,8 @@ class MainTest(unittest.TestCase, IOCollector, ZarrOutputTestMixin):
         self.assertEqual(('Output metadata must be a '
                           'mapping from attribute names to values.',),
                          e.exception.args)
+
+
+    def test_invalid_append_mode(self):
+        with pytest.raises(ValueError, match="Unknown append mode"):
+            Converter(input_paths="dummy", output_append_mode="invalid value")

@@ -176,13 +176,13 @@ output:
   # behaviour: it's added to the end of the existing dataset along the
   # append axis. Permitted values are as follows:
   #
-  # "append_all":     Assume data to be appended is always newer than
+  # "all":            Assume data to be appended is always newer than
   #                   existing data and the append_dim coordinates are
   #                   monotonically increasing, and add the new data as a block
   #                   to the end of the existing data. This is the default.
-  # "forbid_overlap": Overlapping data is treated as a "should never happen"
+  # "no_overlap":     Overlapping data is treated as a "should never happen"
   #                   event, an error is thrown, and no data is modified.
-  # "append_newer":   Any appended data steps falling within the existing range
+  # "newer":          Any appended data steps falling within the existing range
   #                   of append dimension values is ignored and thrown away.
   #                   The rest are appended.
   # "replace":        New data are inserted at their correct position in the
