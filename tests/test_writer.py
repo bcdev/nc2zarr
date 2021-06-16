@@ -56,8 +56,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         with self.assertRaises(ValueError) as cm:
             DatasetWriter('my.zarr',
                           output_append=True,
-                          output_custom_postprocessor='tests.test_writer:my_postprocessor')
-        self.assertEqual('output_append and output_custom_postprocessor cannot be given both',
+                          output_custom_postprocessor=
+                          'tests.test_writer:my_postprocessor')
+        self.assertEqual('output_append and output_custom_postprocessor '
+                         'cannot both be given',
                          f'{cm.exception}')
 
     def test_local_dry_run(self):

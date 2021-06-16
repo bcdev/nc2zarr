@@ -76,7 +76,7 @@ class DatasetWriter:
             raise ValueError('output_path must be given')
         if output_append and output_custom_postprocessor:
             raise ValueError('output_append and output_custom_postprocessor'
-                             ' cannot be given both')
+                             ' cannot both be given')
 
         self._output_path = output_path
         self._output_custom_postprocessor = \
@@ -234,20 +234,15 @@ class DatasetWriter:
                 find_slice(self._output_store, dataslice[append_dim],
                            dimension=append_dim)
             if update_mode == "append":
-                # Currently only works for local filesystem stores
-                # TODO: make append_slice fsspec-aware
-                append_slice(self._output_store.root, dataslice,
+                append_slice(self._output_store, dataslice,
                              dimension=append_dim)
             elif update_mode == "insert":
                 # Currently only works for local filesystem stores
-                # TODO: make update_slice fsspec-aware
-                update_slice(self._output_store.root, insert_index,
+                update_slice(self._output_store, insert_index,
                              dataslice, update_mode, dimension=append_dim)
             elif update_mode == "replace":
                 if self._output_append_mode is AppendMode.replace:
-                    # Currently only works for local filesystem stores
-                    # TODO: make update_slice fsspec-aware
-                    update_slice(self._output_store.root, insert_index,
+                    update_slice(self._output_store, insert_index,
                                  dataslice, update_mode, dimension=append_dim)
                 # If the append mode is not "replace", it must be "retain" --
                 # so we do nothing, which retains the existing slice and
@@ -356,10 +351,12 @@ class DatasetWriter:
         source = None
         if self._input_paths:
             # Note, currently we only name root sources = our NetCDF files.
-            nc_paths = [path for path in self._input_paths if path.endswith('.nc')]
+            nc_paths = \
+                [path for path in self._input_paths if path.endswith('.nc')]
             if nc_paths:
                 source = dataset.attrs.get('source')
-                source = ((source + ',\n') if source else '') + ', '.join(nc_paths)
+                source = \
+                    ((source + ',\n') if source else '') + ', '.join(nc_paths)
         return source
 
     @classmethod
