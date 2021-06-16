@@ -130,6 +130,10 @@ def update_slice(store: Union[str, MutableMapping],
             var = ds[var_name]
             if var.ndim >= 1 and dimension in var.dims:
                 if var.dims[0] != dimension:
+                    # TODO: Remove this restriction -- it's not fundamentally
+                    #   necessary. Removal should be accompanied by appropriate
+                    #   unit tests and the addition of a warning to the user
+                    #   about potential slowness / inefficiency.
                     raise ValueError(
                         f"dimension '{dimension}' of variable "
                         f"{var_name!r} must be first dimension")
