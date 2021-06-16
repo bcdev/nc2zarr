@@ -117,10 +117,7 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
 
         # ds.expand_dims() will raise if coordinates exist,
         # so remove them temporarily
-        if concat_dim_bnds_var is not None:
-            ds = ds.drop_vars([concat_dim_name, concat_dim_bnds_name])
-        else:
-            ds = ds.drop_vars(concat_dim_name)
+        ds = ds.drop_vars(concat_dim_name)
 
         # if concat_dim_name is still a dimension, drop it too
         if concat_dim_name in ds.dims:
@@ -136,7 +133,12 @@ def ensure_dataset_has_concat_dim(ds: xr.Dataset,
         ds[concat_dim_name].encoding.update(concat_dim_var.encoding)
         # also (re)assign bounds coordinates
         if concat_dim_bnds_var is not None:
-            ds = ds.assign_coords({concat_dim_bnds_name: concat_dim_bnds_var})
+            # concat_dim_bnds may have been removed during drop_vars() - execution,
+            # so we may have to set it again
+            if concat_dim_bnds_name in ds:
+                ds = ds.set_coords(concat_dim_bnds_name)
+            else:
+                ds = ds.assign_coords({concat_dim_bnds_name: concat_dim_bnds_var})
 
     return ds
 

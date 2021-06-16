@@ -2,6 +2,10 @@
 
 ### Version 1.1.2 (in development)
 
+* Adjusted the built-in pre-processing to handle more cases: 
+  Bounds dimensions of concatenation coordinates are extended by their
+  dimension and transformed to variables if necessary.
+
 * Whether to adjust output metadata (global attributes) after the last 
   write/append can now be forced by the new `output.adjust_metadata` 
   setting whose default is `false`. If set to `true`, this will adjust 

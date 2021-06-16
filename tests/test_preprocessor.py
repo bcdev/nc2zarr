@@ -32,6 +32,25 @@ from tests.helpers import new_test_dataset
 
 class DatasetPreProcessorTest(unittest.TestCase):
 
+    def test_time_dim_is_added_and_time_bounds_variable_is_converted_to_var(self):
+        ds = new_test_dataset(day=5,
+                              add_time_bnds=True,
+                              add_time_as_dim_to_vars=False,
+                              time_bounds_name='date_bnds',
+                              add_time_bounds_as_var=True)
+        pre_processor = DatasetPreProcessor(input_concat_dim='time')
+        ds = pre_processor.preprocess_dataset(ds)
+        self.assertIn('time', ds)
+        self.assertEqual(np.array(['2020-12-05T10:00:00.000000000'], dtype='datetime64[ns]'),
+                         ds.time.data)
+        self.assertIn('bounds', ds.time.attrs)
+        self.assertEqual('date_bnds', ds.time.bounds)
+        self.assertIn('date_bnds', ds)
+        self.assertIn('date_bnds', ds.coords)
+        self.assertEqual(('time', 'bnds'), ds.date_bnds.dims)
+        self.assertIn('r_ui16', ds)
+        self.assertEqual(('time', 'lat', 'lon'), ds.r_ui16.dims)
+
     def test_select_variables(self):
         ds = new_test_dataset(day=1)
         self.assertIn('time', ds)
