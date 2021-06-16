@@ -2,7 +2,7 @@
 
 ### Version 1.1.2 (in development)
 
-* Introduce the new output parameter `append_mode` to select behaviour
+* Introduce the new parameter `output.append_mode` to select behaviour
   when appending new data which overlaps in the append dimension with the
   existing data.
 
