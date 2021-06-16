@@ -25,11 +25,14 @@ import unittest
 import uuid
 
 import numpy as np
+import pytest
 import xarray as xr
 import zarr.errors
 
+from nc2zarr.writer import AppendMode
 from nc2zarr.writer import DatasetWriter
 from tests.helpers import IOCollector
+from tests.helpers import new_append_test_datasets
 from tests.helpers import new_test_dataset
 
 
@@ -54,8 +57,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         with self.assertRaises(ValueError) as cm:
             DatasetWriter('my.zarr',
                           output_append=True,
-                          output_custom_postprocessor='tests.test_writer:my_postprocessor')
-        self.assertEqual('output_append and output_custom_postprocessor cannot be given both',
+                          output_custom_postprocessor=
+                          'tests.test_writer:my_postprocessor')
+        self.assertEqual('output_append and output_custom_postprocessor '
+                         'cannot both be given',
                          f'{cm.exception}')
 
     def test_local_dry_run(self):
@@ -260,7 +265,8 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         dst_path = 'my.zarr'
         self.add_path(dst_path)
 
-        writer = DatasetWriter(dst_path, output_overwrite=False, input_decode_cf=False)
+        writer = DatasetWriter(dst_path, output_overwrite=False,
+                               input_decode_cf=False)
 
         n = 3
         for i in range(0, n):
@@ -305,7 +311,8 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         dst_path = 'my.zarr'
         self.add_path(dst_path)
 
-        writer = DatasetWriter(dst_path, output_overwrite=False, input_decode_cf=False)
+        writer = DatasetWriter(dst_path, output_overwrite=False,
+                               input_decode_cf=False)
 
         n = 3
         for i in range(0, n):
@@ -326,6 +333,125 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                 writer.write_dataset(src_dataset, append=i > 0)
 
         self.assertTimeSlicesOk(dst_path, src_path_pat, n)
+
+    def test_append_to_non_increasing_append_mode_all(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-03", "2001-01-02"],
+            ["2001-01-04", "2001-01-05", "2001-01-06"]
+        )
+        ds1.to_zarr(dst_path)
+        w = DatasetWriter(dst_path, output_append=True, output_append_dim="t",
+                          output_append_mode=AppendMode.all)
+        w.write_dataset(ds2)
+
+    def test_append_to_non_increasing_forbid_overlap(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-03", "2001-01-02"],
+            ["2001-01-04", "2001-01-05", "2001-01-06"]
+        )
+        ds1.to_zarr(dst_path)
+        with pytest.raises(ValueError,
+                           match="must be increasing"):
+            w = DatasetWriter(dst_path, output_append=True,
+                              output_append_dim="t",
+                              output_append_mode=AppendMode.no_overlap)
+            w.write_dataset(ds2)
+
+    def test_append_overlapping_forbid_overlap(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-02", "2001-01-03", "2001-01-04"]
+        )
+        ds1.to_zarr(dst_path)
+        with pytest.raises(ValueError,
+                           match="may not overlap"):
+            w = DatasetWriter(dst_path, output_append=True,
+                              output_append_dim="t",
+                              output_append_mode=AppendMode.no_overlap)
+            w.write_dataset(ds2)
+
+    def test_append_overlapping_append_newer(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-02", "2001-01-03", "2001-01-04", "2001-02-05"]
+        )
+        ds1.to_zarr(dst_path)
+        w = DatasetWriter(dst_path, output_append=True,
+                          output_append_dim="t",
+                          output_append_mode=AppendMode.newer)
+        w.write_dataset(ds2)
+        ds3 = xr.open_zarr(dst_path)
+        expected = np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                             "2001-01-04", "2001-02-05"],
+                            dtype="datetime64[ns]")
+        np.testing.assert_equal(expected, ds3.t.data)
+
+    def test_append_non_increasing_append_newer(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03"],
+            ["2001-01-05", "2001-01-04", "2001-01-03", "2001-02-02"]
+        )
+        ds1.to_zarr(dst_path)
+        w = DatasetWriter(dst_path, output_append=True,
+                          output_append_dim="t",
+                          output_append_mode=AppendMode.newer)
+        with pytest.raises(ValueError,
+                           match="must be increasing"):
+            w.write_dataset(ds2)
+
+    def test_append_overlapping_replace(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
+            ["2001-01-02", "2001-01-03", "2001-01-04", "2001-01-06"]
+        )
+        ds1.to_zarr(dst_path)
+        w = DatasetWriter(dst_path, output_append=True,
+                          output_append_dim="t",
+                          output_append_mode=AppendMode.replace)
+        w.write_dataset(ds2)
+        ds3 = xr.open_zarr(dst_path)
+        np.testing.assert_equal(
+            np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                      "2001-01-04", "2001-01-05", "2001-01-06"],
+                     dtype="datetime64[ns]"), ds3.t.data)
+        np.testing.assert_equal(
+            np.array([0, 1, 1, 1, 0, 1]),
+            ds3.v.isel(x=0, y=0)
+        )
+
+    def test_append_overlapping_retain(self):
+        dst_path = "my.zarr"
+        self.add_path(dst_path)
+        ds1, ds2 = new_append_test_datasets(
+            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
+            ["2001-01-03", "2001-01-04", "2001-01-05", "2001-01-06"]
+        )
+        ds1.to_zarr(dst_path)
+        w = DatasetWriter(dst_path, output_append=True,
+                          output_append_dim="t",
+                          output_append_mode=AppendMode.retain)
+        w.write_dataset(ds2)
+        ds3 = xr.open_zarr(dst_path)
+        np.testing.assert_equal(
+            np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                      "2001-01-04", "2001-01-05", "2001-01-06"],
+                     dtype="datetime64[ns]"), ds3.t.data)
+        np.testing.assert_equal(
+            np.array([0, 0, 0, 1, 0, 1]),
+            ds3.v.isel(x=0, y=0)
+        )
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):

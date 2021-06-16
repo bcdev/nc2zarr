@@ -30,6 +30,7 @@ from .log import use_verbosity
 from .opener import DatasetOpener
 from .preprocessor import DatasetPreProcessor
 from .processor import DatasetProcessor
+from .writer import AppendMode
 from .writer import DatasetWriter
 
 
@@ -58,6 +59,9 @@ class Converter:
            If there is no existing dataset, one will be created regardless
            of the value of this parameter.
     :param output_append_dim:
+    :param output_append_mode: behaviour to use when appending data which
+           overlaps with the existing data. Permitted values:
+           all, no_overlap, newer, replace, retain
     :param output_adjust_metadata:
     :param output_metadata:
     :param output_s3:
@@ -87,6 +91,7 @@ class Converter:
                  output_overwrite: bool = False,
                  output_append: bool = False,
                  output_append_dim: str = None,
+                 output_append_mode: str = "all",
                  output_adjust_metadata: bool = False,
                  output_metadata: Dict[str, Any] = None,
                  output_s3: Dict[str, Any] = None,
@@ -142,6 +147,12 @@ class Converter:
         self.output_overwrite = output_overwrite
         self.output_append = output_append
         self.output_append_dim = output_append_dim
+
+        if output_append_mode not in AppendMode.__members__:
+            raise ValueError(
+                f'Unknown append mode "{output_append_mode}"; '
+                f'valid append modes: {", ".join(AppendMode.__members__)}')
+        self.output_append_mode = AppendMode(output_append_mode)
         self.output_adjust_metadata = output_adjust_metadata
         self.output_metadata = output_metadata
         self.output_s3 = output_s3
@@ -189,6 +200,7 @@ class Converter:
                                output_overwrite=self.output_overwrite,
                                output_append=self.output_append,
                                output_append_dim=self.output_append_dim,
+                               output_append_mode=self.output_append_mode,
                                output_adjust_metadata=self.output_adjust_metadata,
                                output_metadata=self.output_metadata,
                                output_s3_kwargs=self.output_s3,

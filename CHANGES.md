@@ -2,6 +2,10 @@
 
 ### Version 1.1.2 (in development)
 
+* Introduce the new parameter `output.append_mode` to select behaviour
+  when appending new data which overlaps in the append dimension with the
+  existing data.
+
 * Adjusted the built-in pre-processing to handle more cases: 
   Bounds dimensions of concatenation coordinates are extended by their
   dimension and transformed to variables if necessary.

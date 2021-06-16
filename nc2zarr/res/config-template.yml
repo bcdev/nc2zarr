@@ -166,7 +166,34 @@ output:
   append: false
 
   # Append dimension. Defaults to input/concat_dim or "time".
-  append_dim: false
+  append_dim: null
+
+  # Controls the behaviour when appending data which overlap in the
+  # append dimension with the existing data. When the data do not overlap,
+  # all current append modes produce identical behaviour: adding the
+  # appended data directly to the end of the current append dimension.
+  # When appending non-overlapping data, there is only one expected
+  # behaviour: it's added to the end of the existing dataset along the
+  # append axis. Permitted values are as follows:
+  #
+  # "all":            Assume data to be appended is always newer than
+  #                   existing data and the append_dim coordinates are
+  #                   monotonically increasing, and add the new data as a block
+  #                   to the end of the existing data. This is the default.
+  # "no_overlap":     Overlapping data is treated as a "should never happen"
+  #                   event, an error is thrown, and no data is modified.
+  # "newer":          Any appended data steps falling within the existing range
+  #                   of append dimension values is ignored and thrown away.
+  #                   The rest are appended.
+  # "replace":        New data are inserted at their correct position in the
+  #                   existing data. For data points with identical values in
+  #                   the append dimension, the old data are replaced with the
+  #                   new data.
+  # "retain":         New data are inserted at their correct position in the
+  #                   existing data. For data points with identical values in
+  #                   the append dimension, the old data are retained and the
+  #                   new data discarded.
+  append_mode: "append_all"
 
   # Whether to adjust output metadata (global attributes)
   # After the last write/append. This will adjust the
@@ -226,3 +253,4 @@ output:
     delay: 0.1
     # multiplier applied to delay between attempts. 1.0 means no backoff.
     backoff: 1.1
+
