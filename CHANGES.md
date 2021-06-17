@@ -1,6 +1,6 @@
 ## nc2zarr Change History
 
-### Version 1.1.2 (in development)
+### Version 1.2.0 (in development)
 
 * Introduce the new parameter `output.append_mode` to select behaviour
   when appending new data which overlaps in the append dimension with the
