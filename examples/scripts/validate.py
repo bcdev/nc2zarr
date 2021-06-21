@@ -27,6 +27,7 @@ input_files:
 import argparse
 import os
 import sys
+from time import strftime
 from typing import Dict
 from typing import List
 from typing import Union
@@ -50,7 +51,7 @@ def main():
     validator = Validator(config_dict["input_files"], args.verbose,
                           args.stop)
     all_valid = validator.validate_all()
-    print(f"Validation {'succeeded' if all_valid else 'failed'}.")
+    log(f"Validation {'succeeded' if all_valid else 'failed'}.")
     sys.exit(0 if all_valid else 1)
 
 
@@ -81,6 +82,8 @@ class Validator:
         assert(nc_ds.time.shape == (1,))
         zarr_ds = xr.open_zarr(zarr_path, decode_cf=False)
         zarr_slice = zarr_ds.where(zarr_ds.time == nc_ds.time[0], drop=True)
+        if self.verbosity > 1:
+            log("Starting validation of " + nc_path)
         for var in nc_ds.coords:
             # There can be slight variations in exact coordinate values
             # (e.g. OCEANCOLOUR_BS_CHL_L4_NRT_OBSERVATIONS_009_045 on 2013-06-19
@@ -89,15 +92,24 @@ class Validator:
                                     atol=0.01)
             nc_valid = nc_valid and var_valid
             if self.verbosity > 1:
-                print(var, "pass" if var_valid else "fail")
-        for var in nc_ds.data_vars:
+                log(str(var) + "\t" + ("pass" if var_valid else "fail"))
+        # A converted Zarr may not contain all the original data variables,
+        # so we filter out NetCDF variables which are absent in the Zarr.
+        zarr_data_vars = set(map(str, zarr_ds.data_vars))
+        vars_to_check = filter(lambda v: v in zarr_data_vars,
+                               map(str, nc_ds.data_vars))
+        for var in vars_to_check:
             var_valid = np.all(nc_ds[var].data == zarr_slice[var].data)
             nc_valid = nc_valid and var_valid
             if self.verbosity > 1:
-                print(var, "pass" if var_valid else "fail")
+                log(str(var) + "\t" + ("pass" if var_valid else "fail"))
         if self.verbosity > 0:
-            print(nc_path, "pass" if nc_valid else "fail")
+            log(str(nc_path) + "\t" + ("pass" if nc_valid else "fail"))
         return nc_valid
+
+
+def log(message: str):
+    print(strftime("[%Y-%m-%d %H:%M] ") + message)
 
 
 if __name__ == "__main__":
