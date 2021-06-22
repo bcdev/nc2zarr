@@ -2,13 +2,52 @@ input:
   paths:
     - /eodata/CLMS/Global/Water/Lake_Water_Quality/c_gls_LWQ300_*_GLOBE_OLCI_V1/c_gls_LWQ300_*_GLOBE_OLCI_V*.nc
   prefetch_chunks: true
+  sort_by: path
+  # Use a custom preprocessor to work around problems with the data type of
+  # the "crs" variable; see crs_dtype_preprocessor.py for details.
+  custom_preprocessor: crs_dtype_preprocessor:preprocess_crs
+  # Restrict to the set of variables that exist in both v1.2 and v1.4
+  # of the data format, to ensure compatibility when appending files
+  # with differing versions.
+  variables:
+    - variables
+    - num_obs
+    - first_obs
+    - last_obs
+    - turbidity_mean
+    - Rw1020_rep
+    - Rw400_rep
+    - Rw412_rep
+    - Rw443_rep
+    - Rw490_rep
+    - Rw510_rep
+    - Rw560_rep
+    - Rw620_rep
+    - Rw665_rep
+    - Rw674_rep
+    - Rw681_rep
+    - Rw709_rep
+    - Rw754_rep
+    - Rw760_rep
+    - Rw764_rep
+    - Rw767_rep
+    - Rw779_rep
+    - Rw865_rep
+    - Rw885_rep
+    - Rw900_rep
+    - Rw940_rep
+    - RwDayNum_rep
+    - lat
+    - lon
+    - crs
+    - time
 
 process:
   rechunk:
     "*":
       lon: 2880
       lat: 1440
-      time: 1
+      time: 18
     lon: null
     lat: null
     time: 365
