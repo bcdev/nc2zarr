@@ -119,7 +119,9 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
         self.add_output('out.zarr')
         result = self.invoke_cli(['--sort-by', 'path', 'inputs/*.nc'])
         self.assertEqual(0, result.exit_code)
-        result = self.invoke_cli(['--adjust-metadata', '--finalize-only', 'inputs/*.nc'])
+        result = self.invoke_cli(['--adjust-metadata', '--finalize-only',
+                                  'inputs/*.nc',
+                                  '--sort-by', 'path'])
         ds = self.assertCliResultOk(result,
                                     'out.zarr',
                                     expected_vars={'lon', 'lat', 'time', 'time_bnds',
