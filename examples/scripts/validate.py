@@ -109,7 +109,7 @@ class Validator:
 
 
 def log(message: str):
-    print(strftime("[%Y-%m-%d %H:%M] ") + message)
+    print(strftime("[%Y-%m-%d %H:%M] ") + message, flush=True)
 
 
 if __name__ == "__main__":
