@@ -1,6 +1,6 @@
 ## nc2zarr Change History
 
-### Version 1.2.0 (in development)
+### Version 1.2.0
 
 * Introduce the new parameter `output.append_mode` to select behaviour
   when appending new data which overlaps in the append dimension with the
@@ -41,6 +41,8 @@
   attribute. (#35)
   
 * Added a CLI tool `nc2zarr-batch`. 
+
+* Add and update some sample configurations and scripts.
 
 ### Version 1.1.1
 
