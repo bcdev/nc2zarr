@@ -4,6 +4,13 @@
 
 input:
   paths: /eodata/CMEMS/NRT/ATL/CHL/OCEANCOLOUR_ATL_CHL_L4_NRT_OBSERVATIONS_009_037/*/*/*/*_d-*-DT*.nc
+  # decode_cf: true is a temporary workaround for
+  # https://github.com/pydata/xarray/issues/5405
+  # (manifesting in nc2zarr as https://github.com/bcdev/nc2zarr/issues/35 ),
+  # which affects the conversion of the CHL_error variable. (Unfortunately the
+  # nc2zarr workaround in https://github.com/bcdev/nc2zarr/pull/36 doesn't
+  # help in this case.)
+  decode_cf: true
 
 process:
   rechunk:
