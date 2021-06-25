@@ -1,0 +1,35 @@
+input:
+  paths:
+    - "/eodata/CMEMS/NRT/MED/SST/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004/*/*/*/*-OISST_HR_NRT-MED-*.nc"
+  sort_by: path
+  prefetch_chunks: true
+  multi_file: false
+  decode_cf: false
+  
+process:
+  rechunk:
+    analysed_sst:
+      lon: null
+      lat: null
+      time: 20
+    analysis_error:
+      lon: null
+      lat: null
+      time: 20
+    mask:
+      lon: null
+      lat: null
+      time: 1000
+    sea_ice_fraction:
+      lon: null
+      lat: null
+      time: 1000
+    lon: null
+    lat: null
+    time: 10000
+
+output:
+  path: /home/eouser/data/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004-a_V2.zarr
+  overwrite: true
+  consolidated: true
+  append_dim: time

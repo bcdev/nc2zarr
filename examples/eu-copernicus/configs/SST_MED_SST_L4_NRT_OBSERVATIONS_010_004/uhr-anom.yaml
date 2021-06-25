@@ -1,0 +1,23 @@
+input:
+  paths:
+    - "/eodata/CMEMS/NRT/MED/SST/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004/*/*/*/*L4UHRfnd-MED_NRTv1_anom*"
+  sort_by: path
+  prefetch_chunks: true
+  multi_file: false
+  decode_cf: false
+  
+process:
+  rechunk:
+    sst_anomaly:
+      lon: 933
+      lat: 270
+      time: 20
+    lon: null
+    lat: null
+    time: 10000
+
+output:
+  path: /home/eouser/data/SST_MED_SST_L4_NRT_OBSERVATIONS_010_004-d.zarr
+  overwrite: true
+  consolidated: true
+  append_dim: time
