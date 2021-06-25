@@ -1,5 +1,13 @@
 ## nc2zarr Change History
 
+### Version 1.2.2
+
+* Fix incorrect version number.
+
+### Version 1.2.1
+
+* Fix an occasionally failing test and update an example configuration.
+
 ### Version 1.2.0
 
 * Introduce the new parameter `output.append_mode` to select behaviour
