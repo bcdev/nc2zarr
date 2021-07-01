@@ -1,6 +1,6 @@
 input:
   paths:
-    - /eodata/CLMS/Global/Water/Lake_Water_Quality/c_gls_LWQ300_*_GLOBE_OLCI_V1/c_gls_LWQ300_*_GLOBE_OLCI_V*.nc
+    - /eodata/CLMS/Global/Water/Lake_Water_Quality/LWQ300_V1_Global/c_gls_LWQ300_*_GLOBE_OLCI_V1/c_gls_LWQ300_*_GLOBE_OLCI_V*.nc
   prefetch_chunks: true
   sort_by: path
   # Use a custom preprocessor to work around problems with the data type of
