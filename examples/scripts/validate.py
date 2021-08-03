@@ -96,8 +96,8 @@ class Validator:
         # A converted Zarr may not contain all the original data variables,
         # so we filter out NetCDF variables which are absent in the Zarr.
         zarr_data_vars = set(map(str, zarr_ds.data_vars))
-        vars_to_check = filter(lambda v: v in zarr_data_vars,
-                               map(str, nc_ds.data_vars))
+        vars_to_check = list(filter(lambda v: v in zarr_data_vars,
+                                    map(str, nc_ds.data_vars)))
         for var in vars_to_check:
             var_valid = np.all(nc_ds[var].data == zarr_slice[var].data)
             nc_valid = nc_valid and var_valid
