@@ -125,7 +125,14 @@ def update_slice(store: Union[str, MutableMapping],
 
     append_dim_var_names = []
     encoding = {}
-    with xr.open_zarr(store) as ds:
+
+    consolidated = True
+    try:
+        _ = zarr.open_consolidated(store)
+    except KeyError:
+        consolidated = False
+
+    with xr.open_zarr(store, consolidated=consolidated) as ds:
         for var_name in ds.variables:
             var = ds[var_name]
             if var.ndim >= 1 and dimension in var.dims:
@@ -167,3 +174,6 @@ def update_slice(store: Union[str, MutableMapping],
                     var_array[insert_index:-1, ...]
             # Replace slice
             var_array[insert_index, ...] = slice_array[0]
+
+    if consolidated:
+        zarr.consolidate_metadata(store)
