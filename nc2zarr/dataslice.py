@@ -126,6 +126,13 @@ def update_slice(store: Union[str, MutableMapping],
     append_dim_var_names = []
     encoding = {}
 
+    # Neither Zarr nor xarray offer an explicit API function to check whether
+    # a Zarr is consolidated. Here we use the workaround of attempting to
+    # open as consolidated, and catching the resulting exception if this
+    # isn't possible. In the case of a consolidated Zarr, there is a slight
+    # inefficiency, since the consolidated metadata object is fetched twice
+    # (by Zarr and thereafter by xarray). See comments on PR #48 for
+    # discussion of possible optimizations.
     consolidated = True
     try:
         _ = zarr.open_consolidated(store)
