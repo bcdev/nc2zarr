@@ -79,13 +79,13 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         for i in range(3):
             ds = new_test_dataset(day=i + 1)
             writer.write_dataset(ds)
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertNotIn('history', ds.attrs)
             self.assertNotIn('source', ds.attrs)
             self.assertNotIn('time_coverage_start', ds.attrs)
             self.assertNotIn('time_coverage_end', ds.attrs)
         writer.finalize_dataset()
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertIn('history', ds.attrs)
             self.assertIn('source', ds.attrs)
             self.assertEqual('a.nc, b.nc', ds.attrs['source'])
@@ -96,16 +96,19 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_finalize_adjusts_metadata_with_time_bnds(self):
         self.add_path('my.zarr')
-        writer = DatasetWriter('my.zarr', output_append=True, output_adjust_metadata=True)
+        writer = DatasetWriter('my.zarr', output_append=True,
+                               output_adjust_metadata=True)
         for i in range(3):
             ds = new_test_dataset(day=i + 1, add_time_bnds=True)
             writer.write_dataset(ds)
         writer.finalize_dataset()
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertIn('time_coverage_start', ds.attrs)
-            self.assertEqual('2020-12-01 09:30:00', ds.attrs['time_coverage_start'])
+            self.assertEqual('2020-12-01 09:30:00',
+                             ds.attrs['time_coverage_start'])
             self.assertIn('time_coverage_end', ds.attrs)
-            self.assertEqual('2020-12-03 10:30:00', ds.attrs['time_coverage_end'])
+            self.assertEqual('2020-12-03 10:30:00',
+                             ds.attrs['time_coverage_end'])
 
     def test_finalize_updates_metadata(self):
         self.add_path('my.zarr')
@@ -115,10 +118,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         for i in range(3):
             ds = new_test_dataset(day=i + 1)
             writer.write_dataset(ds)
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertNotIn('comment', ds.attrs)
         writer.finalize_dataset()
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertIn('comment', ds.attrs)
             self.assertEqual('This dataset is a test.', ds.attrs['comment'])
 
@@ -230,15 +233,16 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
 
     def test_local_postprocessor(self):
         self.add_path('my.zarr')
-        writer = DatasetWriter('my.zarr',
-                               output_overwrite=False,
-                               output_custom_postprocessor='tests.test_writer:my_postprocessor')
+        writer = DatasetWriter(
+            'my.zarr',
+            output_overwrite=False,
+            output_custom_postprocessor='tests.test_writer:my_postprocessor')
         ds = new_test_dataset(day=1)
         self.assertNotIn('crs', ds)
 
         writer.write_dataset(ds)
         self.assertTrue(os.path.isdir('my.zarr'))
-        with xr.open_zarr('my.zarr') as ds:
+        with xr.open_zarr('my.zarr', consolidated=False) as ds:
             self.assertIn('crs', ds)
 
     # noinspection PyMethodMayBeStatic
@@ -377,22 +381,25 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
             w.write_dataset(ds2)
 
     def test_append_overlapping_append_newer(self):
-        dst_path = "my.zarr"
-        self.add_path(dst_path)
-        ds1, ds2 = new_append_test_datasets(
-            ["2001-01-01", "2001-01-02", "2001-01-03"],
-            ["2001-01-02", "2001-01-03", "2001-01-04", "2001-02-05"]
-        )
-        ds1.to_zarr(dst_path)
-        w = DatasetWriter(dst_path, output_append=True,
-                          output_append_dim="t",
-                          output_append_mode=AppendMode.newer)
-        w.write_dataset(ds2)
-        ds3 = xr.open_zarr(dst_path)
-        expected = np.array(["2001-01-01", "2001-01-02", "2001-01-03",
-                             "2001-01-04", "2001-02-05"],
-                            dtype="datetime64[ns]")
-        np.testing.assert_equal(expected, ds3.t.data)
+        for consolidated in False, True:
+            with self.subTest(consolidated=consolidated):
+                dst_path = "my.zarr"
+                self.add_path(dst_path)
+                ds1, ds2 = new_append_test_datasets(
+                    ["2001-01-01", "2001-01-02", "2001-01-03"],
+                    ["2001-01-02", "2001-01-03", "2001-01-04", "2001-02-05"]
+                )
+                ds1.to_zarr(dst_path, consolidated=consolidated)
+                w = DatasetWriter(dst_path, output_append=True,
+                                  output_append_dim="t",
+                                  output_append_mode=AppendMode.newer,
+                                  output_consolidated=consolidated)
+                w.write_dataset(ds2)
+                ds3 = xr.open_zarr(dst_path, consolidated=consolidated)
+                expected = np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                                     "2001-01-04", "2001-02-05"],
+                                    dtype="datetime64[ns]")
+                np.testing.assert_equal(expected, ds3.t.data)
 
     def test_append_non_increasing_append_newer(self):
         dst_path = "my.zarr"
@@ -419,9 +426,10 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         ds1.to_zarr(dst_path)
         w = DatasetWriter(dst_path, output_append=True,
                           output_append_dim="t",
-                          output_append_mode=AppendMode.replace)
+                          output_append_mode=AppendMode.replace,
+                          output_consolidated=False)
         w.write_dataset(ds2)
-        ds3 = xr.open_zarr(dst_path)
+        ds3 = xr.open_zarr(dst_path, consolidated=False)
         np.testing.assert_equal(
             np.array(["2001-01-01", "2001-01-02", "2001-01-03",
                       "2001-01-04", "2001-01-05", "2001-01-06"],
@@ -432,30 +440,33 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
         )
 
     def test_append_overlapping_retain(self):
-        dst_path = "my.zarr"
-        self.add_path(dst_path)
-        ds1, ds2 = new_append_test_datasets(
-            ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
-            ["2001-01-03", "2001-01-04", "2001-01-05", "2001-01-06"]
-        )
-        ds1.to_zarr(dst_path)
-        w = DatasetWriter(dst_path, output_append=True,
-                          output_append_dim="t",
-                          output_append_mode=AppendMode.retain)
-        w.write_dataset(ds2)
-        ds3 = xr.open_zarr(dst_path)
-        np.testing.assert_equal(
-            np.array(["2001-01-01", "2001-01-02", "2001-01-03",
-                      "2001-01-04", "2001-01-05", "2001-01-06"],
-                     dtype="datetime64[ns]"), ds3.t.data)
-        np.testing.assert_equal(
-            np.array([0, 0, 0, 1, 0, 1]),
-            ds3.v.isel(x=0, y=0)
-        )
+        for consolidated in False, True:
+            with self.subTest(consolidated=consolidated):
+                dst_path = "my.zarr"
+                self.add_path(dst_path)
+                ds1, ds2 = new_append_test_datasets(
+                    ["2001-01-01", "2001-01-02", "2001-01-03", "2001-01-05"],
+                    ["2001-01-03", "2001-01-04", "2001-01-05", "2001-01-06"]
+                )
+                ds1.to_zarr(dst_path, consolidated=consolidated)
+                w = DatasetWriter(dst_path, output_append=True,
+                                  output_append_dim="t",
+                                  output_append_mode=AppendMode.retain,
+                                  output_consolidated=consolidated)
+                w.write_dataset(ds2)
+                ds3 = xr.open_zarr(dst_path, consolidated=consolidated)
+                np.testing.assert_equal(
+                    np.array(["2001-01-01", "2001-01-02", "2001-01-03",
+                              "2001-01-04", "2001-01-05", "2001-01-06"],
+                             dtype="datetime64[ns]"), ds3.t.data)
+                np.testing.assert_equal(
+                    np.array([0, 0, 0, 1, 0, 1]),
+                    ds3.v.isel(x=0, y=0)
+                )
 
     @classmethod
     def assertTimeSlicesOk(cls, dst_path, src_path_pat, n):
-        with xr.open_zarr(dst_path, decode_cf=False) as ds:
+        with xr.open_zarr(dst_path, decode_cf=False, consolidated=False) as ds:
             for i in range(0, n):
                 src_path = src_path_pat.format(i)
                 with xr.open_zarr(src_path, decode_cf=False) as src_dataset:
@@ -465,3 +476,5 @@ class DatasetWriterTest(unittest.TestCase, IOCollector):
                     xr.testing.assert_allclose(dst_dataset_slice, src_dataset)
 
     # TODO: add real s3 tests using moto for boto mocking
+
+

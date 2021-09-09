@@ -1,5 +1,9 @@
 ## nc2zarr Change History
 
+### Version 1.3.0 (in development)
+
+* Handle consolidated Zarrs correctly when appending data (fixes #47).
+
 ### Version 1.2.2
 
 * Fix incorrect version number.
