@@ -1,8 +1,14 @@
 ## nc2zarr Change History
 
-### Version 1.3.0 (in development)
+### Version 1.2.3
 
 * Handle consolidated Zarrs correctly when appending data (fixes #47).
+
+* Add configurations for SST_MED_SST_L4_NRT_OBSERVATIONS_010_004
+
+* Update LWQ300 configuration
+
+* Improve validation script
 
 ### Version 1.2.2
 
