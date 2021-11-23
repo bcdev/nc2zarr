@@ -36,4 +36,4 @@ build_script:
   - micromamba create -y -f environment.yml -c conda-forge
   - micromamba activate nc2zarr
   - python3 setup.py install
-  - pytest
+  - python3 -m pytest
