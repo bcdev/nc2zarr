@@ -1,0 +1,17 @@
+input:
+  paths: /eodata/CMEMS/REP/GLO/PHY/MULTIOBS_GLO_PHY_W_3D_REP_015_007/*/*/*/dataset-omega-3d-rep-weekly_*.nc
+
+process:
+  rechunk:
+    '*':
+      lon: 240
+      lat: 240
+      depth: 25
+      time: 5
+    lon: null
+    lat: null
+    time: 10000
+
+output:
+  adjust_metadata: true
+  path: s3://cop-services/MULTIOBS_GLO_PHY_W_3D_REP_015_007.zarr/
