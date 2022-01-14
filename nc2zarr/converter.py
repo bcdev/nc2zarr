@@ -115,7 +115,9 @@ class Converter:
 
         # output_append_dim is used independently of output_append, namely
         # whenever there is more than one input file.
-        output_append_dim = input_concat_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
+        output_append_dim = output_append_dim \
+                            or input_concat_dim \
+                            or DEFAULT_OUTPUT_APPEND_DIM_NAME
 
         if output_overwrite and output_append:
             raise ConverterError('Output overwrite and append flags '

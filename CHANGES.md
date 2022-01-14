@@ -1,5 +1,9 @@
 ## nc2zarr Change History
 
+### Version 1.2.4 (in development)
+
+* Fixed ignored `output/append_dim` setting. (#54)
+
 ### Version 1.2.3
 
 * Handle consolidated Zarrs correctly when appending data (fixes #47).
