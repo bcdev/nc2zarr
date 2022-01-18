@@ -1,23 +1,23 @@
 # The MIT License (MIT)
-# Copyright (c) 2021 by Brockmann Consult GmbH and contributors
+# Copyright (c) 2022 by Brockmann Consult GmbH and contributors
 #
-# Permission is hereby granted, free of charge, to any person obtaining a copy of
-# this software and associated documentation files (the "Software"), to deal in
-# the Software without restriction, including without limitation the rights to
-# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-# of the Software, and to permit persons to whom the Software is furnished to do
-# so, subject to the following conditions:
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
 
 import glob
 import os.path
@@ -48,7 +48,8 @@ class DatasetOpener:
         self._input_engine = input_engine
         self._input_prefetch_chunks = input_prefetch_chunks
 
-    def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+    def open_datasets(self,
+                      preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
         input_paths = self._resolve_input_paths()
         chunks = self._prefetch_chunk_sizes(input_paths[0])
@@ -57,18 +58,22 @@ class DatasetOpener:
         else:
             return self._open_datasets(input_paths, chunks, preprocess)
 
-    def _open_mfdataset(self,
-                        input_paths: List[str],
-                        chunks: Optional[Dict[Hashable, int]],
-                        preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
-            -> xr.Dataset:
+    def _open_mfdataset(
+            self,
+            input_paths: List[str],
+            chunks: Optional[Dict[Hashable, int]],
+            preprocess: Callable[[xr.Dataset], xr.Dataset] = None
+    ) -> xr.Dataset:
         with log_duration(f'Opening {len(input_paths)} file(s)'):
-            ds = xr.open_mfdataset(input_paths,
-                                   engine=self._input_engine,
-                                   preprocess=preprocess,
-                                   concat_dim=self._input_concat_dim,
-                                   decode_cf=self._input_decode_cf,
-                                   chunks=chunks)
+            ds = xr.open_mfdataset(
+                input_paths,
+                engine=self._input_engine,
+                preprocess=preprocess,
+                concat_dim=self._input_concat_dim,
+                decode_cf=self._input_decode_cf,
+                chunks=chunks,
+                combine='nested' if self._input_concat_dim else 'by_coords'
+            )
         yield ds
 
     def _open_datasets(self,
