@@ -193,7 +193,7 @@ output:
   #                   existing data. For data points with identical values in
   #                   the append dimension, the old data are retained and the
   #                   new data discarded.
-  append_mode: "append_all"
+  append_mode: "all"
 
   # Whether to adjust output metadata (global attributes)
   # After the last write/append. This will adjust the
