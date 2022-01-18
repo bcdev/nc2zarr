@@ -48,7 +48,8 @@ class DatasetOpener:
         self._input_engine = input_engine
         self._input_prefetch_chunks = input_prefetch_chunks
 
-    def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+    def open_datasets(self,
+                      preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
         input_paths = self._resolve_input_paths()
         chunks = self._prefetch_chunk_sizes(input_paths[0])
@@ -57,18 +58,22 @@ class DatasetOpener:
         else:
             return self._open_datasets(input_paths, chunks, preprocess)
 
-    def _open_mfdataset(self,
-                        input_paths: List[str],
-                        chunks: Optional[Dict[Hashable, int]],
-                        preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
-            -> xr.Dataset:
+    def _open_mfdataset(
+            self,
+            input_paths: List[str],
+            chunks: Optional[Dict[Hashable, int]],
+            preprocess: Callable[[xr.Dataset], xr.Dataset] = None
+    ) -> xr.Dataset:
         with log_duration(f'Opening {len(input_paths)} file(s)'):
-            ds = xr.open_mfdataset(input_paths,
-                                   engine=self._input_engine,
-                                   preprocess=preprocess,
-                                   concat_dim=self._input_concat_dim,
-                                   decode_cf=self._input_decode_cf,
-                                   chunks=chunks)
+            ds = xr.open_mfdataset(
+                input_paths,
+                engine=self._input_engine,
+                preprocess=preprocess,
+                concat_dim=self._input_concat_dim,
+                decode_cf=self._input_decode_cf,
+                chunks=chunks,
+                combine='nested' if self._input_concat_dim else 'by_coords'
+            )
         yield ds
 
     def _open_datasets(self,
