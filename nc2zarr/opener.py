@@ -21,6 +21,7 @@
 
 import glob
 import os.path
+import warnings
 from typing import List, Optional, Iterator, Callable, Union, Dict, Hashable
 
 import xarray as xr
@@ -65,6 +66,11 @@ class DatasetOpener:
             preprocess: Callable[[xr.Dataset], xr.Dataset] = None
     ) -> xr.Dataset:
         with log_duration(f'Opening {len(input_paths)} file(s)'):
+            combine = 'nested'
+            if not self._input_concat_dim:
+                combine = 'by_coords'
+                warnings.warn(f'input/concat_dim is not specified, '
+                              f'combining by coordinates')
             ds = xr.open_mfdataset(
                 input_paths,
                 engine=self._input_engine,
@@ -72,7 +78,7 @@ class DatasetOpener:
                 concat_dim=self._input_concat_dim,
                 decode_cf=self._input_decode_cf,
                 chunks=chunks,
-                combine='nested' if self._input_concat_dim else 'by_coords'
+                combine=combine
             )
         yield ds
 

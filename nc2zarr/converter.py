@@ -18,7 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-
+import warnings
 from typing import Sequence, Union, Any, Dict, List
 
 from .constants import DEFAULT_OUTPUT_APPEND_DIM_NAME
@@ -107,11 +107,6 @@ class Converter:
 
         # Maybe raise warning here saying that "out.zarr" is used by default.
         output_path = output_path or DEFAULT_OUTPUT_PATH
-
-        if input_multi_file and input_concat_dim is None:
-            # If input_multi_file is True, we need a input_concat_dim.
-            # Maybe raise warning here saying that "time" is used by default.
-            input_concat_dim = output_append_dim or DEFAULT_OUTPUT_APPEND_DIM_NAME
 
         # output_append_dim is used independently of output_append, namely
         # whenever there is more than one input file.
