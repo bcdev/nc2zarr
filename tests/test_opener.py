@@ -125,7 +125,7 @@ class DatasetOpenerTest(unittest.TestCase):
 
         self.assertIn('r_f32', result[0])
         var = result[0]['r_f32']
-        self.assertEqual(((1, 1, 1,), (9, 9), (9, 9, 9, 9)), var.chunks)
+        self.assertEqual(((1, 1, 1), (9, 9), (9, 9, 9, 9)), var.chunks)
 
 
 class ResolveInputPathsTest(unittest.TestCase):
