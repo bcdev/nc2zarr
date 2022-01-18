@@ -9,6 +9,8 @@
 
 * Fixed ignored `output/append_dim` setting. (#54)
 
+* Fixed broken unit level test `test_multi_file_with_defaults` (#52)
+
 ### Version 1.2.3
 
 * Handle consolidated Zarrs correctly when appending data (fixes #47).
