@@ -86,6 +86,8 @@ input:
   # a dataset's attributes such as "time_coverage_start", "time_coverage_end".
   # Most formats should be automatically detected, e.g. "20150101T103018Z"
   # or "2015-01-01 10:30:18".
+  # For the format syntax please refer to
+  # https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
   datetime_format: null
 
   # Open one input to fetch internal chunking, if any.

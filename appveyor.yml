@@ -32,7 +32,7 @@ build_script:
   - mkdir -p ~/micromamba/pkgs/
   - export MAMBA_ROOT_PREFIX=~/micromamba
   - export MAMBA_EXE=$(pwd)/micromamba
-  - . $MAMBA_ROOT_PREFIX/etc/profile.d/mamba.sh
+  - . $MAMBA_ROOT_PREFIX/etc/profile.d/micromamba.sh
   - micromamba create -y -f environment.yml -c conda-forge
   - micromamba activate ~/micromamba/envs/nc2zarr
   - python3 setup.py install
