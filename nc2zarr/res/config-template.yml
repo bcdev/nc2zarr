@@ -72,7 +72,10 @@ input:
   # - false: Uses xarray.open_dataset(paths[i], ...)
   multi_file: false
 
-  # Name of dimension to be used for concatenation if multi_file is true.
+  # Optional: name of dimension to be used for concatenation if multi_file is
+  # true. If concat_dim is supplied, opened files will be combined using
+  # xarray.open_mfdataset's "nested" mode; if concat_dim is omitted or set
+  # to None, xarray.open_mfdataset's "by_coords" mode will be used instead.
   concat_dim: "time"
 
   # xarray engine used for opening the dataset
@@ -102,8 +105,8 @@ process:
 
   # Rename variables
   rename:
-    <var_name>: <new_var_name>
-    <var_name>: <new_var_name>
+    <var_name_1>: <new_var_name_1>
+    <var_name_2>: <new_var_name_2>
 
   # An optional custom processor.
   # Called after variable renaming and before rechunking.
@@ -115,26 +118,26 @@ process:
   rechunk:
     # For all variables:
     "*":
-      # Set chunk size for <dim_name> to <chunk_size>.
-      <dim_name>: <chunk_size>
-      # Set chunk size for <dim_name> to dimension size.
-      <dim_name>: null
-      # Make chunk size for <dim_name> same as input.
-      <dim_name>: "input"
+      # Set chunk size for <dim_name_1> to <chunk_size>.
+      <dim_name_1>: <chunk_size>
+      # Set chunk size for <dim_name_2> to dimension size.
+      <dim_name_2>: null
+      # Make chunk size for <dim_name_3> same as input.
+      <dim_name_3>: "input"
     # For variable <var_name>:
-    <var_name>:
-      # Set chunk size for <dim_name> to <chunk_size>.
-      <dim_name>: <chunk_size>
-      # Set chunk size for <dim_name> to dimension size.
-      <dim_name>: null
-      # Make chunk size for <dim_name> same as input.
-      <dim_name>: "input"
-    # Set chunk size for all dimensions of <var_name> to <chunk_size>.
-    <var_name>: <chunk_size>
-    # Set chunk size for all dimensions of <var_name> to dimension size.
-    <var_name>: null
-    # Make chunk size for all dimensions of <var_name> same as input.
-    <var_name>: "input"
+    <var_name_1>:
+      # Set chunk size for <dim_name_1> to <chunk_size>.
+      <dim_name_1>: <chunk_size>
+      # Set chunk size for <dim_name_2> to dimension size.
+      <dim_name_2>: null
+      # Make chunk size for <dim_name_3> same as input.
+      <dim_name_3>: "input"
+    # Set chunk size for all dimensions of <var_name_2> to <chunk_size>.
+    <var_name_2>: <chunk_size>
+    # Set chunk size for all dimensions of <var_name_2> to dimension size.
+    <var_name_3>: null
+    # Make chunk size for all dimensions of <var_name_4> same as input.
+    <var_name_4>: "input"
 
 
 # Configuration of output

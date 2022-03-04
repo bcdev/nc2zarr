@@ -41,6 +41,26 @@ class DatasetOpener:
                  input_concat_dim: str = None,
                  input_engine: str = None,
                  input_prefetch_chunks: bool = False):
+        """Instantiate a new DatasetOpener object
+
+        :param input_paths: paths of files to open
+        :param input_multi_file: True to read all input files as one block,
+               using xarray.open_mfdataset
+        :param input_sort_by: how to sort input paths: "name", "path", or None
+        :param input_decode_cf: True to decode inputs according to CF
+               conventions
+        :param input_concat_dim: name of dimension to be used for concatenation
+               if input_multi_file is true. If concat_dim is set, opened
+               files will be combined using xarray.open_mfdataset's "nested"
+               mode; if concat_dim is omitted or set to None,
+               xarray.open_mfdataset's "by_coords" mode will be used instead.
+        :param input_engine: xarray engine used for opening the dataset
+        :param input_prefetch_chunks:  Open one input to fetch internal
+               chunking, if any. Then use this chunking to open all input files
+               (and force using Dask arrays). This may slow down the process
+               slightly, but may be required to avoid memory problems for very
+               large inputs.
+        """
         self._input_paths = input_paths
         self._input_multi_file = input_multi_file
         self._input_sort_by = input_sort_by
