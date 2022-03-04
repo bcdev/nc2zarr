@@ -21,6 +21,7 @@
 
 import glob
 import os.path
+import warnings
 from typing import List, Optional, Iterator, Callable, Union, Dict, Hashable
 
 import xarray as xr
@@ -40,6 +41,26 @@ class DatasetOpener:
                  input_concat_dim: str = None,
                  input_engine: str = None,
                  input_prefetch_chunks: bool = False):
+        """Instantiate a new DatasetOpener object
+
+        :param input_paths: paths of files to open
+        :param input_multi_file: True to read all input files as one block,
+               using xarray.open_mfdataset
+        :param input_sort_by: how to sort input paths: "name", "path", or None
+        :param input_decode_cf: True to decode inputs according to CF
+               conventions
+        :param input_concat_dim: name of dimension to be used for concatenation
+               if input_multi_file is true. If concat_dim is set, opened
+               files will be combined using xarray.open_mfdataset's "nested"
+               mode; if concat_dim is omitted or set to None,
+               xarray.open_mfdataset's "by_coords" mode will be used instead.
+        :param input_engine: xarray engine used for opening the dataset
+        :param input_prefetch_chunks:  Open one input to fetch internal
+               chunking, if any. Then use this chunking to open all input files
+               (and force using Dask arrays). This may slow down the process
+               slightly, but may be required to avoid memory problems for very
+               large inputs.
+        """
         self._input_paths = input_paths
         self._input_multi_file = input_multi_file
         self._input_sort_by = input_sort_by
@@ -48,7 +69,8 @@ class DatasetOpener:
         self._input_engine = input_engine
         self._input_prefetch_chunks = input_prefetch_chunks
 
-    def open_datasets(self, preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
+    def open_datasets(self,
+                      preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
             -> Iterator[xr.Dataset]:
         input_paths = self._resolve_input_paths()
         chunks = self._prefetch_chunk_sizes(input_paths[0])
@@ -57,18 +79,27 @@ class DatasetOpener:
         else:
             return self._open_datasets(input_paths, chunks, preprocess)
 
-    def _open_mfdataset(self,
-                        input_paths: List[str],
-                        chunks: Optional[Dict[Hashable, int]],
-                        preprocess: Callable[[xr.Dataset], xr.Dataset] = None) \
-            -> xr.Dataset:
+    def _open_mfdataset(
+            self,
+            input_paths: List[str],
+            chunks: Optional[Dict[Hashable, int]],
+            preprocess: Callable[[xr.Dataset], xr.Dataset] = None
+    ) -> xr.Dataset:
         with log_duration(f'Opening {len(input_paths)} file(s)'):
-            ds = xr.open_mfdataset(input_paths,
-                                   engine=self._input_engine,
-                                   preprocess=preprocess,
-                                   concat_dim=self._input_concat_dim,
-                                   decode_cf=self._input_decode_cf,
-                                   chunks=chunks)
+            combine = 'nested'
+            if not self._input_concat_dim:
+                combine = 'by_coords'
+                warnings.warn(f'input/concat_dim is not specified, '
+                              f'combining by coordinates')
+            ds = xr.open_mfdataset(
+                input_paths,
+                engine=self._input_engine,
+                preprocess=preprocess,
+                concat_dim=self._input_concat_dim,
+                decode_cf=self._input_decode_cf,
+                chunks=chunks,
+                combine=combine
+            )
         yield ds
 
     def _open_datasets(self,

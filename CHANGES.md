@@ -1,5 +1,16 @@
 ## nc2zarr Change History
 
+### Version 1.2.4 (in development)
+
+* If `input/multi_file` is specified, `concat_dim` is now optional:
+  If `concat_dim` is given, the multi-file combination method is
+  `"nested"`, otherwise `"by_coords"`, which was the former default.
+  (See [xarray.open_mfdatset()](https://xarray.pydata.org/en/stable/generated/xarray.open_mfdataset.html).) 
+
+* Fixed ignored `output/append_dim` setting. (#54)
+
+* Fixed broken unit level test `test_multi_file_with_defaults` (#52)
+
 ### Version 1.2.3
 
 * Handle consolidated Zarrs correctly when appending data (fixes #47).
