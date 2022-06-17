@@ -25,7 +25,6 @@ import warnings
 from typing import List, Optional, Iterator, Callable, Union, Dict, Hashable
 
 import s3fs
-s3 = s3fs.S3FileSystem(anon=False)
 
 import xarray as xr
 
@@ -35,6 +34,10 @@ from .log import log_duration
 
 
 class DatasetOpener:
+
+    # TODO: passing anon value from config file
+    s3 = s3fs.S3FileSystem(anon=False)
+
     def __init__(self,
                  input_paths: Union[str, List[str]],
                  *,
@@ -94,8 +97,8 @@ class DatasetOpener:
                 combine = 'by_coords'
                 warnings.warn(f'input/concat_dim is not specified, '
                               f'combining by coordinates')
-            if 's3' in input_paths[0]:
-                fileset = [s3.open(input_path) for input_path in input_paths]
+            if any('s3://' in input_path for input_path in input_paths):
+                fileset = [self.s3.open(input_path) for input_path in input_paths]
                 engine = 'h5netcdf'
             else:
                 fileset = input_paths
@@ -118,8 +121,8 @@ class DatasetOpener:
             -> Iterator[xr.Dataset]:
         n = len(input_paths)
         for i in range(n):
-            if 's3' in input_paths[i]:
-                input_file = s3.open(input_paths[i])
+            if 's3://' in input_paths[i]:
+                input_file = self.s3.open(input_paths[i])
                 engine = 'h5netcdf'
             else:
                 input_file = input_paths[i]
@@ -138,8 +141,8 @@ class DatasetOpener:
         if not self._input_prefetch_chunks:
             return None
         with log_duration('Pre-fetching chunks'):
-            if 's3' in input_file:
-                file = s3.open(input_file)
+            if 's3://' in input_file:
+                file = self.s3.open(input_file)
                 engine = 'h5netcdf'
             else:
                 file = input_file
@@ -183,15 +186,15 @@ class DatasetOpener:
         resolved_input_files = []
         for input_path in input_paths:
             input_path = os.path.expanduser(input_path)
-            if 's3' in input_path:
+            if 's3://' in input_path:
                 if '*' in input_path or '?' in input_path:
-                    glob_result = s3.glob(input_path)
+                    glob_result = cls.s3.glob(input_path)
                     if not glob_result:
                         raise ConverterError(f'No S3 inputs found for wildcard: "{input_path}"')
                     resolved_input_files.extend(['s3://' + path for path in glob_result])
                 else:
                     try:
-                        s3.ls(input_path)
+                        cls.s3.ls(input_path)
                         resolved_input_files.append(input_path)
                     except FileNotFoundError:
                         raise ConverterError(f'S3 input not found: "{input_path}"')
