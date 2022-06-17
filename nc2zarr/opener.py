@@ -97,7 +97,9 @@ class DatasetOpener:
                 combine = 'by_coords'
                 warnings.warn(f'input/concat_dim is not specified, '
                               f'combining by coordinates')
-            if any('s3://' in input_path for input_path in input_paths):
+            # TODO: this bit of the code needs more work for different cases
+            # e.g mixed sources - s3, local, glob are declared in `paths`
+            if ('s3://' in input_path for input_path in input_paths):
                 fileset = [self.s3.open(input_path) for input_path in input_paths]
                 engine = 'h5netcdf'
             else:
