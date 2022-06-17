@@ -24,6 +24,9 @@ import os.path
 import warnings
 from typing import List, Optional, Iterator, Callable, Union, Dict, Hashable
 
+import s3fs
+s3 = s3fs.S3FileSystem(anon=False)
+
 import xarray as xr
 
 from .error import ConverterError
@@ -91,9 +94,15 @@ class DatasetOpener:
                 combine = 'by_coords'
                 warnings.warn(f'input/concat_dim is not specified, '
                               f'combining by coordinates')
+            if 's3' in input_paths[0]:
+                fileset = [s3.open(input_path) for input_path in input_paths]
+                engine = 'h5netcdf'
+            else:
+                fileset = input_paths
+                engine = self._input_engine
             ds = xr.open_mfdataset(
-                input_paths,
-                engine=self._input_engine,
+                fileset,
+                engine=engine,
                 preprocess=preprocess,
                 concat_dim=self._input_concat_dim,
                 decode_cf=self._input_decode_cf,
@@ -109,11 +118,16 @@ class DatasetOpener:
             -> Iterator[xr.Dataset]:
         n = len(input_paths)
         for i in range(n):
-            input_file = input_paths[i]
-            LOGGER.info(f'Processing input {i + 1} of {n}: {input_file}')
+            if 's3' in input_paths[i]:
+                input_file = s3.open(input_paths[i])
+                engine = 'h5netcdf'
+            else:
+                input_file = input_paths[i]
+                engine = self._get_engine(input_file)
+            LOGGER.info(f'Processing input {i + 1} of {n}: {input_paths[i]}')
             with log_duration('Opening'):
                 ds = xr.open_dataset(input_file,
-                                     engine=self._get_engine(input_file),
+                                     engine=engine,
                                      decode_cf=self._input_decode_cf,
                                      chunks=chunks)
                 if preprocess:
@@ -124,8 +138,14 @@ class DatasetOpener:
         if not self._input_prefetch_chunks:
             return None
         with log_duration('Pre-fetching chunks'):
-            with xr.open_dataset(input_file,
-                                 engine=self._get_engine(input_file),
+            if 's3' in input_file:
+                file = s3.open(input_file)
+                engine = 'h5netcdf'
+            else:
+                file = input_file
+                engine = self._get_engine(input_file)
+            with xr.open_dataset(file,
+                                 engine=engine,
                                  decode_cf=self._input_decode_cf) as ds:
                 chunk_sizes = dict()
                 for var in ds.data_vars.values():
@@ -163,15 +183,28 @@ class DatasetOpener:
         resolved_input_files = []
         for input_path in input_paths:
             input_path = os.path.expanduser(input_path)
-            if '*' in input_path or '?' in input_path:
-                glob_result = glob.glob(input_path, recursive=True)
-                if not glob_result:
-                    raise ConverterError(f'No inputs found for wildcard: "{input_path}"')
-                resolved_input_files.extend(glob_result)
+            if 's3' in input_path:
+                if '*' in input_path or '?' in input_path:
+                    glob_result = s3.glob(input_path)
+                    if not glob_result:
+                        raise ConverterError(f'No S3 inputs found for wildcard: "{input_path}"')
+                    resolved_input_files.extend(['s3://' + path for path in glob_result])
+                else:
+                    try:
+                        s3.ls(input_path)
+                        resolved_input_files.append(input_path)
+                    except FileNotFoundError:
+                        raise ConverterError(f'S3 input not found: "{input_path}"')
             else:
-                if not os.path.exists(input_path):
-                    raise ConverterError(f'Input not found: "{input_path}"')
-                resolved_input_files.append(input_path)
+                if '*' in input_path or '?' in input_path:
+                    glob_result = glob.glob(input_path, recursive=True)
+                    if not glob_result:
+                        raise ConverterError(f'No inputs found for wildcard: "{input_path}"')
+                    resolved_input_files.extend(glob_result)
+                else:
+                    if not os.path.exists(input_path):
+                        raise ConverterError(f'Input not found: "{input_path}"')
+                    resolved_input_files.append(input_path)
 
         if sort_by:
             # Get rid of doubles and sort
