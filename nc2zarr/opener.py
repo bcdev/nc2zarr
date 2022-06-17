@@ -101,13 +101,11 @@ class DatasetOpener:
             # e.g mixed sources - s3, local, glob are declared in `paths`
             if ('s3://' in input_path for input_path in input_paths):
                 fileset = [self.s3.open(input_path) for input_path in input_paths]
-                engine = 'h5netcdf'
             else:
                 fileset = input_paths
-                engine = self._input_engine
             ds = xr.open_mfdataset(
                 fileset,
-                engine=engine,
+                engine=self._input_engine,
                 preprocess=preprocess,
                 concat_dim=self._input_concat_dim,
                 decode_cf=self._input_decode_cf,
@@ -125,14 +123,12 @@ class DatasetOpener:
         for i in range(n):
             if 's3://' in input_paths[i]:
                 input_file = self.s3.open(input_paths[i])
-                engine = 'h5netcdf'
             else:
                 input_file = input_paths[i]
-                engine = self._get_engine(input_file)
             LOGGER.info(f'Processing input {i + 1} of {n}: {input_paths[i]}')
             with log_duration('Opening'):
                 ds = xr.open_dataset(input_file,
-                                     engine=engine,
+                                     engine=self._get_engine(input_file),
                                      decode_cf=self._input_decode_cf,
                                      chunks=chunks)
                 if preprocess:
@@ -145,12 +141,10 @@ class DatasetOpener:
         with log_duration('Pre-fetching chunks'):
             if 's3://' in input_file:
                 file = self.s3.open(input_file)
-                engine = 'h5netcdf'
             else:
                 file = input_file
-                engine = self._get_engine(input_file)
             with xr.open_dataset(file,
-                                 engine=engine,
+                                 engine=self._get_engine(file),
                                  decode_cf=self._input_decode_cf) as ds:
                 chunk_sizes = dict()
                 for var in ds.data_vars.values():
