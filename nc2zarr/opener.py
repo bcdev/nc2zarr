@@ -99,7 +99,7 @@ class DatasetOpener:
                               f'combining by coordinates')
             # TODO: this bit of the code needs more work for different cases
             # e.g mixed sources - s3, local, glob are declared in `paths`
-            if ('s3://' in input_path for input_path in input_paths):
+            if (input_path.startswith('s3://') for input_path in input_paths):
                 fileset = [self.s3.open(input_path) for input_path in input_paths]
             else:
                 fileset = input_paths
@@ -121,7 +121,7 @@ class DatasetOpener:
             -> Iterator[xr.Dataset]:
         n = len(input_paths)
         for i in range(n):
-            if 's3://' in input_paths[i]:
+            if input_paths[i].startswith('s3://'):
                 input_file = self.s3.open(input_paths[i])
             else:
                 input_file = input_paths[i]
@@ -139,7 +139,7 @@ class DatasetOpener:
         if not self._input_prefetch_chunks:
             return None
         with log_duration('Pre-fetching chunks'):
-            if 's3://' in input_file:
+            if input_file.startswith('s3://'):
                 file = self.s3.open(input_file)
             else:
                 file = input_file
@@ -182,7 +182,7 @@ class DatasetOpener:
         resolved_input_files = []
         for input_path in input_paths:
             input_path = os.path.expanduser(input_path)
-            if 's3://' in input_path:
+            if input_path.startswith('s3://'):
                 if '*' in input_path or '?' in input_path:
                     glob_result = cls.s3.glob(input_path)
                     if not glob_result:
