@@ -461,6 +461,7 @@ class SlurmJob(ObservedBatchJob):
                    account: str = None,
                    partition: str = None,
                    duration: str = None,
+                   memory: str = None,
                    sbatch_program: str = None,
                    squeue_program: str = None,
                    **kwargs: str) -> 'SlurmJob':
@@ -474,6 +475,8 @@ class SlurmJob(ObservedBatchJob):
             sbatch_command += [f'--time={duration}']
         if cwd_path:
             sbatch_command += [f'--chdir={cwd_path}']
+        if memory:
+            sbatch_command += [f'--mem={memory}']
         if env_vars:
             export = ",".join(f"{k}={v}" for k, v in env_vars.items())
             sbatch_command += [f'--export=ALL,{export}']
