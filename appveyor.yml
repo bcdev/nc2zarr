@@ -2,7 +2,7 @@ version: '{build}'
 
 image:
   - macos
-  - Ubuntu2004
+  - Ubuntu2204
 
 configuration: Release
 
@@ -20,7 +20,7 @@ for:
 -
   matrix:
     only:
-      - image: Ubuntu2004
+      - image: Ubuntu2204
   install:
     - wget -qO- https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj bin/micromamba --strip-components=1
 
