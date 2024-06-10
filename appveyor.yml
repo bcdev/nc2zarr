@@ -27,7 +27,7 @@ for:
 build_script:
   - ./micromamba shell init -s bash -p ~/micromamba
   - source ~/.bashrc
-  - source ~/.bash_profile
+  - source ~/.profile
   - hash -r
   - mkdir -p ~/micromamba/pkgs/
   - export MAMBA_ROOT_PREFIX=~/micromamba
