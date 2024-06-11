@@ -252,13 +252,15 @@ class DatasetWriter:
         output_ds = None
         try:
             output_ds = xr.open_zarr(self._output_store)
-        except GroupNotFoundError:
+        except (GroupNotFoundError, FileNotFoundError):
             pass
             # Output store doesn't exist, so we'll skip checks on it.
             # (This should only happen in the case of a dry run, in cases
             # where the output file would have been created in a normal
             # run, so self._output_path_exists is true but the Zarr doesn't
-            # actually exist.)
+            # actually exist.) xarray raises FileNotFoundError since
+            # v2022.09.0; older versions raise GroupNotFoundError (see
+            # xarray issue 6484).
         if self._output_append_mode is not AppendMode.all:
             if not self._is_append_dim_monotonic_increasing(output_ds):
                 raise ValueError(

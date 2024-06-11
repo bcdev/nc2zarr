@@ -75,8 +75,10 @@ class DatasetPreProcessorTest(unittest.TestCase):
         time = ds.time
         ds = ds.rename_vars({'time': 't'})
         ds = ds.swap_dims({'time': 't'})
-        ds = ds.assign_coords({'time': xr.DataArray(time[0].values.item(),
-                                                    dims=())})
+        ds = ds.assign_coords(
+            {'time_tmp': (xr.DataArray(time[0].values.item(), dims=()))}
+        )
+        ds = ds.rename_vars({'time_tmp': 'time'})
         ds.time.attrs.update(time.attrs)
         ds.time.encoding.update(time.encoding)
         ds = ds.drop_vars('t')

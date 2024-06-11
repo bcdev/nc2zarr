@@ -2,7 +2,7 @@ version: '{build}'
 
 image:
   - macos
-  - Ubuntu2004
+  - Ubuntu2204
 
 configuration: Release
 
@@ -15,19 +15,20 @@ for:
     only:
       - image: macos
   install:
-    - curl -Ls https://micromamba.snakepit.net/api/micromamba/osx-64/latest | tar -xvj bin/micromamba
+    - curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/latest | tar -xvj bin/micromamba
     - mv bin/micromamba ./micromamba
 -
   matrix:
     only:
-      - image: Ubuntu2004
+      - image: Ubuntu2204
   install:
-    - wget -qO- https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xvj bin/micromamba --strip-components=1
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+    - mv bin/micromamba ./micromamba
 
 build_script:
   - ./micromamba shell init -s bash -p ~/micromamba
   - source ~/.bashrc
-  - source ~/.bash_profile
+  - source ~/.profile
   - hash -r
   - mkdir -p ~/micromamba/pkgs/
   - export MAMBA_ROOT_PREFIX=~/micromamba

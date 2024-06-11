@@ -60,7 +60,7 @@ def find_slice(store: Union[str, MutableMapping],
     """
     try:
         cube = xr.open_dataset(store, engine="zarr")
-    except (GroupNotFoundError, PathNotFoundError):
+    except (GroupNotFoundError, PathNotFoundError, FileNotFoundError):
         # zarr directory does not exist
         return -1, 'create'
 
