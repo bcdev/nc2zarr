@@ -26,14 +26,14 @@ for:
     - mv bin/micromamba ./micromamba
 
 build_script:
-  - ./micromamba shell init -s bash -p ~/micromamba
+  - ./micromamba shell init -s bash --root-prefix ~/micromamba
   - source ~/.bashrc
   - source ~/.profile
   - hash -r
   - mkdir -p ~/micromamba/pkgs/
   - export MAMBA_ROOT_PREFIX=~/micromamba
   - export MAMBA_EXE=$(pwd)/micromamba
-  - . $MAMBA_ROOT_PREFIX/etc/profile.d/micromamba.sh
+  - . $MAMBA_ROOT_PREFIX/etc/profile.d/mamba.sh
   - micromamba create -y -f environment.yml -c conda-forge
   - micromamba activate ~/micromamba/envs/nc2zarr
   - python3 setup.py install
