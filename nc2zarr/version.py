@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright (c) 2022 by Brockmann Consult GmbH and contributors
+# Copyright (c) 2021–2025 by Brockmann Consult GmbH and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -19,4 +19,4 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-version = '1.2.3'
+version = '1.2.4'

@@ -1,6 +1,6 @@
 ## nc2zarr Change History
 
-### Version 1.2.4 (in development)
+### Version 1.2.4
 
 * If `input/multi_file` is specified, `concat_dim` is now optional:
   If `concat_dim` is given, the multi-file combination method is
@@ -10,6 +10,9 @@
 * Fixed ignored `output/append_dim` setting. (#54)
 
 * Fixed broken unit level test `test_multi_file_with_defaults` (#52)
+
+* Update some unit tests for compatibility with current xarray and Zarr
+  versions.
 
 ### Version 1.2.3
 
