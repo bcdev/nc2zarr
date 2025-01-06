@@ -1,5 +1,7 @@
 ## nc2zarr Change History
 
+### Version 1.2.5 (in development)
+
 ### Version 1.2.4
 
 * If `input/multi_file` is specified, `concat_dim` is now optional:
