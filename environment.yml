@@ -16,7 +16,7 @@ dependencies:
   - retry
   - s3fs >=2022.1.0
   - xarray
-  - zarr
+  - zarr <3
   # Testing
   - pytest
   - pytest-cov
