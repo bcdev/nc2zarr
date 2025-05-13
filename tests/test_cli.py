@@ -99,7 +99,7 @@ class Nc2zarrCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
         result = self.invoke_cli([])
         self.assertCliResult(result,
                              expected_exit_code=1,
-                             expected_stdout='Error: At least one input must be given.')
+                             expected_stderr='Error: At least one input must be given.')
 
     def test_3_netcdf_inputs(self):
         self.add_inputs('inputs', day_offset=1, num_days=3, add_time_bnds=True)
@@ -174,7 +174,7 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=1,
-                             expected_stdout=['Error: Could not open file',
+                             expected_stderr=['Error: Could not open file',
                                               'config-template.yml',
                                               ': not found'])
 
@@ -190,7 +190,7 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=2,
-                             expected_stdout='Error: reference "${year}" '
+                             expected_stderr='Error: reference "${year}" '
                                              'missing in CONFIG_PATH_TEMPLATE')
 
     def test_scheduler_config_not_found(self):
@@ -206,7 +206,7 @@ class Nc2zarrBatchCliTest(CliTest, ZarrOutputTestMixin, IOCollector):
                                  main=nc2zarr_batch)
         self.assertCliResult(result,
                              expected_exit_code=1,
-                             expected_stdout=['Error: Could not open file ',
+                             expected_stderr=['Error: Could not open file ',
                                               'local.yml',
                                               ': not found'])
 

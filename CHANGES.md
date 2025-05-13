@@ -2,6 +2,9 @@
 
 ### Version 1.2.5 (in development)
 
+* Update tests to work with click >=8.2.0, and require at least this version
+  (#66)
+
 ### Version 1.2.4
 
 * If `input/multi_file` is specified, `concat_dim` is now optional:
